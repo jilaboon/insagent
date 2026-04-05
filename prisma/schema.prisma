@@ -1,0 +1,474 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Auth & Users
+// ============================================================
+
+enum UserRole {
+  OWNER
+  MANAGER
+  AGENT
+  OPERATIONS
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  role      UserRole @default(AGENT)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignedCustomers Customer[]
+  tasks             Task[]
+  importJobs        ImportJob[]
+  auditEntries      AuditEntry[]
+  recommendations   Recommendation[] @relation("ReviewedBy")
+
+  @@map("users")
+}
+
+// ============================================================
+// Customers
+// ============================================================
+
+model Customer {
+  id               String   @id @default(uuid())
+  israeliId        String   @unique // ת.ז.
+  firstName        String
+  lastName         String
+  address          String?
+  phone            String?
+  email            String?
+  assignedManagerId String?
+  assignedManager  User?    @relation(fields: [assignedManagerId], references: [id])
+  lastReviewDate   DateTime?
+  lastImportDate   DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  familyMembers    FamilyMember[]
+  policies         Policy[]
+  insights         Insight[]
+  recommendations  Recommendation[]
+  tasks            Task[]
+  fieldProvenance  FieldProvenance[]
+  importLinks      ImportJobCustomer[]
+
+  @@index([israeliId])
+  @@index([assignedManagerId])
+  @@index([lastName, firstName])
+  @@map("customers")
+}
+
+enum FamilyMemberSource {
+  IMPORTED
+  MANUAL
+}
+
+model FamilyMember {
+  id           String             @id @default(uuid())
+  customerId   String
+  customer     Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  israeliId    String?
+  name         String
+  relationship String?
+  source       FamilyMemberSource @default(IMPORTED)
+  createdAt    DateTime           @default(now())
+
+  @@index([customerId])
+  @@map("family_members")
+}
+
+// ============================================================
+// Insurance Data
+// ============================================================
+
+enum PolicyCategory {
+  PROPERTY      // רכוש - רכב, דירה, עסק
+  HEALTH        // בריאות, סיעוד, תאונות אישיות ופרט
+  LIFE          // ביטוח חיים
+  PENSION       // פנסיה
+  SAVINGS       // חיסכון טהור
+  RISK          // סיכון טהור
+  PROVIDENT     // קרן השתלמות / גמל
+}
+
+enum PolicyStatus {
+  ACTIVE        // בתוקף
+  PROPOSAL      // הצעה
+  CANCELLED     // מבוטל
+  EXPIRED       // פג תוקף
+  UNKNOWN
+}
+
+model Policy {
+  id              String         @id @default(uuid())
+  customerId      String
+  customer        Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  policyNumber    String
+  insurer         String
+  category        PolicyCategory
+  subType         String?        // רכב-מקיף, רכב-חובה, דירה, etc.
+  status          PolicyStatus   @default(ACTIVE)
+  productName     String?        // שם מוצר ביצרן
+  startDate       DateTime?
+  endDate         DateTime?
+  premiumMonthly  Float?
+  premiumAnnual   Float?
+  accountType     String?        // פרט / שכיר
+  employer        String?
+  totalDepositsYtd Float?
+  lastDeposit     Float?
+  redemptionValue Float?
+  accumulatedSavings Float?
+  dataFreshnessDate DateTime?    // נכונות המידע
+  importJobId     String?
+  importJob       ImportJob?     @relation(fields: [importJobId], references: [id])
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Vehicle-specific
+  vehicleYear     Int?
+  vehiclePlate    String?
+  vehicleModel    String?
+
+  // Property-specific
+  propertyAddress String?
+
+  coverages        Coverage[]
+  investmentTracks InvestmentTrack[]
+  managementFees   ManagementFee[]
+
+  @@index([customerId])
+  @@index([category])
+  @@index([endDate])
+  @@index([insurer])
+  @@map("policies")
+}
+
+model Coverage {
+  id            String   @id @default(uuid())
+  policyId      String
+  policy        Policy   @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  name          String   // שם כיסוי ביצרן
+  startDate     DateTime?
+  endDate       DateTime?
+  insuredType   String?  // ראשי / משני
+  sumInsuredDeath Float?
+  sumInsured    Float?
+  cost          Float?
+
+  @@index([policyId])
+  @@map("coverages")
+}
+
+model InvestmentTrack {
+  id            String  @id @default(uuid())
+  policyId      String
+  policy        Policy  @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  name          String
+  depositType   String?
+  accumulatedAmount Float?
+  ytdReturn     Float?
+
+  @@index([policyId])
+  @@map("investment_tracks")
+}
+
+model ManagementFee {
+  id            String  @id @default(uuid())
+  policyId      String
+  policy        Policy  @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  characteristic String? // מאפייני מסלול
+  feeType       String   // דמי ניהול מצבירה / מהפקדה
+  ratePercent   Float?
+  amount        Float?
+  otherAmount   Float?
+
+  @@index([policyId])
+  @@map("management_fees")
+}
+
+// ============================================================
+// Intelligence
+// ============================================================
+
+enum InsightCategory {
+  EXPIRING_POLICY
+  SINGLE_CATEGORY
+  NO_PROPERTY
+  NO_HEALTH
+  STALE_DATA
+  PREMIUM_CONCENTRATION
+  NO_RECENT_CONTACT
+  FAMILY_NO_COVERAGE
+  HIGH_SAVINGS_LOW_PROTECTION
+  COVERAGE_GAP
+}
+
+enum InsightStatus {
+  NEW
+  REVIEWED
+  DISMISSED
+  CONVERTED_TO_RECOMMENDATION
+  CONVERTED_TO_TASK
+}
+
+model Insight {
+  id            String          @id @default(uuid())
+  customerId    String
+  customer      Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  category      InsightCategory
+  title         String
+  summary       String
+  explanation   String?
+  whyNow        String?         // explicit timing explanation
+  urgencyLevel  Int             @default(0) // 0=low, 1=medium, 2=high
+  dataFreshness Int             @default(0) // 0=stale, 1=partial, 2=fresh
+  profileCompleteness Int       @default(0) // 0=low, 1=medium, 2=high
+  evidenceJson  Json?           // source references
+  status        InsightStatus   @default(NEW)
+  generatedBy   String          @default("DETERMINISTIC") // DETERMINISTIC / RULE / AI
+  linkedRuleId  String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  recommendations Recommendation[]
+
+  @@index([customerId])
+  @@index([category])
+  @@index([status])
+  @@map("insights")
+}
+
+enum RecommendationType {
+  POLICY_RENEWAL
+  COVERAGE_GAP_REVIEW
+  INACTIVITY_FOLLOWUP
+  CROSS_SELL
+  DOCUMENT_FOLLOWUP
+  PREMIUM_OPTIMIZATION
+  FAMILY_PROTECTION_REVIEW
+  SERVICE_REVIEW
+}
+
+enum RecommendationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  POSTPONED
+  CONVERTED_TO_TASK
+  EXPIRED
+}
+
+model Recommendation {
+  id              String               @id @default(uuid())
+  customerId      String
+  customer        Customer             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  insightId       String?
+  insight         Insight?             @relation(fields: [insightId], references: [id])
+  type            RecommendationType
+  title           String
+  shortExplanation String
+  fullRationale   String?
+  whyNow          String               // explicit timing
+  officeRationale String?
+  customerRationale String?
+  strengthLevel   Int                  @default(1) // 0=low, 1=medium, 2=high
+  evidenceJson    Json?
+  generatedBy     String               @default("DETERMINISTIC")
+  linkedRuleId    String?
+  status          RecommendationStatus @default(PENDING)
+  reviewerId      String?
+  reviewer        User?                @relation("ReviewedBy", fields: [reviewerId], references: [id])
+  reviewerNotes   String?
+  reviewedAt      DateTime?
+  expiresAt       DateTime?
+  cooldownUntil   DateTime?            // dedup cooldown
+  convertedTaskId String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  feedback        RecommendationFeedback[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([type])
+  @@index([expiresAt])
+  @@map("recommendations")
+}
+
+enum RejectionReason {
+  IRRELEVANT
+  DUPLICATE
+  WRONG_TIMING
+  INSUFFICIENT_EVIDENCE
+  WRONG_WORDING
+  SENSITIVE
+  ALREADY_HANDLED
+}
+
+model RecommendationFeedback {
+  id                String           @id @default(uuid())
+  recommendationId  String
+  recommendation    Recommendation   @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  action            String           // approved / rejected / postponed / positive_signal
+  rejectionReason   RejectionReason?
+  comment           String?
+  actorId           String
+  createdAt         DateTime         @default(now())
+
+  @@index([recommendationId])
+  @@map("recommendation_feedback")
+}
+
+// ============================================================
+// Tasks
+// ============================================================
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Task {
+  id                 String       @id @default(uuid())
+  customerId         String?
+  customer           Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  linkedRecommendationId String?
+  ownerId            String?
+  owner              User?        @relation(fields: [ownerId], references: [id])
+  title              String
+  description        String?
+  priority           TaskPriority @default(MEDIUM)
+  status             TaskStatus   @default(OPEN)
+  dueDate            DateTime?
+  completedAt        DateTime?
+  source             String?      // recommendation / manual / import
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@index([ownerId])
+  @@index([customerId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("tasks")
+}
+
+// ============================================================
+// Data Import
+// ============================================================
+
+enum ImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  PARTIAL
+}
+
+model ImportJob {
+  id              String       @id @default(uuid())
+  fileName        String
+  fileType        String       // bafi_html / csv / excel / pdf
+  filePath        String?      // Supabase storage path
+  fileSize        Int?
+  status          ImportStatus @default(PENDING)
+  operatorId      String
+  operator        User         @relation(fields: [operatorId], references: [id])
+  totalRows       Int?
+  importedRows    Int?
+  failedRows      Int?
+  newCustomers    Int?
+  updatedCustomers Int?
+  ambiguousMatches Int?
+  errorLog        Json?
+  mappingConfig   Json?
+  createdAt       DateTime     @default(now())
+  completedAt     DateTime?
+
+  policies        Policy[]
+  customerLinks   ImportJobCustomer[]
+
+  @@index([status])
+  @@index([operatorId])
+  @@map("import_jobs")
+}
+
+model ImportJobCustomer {
+  id           String    @id @default(uuid())
+  importJobId  String
+  importJob    ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+  customerId   String
+  customer     Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  matchType    String    // exact / probable / new
+  createdAt    DateTime  @default(now())
+
+  @@unique([importJobId, customerId])
+  @@map("import_job_customers")
+}
+
+// ============================================================
+// Provenance
+// ============================================================
+
+model FieldProvenance {
+  id            String   @id @default(uuid())
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  entityType    String   // customer / policy / coverage
+  entityId      String
+  fieldName     String
+  value         String?
+  sourceFile    String?
+  importJobId   String?
+  importedAt    DateTime?
+  overrideByUserId String?
+  overrideAt    DateTime?
+  createdAt     DateTime @default(now())
+
+  @@index([customerId])
+  @@index([entityType, entityId])
+  @@map("field_provenance")
+}
+
+// ============================================================
+// Audit
+// ============================================================
+
+model AuditEntry {
+  id          String   @id @default(uuid())
+  actorId     String?
+  actor       User?    @relation(fields: [actorId], references: [id])
+  entityType  String   // customer / recommendation / task / import / rule / user
+  entityId    String?
+  action      String   // created / updated / approved / rejected / deleted / imported
+  details     Json?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("audit_entries")
+}
