@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InsAgent — סקירת מוצר</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Heebo', sans-serif;
+    background: #FAFAF9;
+    color: #1A1917;
+    direction: rtl;
+  }
+
+  .page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 60px 40px;
+    page-break-after: always;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .page-number {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    color: #A8A7A2;
+  }
+
+  /* Title page */
+  .title-page {
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .title-page .logo {
+    width: 80px;
+    height: 80px;
+    background: #097E6E;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 32px;
+    color: white;
+    font-size: 32px;
+    font-weight: 800;
+  }
+
+  .title-page h1 {
+    font-size: 48px;
+    font-weight: 800;
+    color: #1A1917;
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
+  }
+
+  .title-page .subtitle {
+    font-size: 22px;
+    color: #57554F;
+    font-weight: 400;
+    margin-bottom: 48px;
+  }
+
+  .title-page .tagline {
+    font-size: 16px;
+    color: #097E6E;
+    font-weight: 500;
+    padding: 12px 24px;
+    background: #EFFCF9;
+    border-radius: 12px;
+    display: inline-block;
+  }
+
+  /* Section titles */
+  h2 {
+    font-size: 32px;
+    font-weight: 700;
+    color: #1A1917;
+    margin-bottom: 8px;
+  }
+
+  h2 .num {
+    color: #097E6E;
+    font-weight: 800;
+  }
+
+  .section-subtitle {
+    font-size: 16px;
+    color: #78766F;
+    margin-bottom: 40px;
+  }
+
+  /* Problem cards */
+  .problem-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 40px;
+  }
+
+  .problem-card {
+    background: white;
+    border: 1px solid #E2E1DE;
+    border-radius: 16px;
+    padding: 28px 24px;
+  }
+
+  .problem-card .icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    margin-bottom: 16px;
+  }
+
+  .problem-card h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #272522;
+  }
+
+  .problem-card p {
+    font-size: 13px;
+    color: #78766F;
+    line-height: 1.6;
+  }
+
+  .red-bg { background: #FEF2F2; color: #DC2626; }
+  .amber-bg { background: #FFFBEB; color: #D97706; }
+  .gray-bg { background: #F5F5F4; color: #57554F; }
+
+  /* Solution banner */
+  .solution-banner {
+    background: #097E6E;
+    color: white;
+    border-radius: 16px;
+    padding: 32px;
+    text-align: center;
+  }
+
+  .solution-banner h3 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .solution-banner p {
+    font-size: 15px;
+    opacity: 0.85;
+  }
+
+  /* Flow diagram */
+  .flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin: 40px 0;
+    direction: ltr;
+  }
+
+  .flow-step {
+    background: white;
+    border: 2px solid #E2E1DE;
+    border-radius: 16px;
+    padding: 24px 20px;
+    text-align: center;
+    width: 160px;
+    position: relative;
+  }
+
+  .flow-step.active {
+    border-color: #097E6E;
+    background: #EFFCF9;
+  }
+
+  .flow-step .step-icon {
+    font-size: 28px;
+    margin-bottom: 10px;
+  }
+
+  .flow-step h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #272522;
+    margin-bottom: 4px;
+    direction: rtl;
+  }
+
+  .flow-step p {
+    font-size: 11px;
+    color: #78766F;
+    direction: rtl;
+  }
+
+  .flow-arrow {
+    font-size: 24px;
+    color: #D1D0CC;
+    padding: 0 8px;
+  }
+
+  /* Module map */
+  .module-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  .module-card {
+    background: white;
+    border: 1px solid #E2E1DE;
+    border-radius: 14px;
+    padding: 24px 20px;
+    text-align: center;
+    transition: all 0.2s;
+  }
+
+  .module-card.core {
+    border-color: #097E6E;
+    background: linear-gradient(135deg, #EFFCF9 0%, white 100%);
+  }
+
+  .module-card .mod-icon {
+    font-size: 28px;
+    margin-bottom: 12px;
+  }
+
+  .module-card h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #272522;
+    margin-bottom: 6px;
+  }
+
+  .module-card p {
+    font-size: 11px;
+    color: #78766F;
+    line-height: 1.5;
+  }
+
+  .module-card .phase-tag {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .phase-1 { background: #EFFCF9; color: #097E6E; }
+  .phase-2 { background: #FFFBEB; color: #B75006; }
+  .phase-3 { background: #F5F5F4; color: #78766F; }
+
+  /* Architecture diagram */
+  .arch-layers {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .arch-layer {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: white;
+    border: 1px solid #E2E1DE;
+    border-radius: 14px;
+    padding: 20px 24px;
+  }
+
+  .arch-layer .layer-label {
+    width: 140px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #097E6E;
+    flex-shrink: 0;
+  }
+
+  .arch-layer .layer-items {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex: 1;
+  }
+
+  .layer-item {
+    padding: 6px 14px;
+    background: #F5F5F4;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #3D3B37;
+    font-weight: 500;
+  }
+
+  .layer-item.highlight {
+    background: #EFFCF9;
+    color: #0B6459;
+  }
+
+  /* Customer profile mockup */
+  .mockup-frame {
+    background: white;
+    border: 1px solid #E2E1DE;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+  }
+
+  .mockup-topbar {
+    background: #FAFAF9;
+    border-bottom: 1px solid #E2E1DE;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    color: #78766F;
+  }
+
+  .mockup-body {
+    padding: 24px;
+  }
+
+  .mockup-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .mockup-avatar {
+    width: 52px;
+    height: 52px;
+    background: #EFFCF9;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: #097E6E;
+  }
+
+  .mockup-name {
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  .mockup-meta {
+    font-size: 12px;
+    color: #78766F;
+    margin-top: 2px;
+  }
+
+  .insurance-map-mock {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  .ins-cell {
+    border: 1px solid #E2E1DE;
+    border-radius: 10px;
+    padding: 14px 8px;
+    text-align: center;
+    font-size: 11px;
+  }
+
+  .ins-cell.has {
+    border-color: #097E6E;
+    background: #EFFCF9;
+  }
+
+  .ins-cell.missing {
+    border-style: dashed;
+    background: #FAFAF9;
+    color: #A8A7A2;
+  }
+
+  .ins-cell .cell-icon { font-size: 18px; margin-bottom: 6px; }
+  .ins-cell .cell-label { font-weight: 600; color: #272522; }
+  .ins-cell.missing .cell-label { color: #A8A7A2; }
+
+  /* Timeline */
+  .timeline-preview {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+  }
+
+  .timeline-col {
+    flex: 1;
+    background: #FAFAF9;
+    border-radius: 12px;
+    padding: 16px;
+  }
+
+  .timeline-col h5 {
+    font-size: 12px;
+    font-weight: 600;
+    color: #097E6E;
+    margin-bottom: 12px;
+  }
+
+  .timeline-item {
+    background: white;
+    border: 1px solid #E2E1DE;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    font-size: 12px;
+  }
+
+  .timeline-item .ti-title { font-weight: 600; color: #272522; margin-bottom: 2px; }
+  .timeline-item .ti-desc { color: #78766F; font-size: 11px; }
+
+  /* Phase roadmap */
+  .roadmap {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  .roadmap-phase {
+    border-radius: 16px;
+    padding: 28px 24px;
+    position: relative;
+  }
+
+  .roadmap-phase.p1 { background: #EFFCF9; border: 2px solid #097E6E; }
+  .roadmap-phase.p2 { background: #FFFBEB; border: 1px solid #FFE588; }
+  .roadmap-phase.p3 { background: white; border: 1px solid #E2E1DE; }
+  .roadmap-phase.p4 { background: #F5F5F4; border: 1px dashed #D1D0CC; }
+
+  .roadmap-phase .phase-num {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .roadmap-phase.p1 .phase-num { color: #097E6E; }
+  .roadmap-phase.p2 .phase-num { color: #B75006; }
+  .roadmap-phase.p3 .phase-num { color: #57554F; }
+  .roadmap-phase.p4 .phase-num { color: #A8A7A2; }
+
+  .roadmap-phase h4 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: #272522;
+  }
+
+  .roadmap-phase ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  .roadmap-phase li {
+    font-size: 12px;
+    color: #57554F;
+    padding: 3px 0;
+    padding-right: 16px;
+    position: relative;
+  }
+
+  .roadmap-phase li::before {
+    content: '✓';
+    position: absolute;
+    right: 0;
+    color: #097E6E;
+    font-size: 11px;
+  }
+
+  .roadmap-phase.p4 li::before { content: '○'; color: #A8A7A2; }
+
+  /* Key principles */
+  .principles {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+
+  .principle {
+    display: flex;
+    gap: 16px;
+    background: white;
+    border: 1px solid #E2E1DE;
+    border-radius: 14px;
+    padding: 24px;
+  }
+
+  .principle .pr-icon {
+    width: 44px;
+    height: 44px;
+    background: #EFFCF9;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .principle h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #272522;
+    margin-bottom: 4px;
+  }
+
+  .principle p {
+    font-size: 12px;
+    color: #78766F;
+    line-height: 1.5;
+  }
+
+  /* Divider */
+  .divider {
+    height: 1px;
+    background: #E2E1DE;
+    margin: 40px 0;
+  }
+
+  @media print {
+    .page { page-break-after: always; padding: 40px 30px; }
+    body { background: white; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- PAGE 1: Title -->
+<!-- ============================================================ -->
+<div class="page title-page">
+  <div class="logo">🧠</div>
+  <h1>InsAgent</h1>
+  <p class="subtitle">המוח החכם של משרד הביטוח</p>
+  <p class="tagline">מערכת אינטליגנציה פנימית שהופכת נתונים להמלצות ופעולה</p>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE 2: The Problem -->
+<!-- ============================================================ -->
+<div class="page">
+  <h2><span class="num">01</span> הבעיה</h2>
+  <p class="section-subtitle">למשרד יש נתונים — אבל אין מי שיעבוד איתם</p>
+
+  <div class="problem-grid">
+    <div class="problem-card">
+      <div class="icon red-bg">📊</div>
+      <h3>דוחות שלא הופכים לפעולה</h3>
+      <p>קבצי BAFI, דוחות מסלקה, ייצואים מחברות — הכל קיים אבל אף אחד לא מצליח להפוך את זה להמלצות</p>
+    </div>
+    <div class="problem-card">
+      <div class="icon amber-bg">🔍</div>
+      <h3>הזדמנויות שנופלות בין הכסאות</h3>
+      <p>לקוחות עם חיסכון גבוה בלי הגנה. פוליסות שפגות. כיסויים חסרים. אף אחד לא רואה את התמונה המלאה</p>
+    </div>
+    <div class="problem-card">
+      <div class="icon amber-bg">🧠</div>
+      <h3>הידע נמצא בראש של אנשים</h3>
+      <p>הניסיון, הכללים, ההעדפות של המשרד — הכל בזיכרון. לא מקודד, לא ניתן להעברה, לא סקיילבילי</p>
+    </div>
+    <div class="problem-card">
+      <div class="icon gray-bg">⏰</div>
+      <h3>אין סדר עדיפויות</h3>
+      <p>כל הלקוחות נראים אותו דבר. אין דרך לדעת מי הכי דחוף, מי הכי שווה, מי הכי מוזנח</p>
+    </div>
+    <div class="problem-card">
+      <div class="icon gray-bg">📋</div>
+      <h3>המלצות לא עקביות</h3>
+      <p>כל סוכן ממליץ אחרת. אין תבנית, אין סטנדרט, אין בקרה על האיכות</p>
+    </div>
+    <div class="problem-card">
+      <div class="icon red-bg">📄</div>
+      <h3>מסמכים שלא נקראים</h3>
+      <p>נספחים, תנאי פוליסה, סייגים — אלפי עמודים שאף אחד לא מספיק לעבור עליהם</p>
+    </div>
+  </div>
+
+  <div class="solution-banner">
+    <h3>InsAgent פותר את זה</h3>
+    <p>מערכת שקוראת את הנתונים, מבינה את ההקשר, ומייצרת המלצות מבוססות ראיות — תחת שליטה מלאה של המשרד</p>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE 3: How It Works -->
+<!-- ============================================================ -->
+<div class="page">
+  <h2><span class="num">02</span> איך זה עובד</h2>
+  <p class="section-subtitle">מנתונים גולמיים → להמלצה מאושרת → לפעולה</p>
+
+  <div class="flow">
+    <div class="flow-step">
+      <div class="step-icon">📁</div>
+      <h4>יבוא נתונים</h4>
+      <p>קבצי BAFI, Excel, מסמכים</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="step-icon">🔄</div>
+      <h4>ניתוח אוטומטי</h4>
+      <p>זיהוי לקוחות, מיפוי שדות, בדיקות</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step active">
+      <div class="step-icon">💡</div>
+      <h4>תובנות</h4>
+      <p>פערים, הזדמנויות, סיכונים</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step active">
+      <div class="step-icon">⭐</div>
+      <h4>המלצות</h4>
+      <p>מדורגות, מנומקות, עם ראיות</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="step-icon">👤</div>
+      <h4>אישור אנושי</h4>
+      <p>מנהל בודק ומאשר</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="step-icon">✅</div>
+      <h4>פעולה</h4>
+      <p>משימה, טיוטת הודעה, מעקב</p>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <h2 style="font-size: 22px; margin-bottom: 24px;">דוגמה מהשטח</h2>
+
+  <div class="mockup-frame">
+    <div class="mockup-topbar">
+      <span>🧠</span>
+      <span>InsAgent</span>
+      <span style="margin-right: auto;"></span>
+      <span>דשבורד</span>
+      <span style="font-weight: 600; color: #097E6E;">› לקוחות › אבי אנצ׳יו</span>
+    </div>
+    <div class="mockup-body">
+      <div style="background: #F5F5F4; border-radius: 8px; padding: 8px 14px; font-size: 11px; color: #78766F; margin-bottom: 16px; display: flex; align-items: center; gap: 6px;">
+        <span>ℹ️</span>
+        התמונה מבוססת על <strong style="color: #272522;">1 קובץ שנקלט</strong>, עודכנה לאחרונה <strong style="color: #272522;">היום</strong>
+      </div>
+
+      <div class="mockup-header">
+        <div class="mockup-avatar">אא</div>
+        <div>
+          <div class="mockup-name">אבי אנצ׳יו</div>
+          <div class="mockup-meta">ת.ז. 022268148 · משעול פלג 8, ראשון לציון</div>
+        </div>
+      </div>
+
+      <div style="font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #272522;">מפת הביטוח</div>
+      <div class="insurance-map-mock">
+        <div class="ins-cell has">
+          <div class="cell-icon">🛡️</div>
+          <div class="cell-label">רכוש</div>
+          <div style="font-size: 10px; color: #097E6E; margin-top: 4px;">13 פוליסות</div>
+          <div style="font-size: 10px; color: #097E6E;">₪20,927/שנה</div>
+        </div>
+        <div class="ins-cell has">
+          <div class="cell-icon">🛡️</div>
+          <div class="cell-label">בריאות</div>
+          <div style="font-size: 10px; color: #D97706; margin-top: 4px;">⚠️ לא פעיל</div>
+        </div>
+        <div class="ins-cell has">
+          <div class="cell-icon">🛡️</div>
+          <div class="cell-label">חיסכון</div>
+          <div style="font-size: 10px; color: #097E6E; margin-top: 4px;">₪1,071,548</div>
+        </div>
+        <div class="ins-cell missing">
+          <div class="cell-icon">○</div>
+          <div class="cell-label">חיים</div>
+          <div style="font-size: 10px; margin-top: 4px;">לא זוהה</div>
+        </div>
+        <div class="ins-cell missing">
+          <div class="cell-icon">○</div>
+          <div class="cell-label">פנסיה</div>
+          <div style="font-size: 10px; margin-top: 4px;">לא זוהה</div>
+        </div>
+        <div class="ins-cell missing">
+          <div class="cell-icon">○</div>
+          <div class="cell-label">סיכון</div>
+          <div style="font-size: 10px; margin-top: 4px;">לא זוהה</div>
+        </div>
+        <div class="ins-cell missing">
+          <div class="cell-icon">○</div>
+          <div class="cell-label">ק. השתלמות</div>
+          <div style="font-size: 10px; margin-top: 4px;">לא זוהה</div>
+        </div>
+      </div>
+
+      <div class="timeline-preview">
+        <div class="timeline-col" style="flex: 2;">
+          <h5>⭐ המלצות (2 ממתינות)</h5>
+          <div class="timeline-item">
+            <div class="ti-title">סקירת כיסוי חיים / סיכון</div>
+            <div class="ti-desc">חיסכון מצטבר ₪1,071,548 ללא הגנה מזוהה · <span style="color: #DC2626;">דחיפות גבוהה</span></div>
+          </div>
+          <div class="timeline-item">
+            <div class="ti-title">בדיקת כיסוי בריאות</div>
+            <div class="ti-desc">הפוליסה הרשומה היא חיסכון/השקעה ולא כיסוי רפואי · <span style="color: #D97706;">דחיפות בינונית</span></div>
+          </div>
+        </div>
+        <div class="timeline-col">
+          <h5>💡 תובנות (3)</h5>
+          <div class="timeline-item">
+            <div class="ti-title">חיסכון גבוה ללא הגנה</div>
+            <div class="ti-desc">₪1M+ בלי ביטוח חיים</div>
+          </div>
+          <div class="timeline-item">
+            <div class="ti-title">ריכוז בביטוח רכוש</div>
+            <div class="ti-desc">100% פרמיה ברכוש</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE 4: Modules -->
+<!-- ============================================================ -->
+<div class="page">
+  <h2><span class="num">03</span> מודולים</h2>
+  <p class="section-subtitle">כל חלק עומד בפני עצמו — אבל הכל מחובר</p>
+
+  <div class="module-grid">
+    <div class="module-card core">
+      <div class="mod-icon">📊</div>
+      <h4>דשבורד</h4>
+      <p>מה דורש תשומת לב עכשיו? הזדמנויות, חידושים, המלצות ממתינות</p>
+      <span class="phase-tag phase-1">שלב 1</span>
+    </div>
+    <div class="module-card core">
+      <div class="mod-icon">👥</div>
+      <h4>לקוחות</h4>
+      <p>רשימה חכמה עם חיפוש, סינון, ואינדיקטורים לכל לקוח</p>
+      <span class="phase-tag phase-1">שלב 1</span>
+    </div>
+    <div class="module-card core">
+      <div class="mod-icon">🎯</div>
+      <h4>פרופיל לקוח</h4>
+      <p>מפת ביטוח, תובנות, המלצות, ציר זמן — הכל במקום אחד</p>
+      <span class="phase-tag phase-1">שלב 1</span>
+    </div>
+    <div class="module-card core">
+      <div class="mod-icon">📥</div>
+      <h4>יבוא נתונים</h4>
+      <p>העלאת קבצי BAFI, Excel, CSV — עם מיפוי, בדיקות, ודוח איכות</p>
+      <span class="phase-tag phase-1">שלב 1</span>
+    </div>
+    <div class="module-card core">
+      <div class="mod-icon">💡</div>
+      <h4>תובנות</h4>
+      <p>זיהוי אוטומטי: פערים, סיכונים, הזדמנויות, נתונים לא עדכניים</p>
+      <span class="phase-tag phase-1">שלב 1</span>
+    </div>
+    <div class="module-card core">
+      <div class="mod-icon">⭐</div>
+      <h4>המלצות</h4>
+      <p>הצעות מדורגות עם נימוק, ראיות, ותהליך אישור/דחייה</p>
+      <span class="phase-tag phase-1">שלב 1</span>
+    </div>
+    <div class="module-card core">
+      <div class="mod-icon">✅</div>
+      <h4>משימות</h4>
+      <p>יצירה מהמלצות או ידנית, הקצאה, מעקב, תעדוף</p>
+      <span class="phase-tag phase-1">שלב 1</span>
+    </div>
+    <div class="module-card core">
+      <div class="mod-icon">🔒</div>
+      <h4>יומן ביקורת</h4>
+      <p>כל פעולה מתועדת — יבוא, אישור, שינוי, גישה</p>
+      <span class="phase-tag phase-1">שלב 1</span>
+    </div>
+    <div class="module-card">
+      <div class="mod-icon">📄</div>
+      <h4>ניתוח מסמכים</h4>
+      <p>העלאת PDF, סיכום AI, זיהוי סעיפים חשובים וסייגים</p>
+      <span class="phase-tag phase-2">שלב 2</span>
+    </div>
+    <div class="module-card">
+      <div class="mod-icon">⚙️</div>
+      <h4>חוקי משרד</h4>
+      <p>קידוד הלוגיקה של המשרד — כללים, העדפות, תנאים</p>
+      <span class="phase-tag phase-2">שלב 2</span>
+    </div>
+    <div class="module-card">
+      <div class="mod-icon">🧠</div>
+      <h4>מערכת למידה</h4>
+      <p>המערכת משתפרת מפידבק — בשקיפות ובשליטת המשרד</p>
+      <span class="phase-tag phase-3">שלב 3</span>
+    </div>
+    <div class="module-card">
+      <div class="mod-icon">📢</div>
+      <h4>סגמנטים וטיוטות</h4>
+      <p>קבוצות חכמות + טיוטות הודעה לוואטסאפ, מייל, שיחה</p>
+      <span class="phase-tag phase-3">שלב 3</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE 5: Key Principles -->
+<!-- ============================================================ -->
+<div class="page">
+  <h2><span class="num">04</span> עקרונות מנחים</h2>
+  <p class="section-subtitle">מה מבדיל את המערכת הזו מ-CRM גנרי או צ׳אטבוט AI</p>
+
+  <div class="principles">
+    <div class="principle">
+      <div class="pr-icon">👤</div>
+      <div>
+        <h4>אדם בלולאה — תמיד</h4>
+        <p>המערכת ממליצה, אבל אף פעולה חיצונית לא קורית בלי אישור אנושי. שום הודעה ללקוח לא נשלחת אוטומטית.</p>
+      </div>
+    </div>
+    <div class="principle">
+      <div class="pr-icon">🔍</div>
+      <div>
+        <h4>שקיפות מלאה</h4>
+        <p>כל המלצה מסבירה למה היא קיימת, מאיפה המידע, מה הוודאות, ואיזה כלל משרדי השפיע. אין קסם — יש ראיות.</p>
+      </div>
+    </div>
+    <div class="principle">
+      <div class="pr-icon">🏢</div>
+      <div>
+        <h4>הלוגיקה של המשרד — לא AI גנרי</h4>
+        <p>המשרד מגדיר כללים, העדפות, ותעדוף. המערכת לומדת איך המשרד חושב — לא ממציאה מאפס.</p>
+      </div>
+    </div>
+    <div class="principle">
+      <div class="pr-icon">📊</div>
+      <div>
+        <h4>כנות לגבי מגבלות</h4>
+        <p>"לא זוהה בנתונים שנקלטו" — לא "אין". המערכת מבחינה בין עובדה, הסקה, ומידע חסר. מראה מתי הנתונים ישנים.</p>
+      </div>
+    </div>
+    <div class="principle">
+      <div class="pr-icon">📈</div>
+      <div>
+        <h4>משתפרת עם הזמן</h4>
+        <p>כל אישור, דחייה, או עריכה מלמדים את המערכת. אבל רק בשליטת המשרד — אין למידה עצמאית מאחורי הקלעים.</p>
+      </div>
+    </div>
+    <div class="principle">
+      <div class="pr-icon">🔐</div>
+      <div>
+        <h4>אבטחה ופרטיות מיום אחד</h4>
+        <p>הרשאות לפי תפקיד, הצפנה, יומן ביקורת מלא, הפרדת סביבות. מידע רגיש מוגן בכל שכבה.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE 6: Roadmap -->
+<!-- ============================================================ -->
+<div class="page">
+  <h2><span class="num">05</span> תוכנית עבודה</h2>
+  <p class="section-subtitle">בנייה בשלבים — כל שלב מוסיף ערך עצמאי</p>
+
+  <div class="roadmap">
+    <div class="roadmap-phase p1">
+      <div class="phase-num">שלב 1 — בסיס</div>
+      <h4>אינטליגנציה תפעולית</h4>
+      <ul>
+        <li>יבוא קבצי BAFI</li>
+        <li>רשימת לקוחות חכמה</li>
+        <li>פרופיל לקוח עם מפת ביטוח</li>
+        <li>תובנות אוטומטיות</li>
+        <li>המלצות עם תהליך אישור</li>
+        <li>משימות ומעקב</li>
+        <li>יומן ביקורת</li>
+        <li>הרשאות ואבטחה</li>
+      </ul>
+    </div>
+    <div class="roadmap-phase p2">
+      <div class="phase-num">שלב 2 — עומק</div>
+      <h4>מסמכים וכללים</h4>
+      <ul>
+        <li>ניתוח מסמכי PDF עם AI</li>
+        <li>בונה חוקים למשרד</li>
+        <li>סיכומים בעברית</li>
+        <li>לוח ראיות מורחב</li>
+        <li>התראות ונוטיפיקציות</li>
+      </ul>
+    </div>
+    <div class="roadmap-phase p3">
+      <div class="phase-num">שלב 3 — למידה</div>
+      <h4>המערכת משתפרת</h4>
+      <ul>
+        <li>מערכת למידה מפידבק</li>
+        <li>סגמנטים חכמים</li>
+        <li>טיוטות הודעה</li>
+        <li>סימולציות כללים</li>
+        <li>דשבורד ניהולי</li>
+      </ul>
+    </div>
+    <div class="roadmap-phase p4">
+      <div class="phase-num">שלב 4 — הרחבה</div>
+      <h4>אוטומציה מלאה</h4>
+      <ul>
+        <li>חיבורי API ישירים</li>
+        <li>סנכרון אוטומטי</li>
+        <li>עוזר AI אינטראקטיבי</li>
+        <li>OCR למסמכים סרוקים</li>
+        <li>דוחות מתקדמים</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="solution-banner" style="margin-top: 0;">
+    <h3 style="font-size: 24px;">InsAgent = המוח החכם של המשרד</h3>
+    <p style="font-size: 16px; margin-top: 8px;">לא CRM. לא צ׳אט. שכבת אינטליגנציה שהופכת נתונים קיימים לפעולה חכמה.</p>
+  </div>
+</div>
+
+</body>
+</html>
