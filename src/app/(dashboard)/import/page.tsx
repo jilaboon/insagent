@@ -131,22 +131,24 @@ export default function ImportPage() {
         setStatusMessage(`נמצאו ${rows.length.toLocaleString("he-IL")} שורות ב-${files[f].name}`);
       }
 
-      // Phase 2: Send to server in chunks
+      // Phase 2: Send chunks to server — each chunk is processed synchronously
       setStage("uploading");
       let sentRows = 0;
+      let totalCreated = 0;
+      let totalUpdated = 0;
 
       for (const batch of allBatches) {
-        const chunks = [];
+        const chunks: Record<string, string>[][] = [];
         for (let i = 0; i < batch.rows.length; i += CHUNK_SIZE) {
           chunks.push(batch.rows.slice(i, i + CHUNK_SIZE));
         }
 
         for (let c = 0; c < chunks.length; c++) {
           sentRows += chunks[c].length;
-          const percent = 20 + Math.round((sentRows / totalRows) * 60);
+          const percent = 20 + Math.round((sentRows / totalRows) * 75);
           setProgressPercent(percent);
           setStatusMessage(
-            `שולח ${sentRows.toLocaleString("he-IL")} מתוך ${totalRows.toLocaleString("he-IL")} שורות...`
+            `מעבד ${sentRows.toLocaleString("he-IL")} מתוך ${totalRows.toLocaleString("he-IL")} שורות... (${totalCreated} חדשים, ${totalUpdated} עודכנו)`
           );
 
           const response = await fetch("/api/import/upload", {
@@ -162,21 +164,57 @@ export default function ImportPage() {
 
           if (!response.ok) {
             const errBody = await response.json();
-            throw new Error(errBody.error || "שגיאה בשליחת נתונים");
+            throw new Error(errBody.error || "שגיאה בעיבוד נתונים");
           }
 
-          const result = (await response.json()) as { jobId: string };
+          const result = (await response.json()) as {
+            jobId: string;
+            created: number;
+            updated: number;
+          };
           if (!currentJobId) {
             currentJobId = result.jobId;
           }
+          totalCreated += result.created;
+          totalUpdated += result.updated;
         }
       }
 
-      // Phase 3: Server is processing — switch to polling
-      setProgressPercent(80);
-      setStatusMessage("השרת מעבד את הנתונים...");
-      setJobId(currentJobId);
-      setStage("processing");
+      // Phase 3: Mark job as complete and show summary
+      setProgressPercent(95);
+      setStatusMessage("מסיים...");
+
+      // Mark job completed
+      if (currentJobId) {
+        await fetch(`/api/import/${currentJobId}/complete`, { method: "POST" });
+      }
+
+      // Fetch final job data for summary
+      if (currentJobId) {
+        const jobRes = await fetch(`/api/import/${currentJobId}`);
+        if (jobRes.ok) {
+          const job = await jobRes.json();
+          setCompletedJob({
+            totalRows: job.totalRows,
+            newCustomers: job.newCustomers,
+            updatedCustomers: job.updatedCustomers,
+            customerCount: job.customerCount || totalCreated + totalUpdated,
+            policyCount: job.policyCount || 0,
+          });
+        } else {
+          setCompletedJob({
+            totalRows: totalRows,
+            newCustomers: totalCreated,
+            updatedCustomers: totalUpdated,
+            customerCount: totalCreated + totalUpdated,
+            policyCount: 0,
+          });
+        }
+      }
+
+      setProgressPercent(100);
+      setStage("summary");
+      setHistoryKey((k) => k + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "שגיאה לא צפויה");
       setStage("upload");
