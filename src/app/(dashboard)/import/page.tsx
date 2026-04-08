@@ -61,7 +61,10 @@ function parseCSVText(text: string): { headers: string[]; rows: Record<string, s
     const values = parseLine(lines[i]);
     const row: Record<string, string> = {};
     for (let j = 0; j < headers.length; j++) {
-      row[headers[j]] = values[j] || "";
+      // Only include non-empty values to reduce payload size
+      if (values[j] && values[j].trim()) {
+        row[headers[j]] = values[j].trim();
+      }
     }
     rows.push(row);
   }
@@ -90,7 +93,7 @@ async function readFileAsText(file: File): Promise<string> {
 // Component
 // ============================================================
 
-const CHUNK_SIZE = 2000; // rows per API call
+const CHUNK_SIZE = 200; // rows per API call — keep small to avoid Vercel payload limit
 
 export default function ImportPage() {
   const [stage, setStage] = useState<Stage>("upload");
