@@ -1,0 +1,24 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+
+export async function GET() {
+  const jobs = await prisma.importJob.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 50,
+    select: {
+      id: true,
+      fileName: true,
+      fileType: true,
+      status: true,
+      totalRows: true,
+      importedRows: true,
+      failedRows: true,
+      newCustomers: true,
+      updatedCustomers: true,
+      createdAt: true,
+      completedAt: true,
+    },
+  });
+
+  return NextResponse.json(jobs);
+}

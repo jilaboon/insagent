@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InsAgent MVP Diagram</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800&display=swap');
+
+    :root {
+      --bg: #f7f6f3;
+      --panel: #ffffff;
+      --panel-soft: #fcfcfa;
+      --line: #dedbd2;
+      --text: #1f1d19;
+      --muted: #6f6b61;
+      --primary: #0d7a69;
+      --primary-soft: #ecfaf6;
+      --accent: #b7791f;
+      --accent-soft: #fff8eb;
+      --slate-soft: #f1f3f5;
+      --shadow: 0 18px 40px rgba(31, 29, 25, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Heebo', sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(13, 122, 105, 0.08), transparent 30%),
+        radial-gradient(circle at top left, rgba(183, 121, 31, 0.06), transparent 22%),
+        var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+
+    .page {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 56px 28px 72px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+
+    .hero-card,
+    .legend,
+    .section,
+    .future-box {
+      background: rgba(255, 255, 255, 0.86);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(222, 219, 210, 0.9);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero-card {
+      padding: 34px 34px 28px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      font-size: 44px;
+      line-height: 1.06;
+      letter-spacing: -0.8px;
+      margin-bottom: 14px;
+    }
+
+    .hero p {
+      color: var(--muted);
+      font-size: 17px;
+      max-width: 52rem;
+    }
+
+    .hero strong {
+      color: var(--text);
+    }
+
+    .legend {
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .legend h2,
+    .section h2 {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+
+    .legend-list,
+    .notes,
+    .mini-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .legend-item,
+    .note {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      flex: 0 0 auto;
+    }
+
+    .swatch.primary { background: var(--primary); }
+    .swatch.soft { background: var(--primary-soft); border: 1px solid #bde8dc; }
+    .swatch.accent { background: var(--accent-soft); border: 1px solid #f0d199; }
+    .swatch.slate { background: var(--slate-soft); border: 1px solid #d9dde2; }
+
+    .section {
+      padding: 30px;
+      margin-bottom: 24px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .section-head p {
+      color: var(--muted);
+      font-size: 15px;
+      max-width: 40rem;
+    }
+
+    .architecture {
+      display: grid;
+      grid-template-columns: 0.95fr 1.25fr 1fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .column {
+      display: grid;
+      gap: 16px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 20px;
+      min-height: 152px;
+    }
+
+    .panel.soft {
+      background: linear-gradient(180deg, var(--primary-soft), #fff);
+      border-color: #bfe6dc;
+    }
+
+    .panel.accent {
+      background: linear-gradient(180deg, var(--accent-soft), #fff);
+      border-color: #f2d7a5;
+    }
+
+    .panel.slate {
+      background: linear-gradient(180deg, var(--slate-soft), #fff);
+      border-color: #d9dde2;
+    }
+
+    .panel h3 {
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    .panel .sub {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 14px;
+    }
+
+    .tag-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: #f6f5f2;
+      border: 1px solid #ebe7de;
+      color: #4d493f;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .tag.primary {
+      background: var(--primary-soft);
+      border-color: #bfe6dc;
+      color: var(--primary);
+    }
+
+    .tag.accent {
+      background: var(--accent-soft);
+      border-color: #f2d7a5;
+      color: #9a6419;
+    }
+
+    .bridge {
+      display: grid;
+      gap: 10px;
+      align-content: center;
+    }
+
+    .bridge-step {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 16px 18px;
+      position: relative;
+    }
+
+    .bridge-step::before {
+      content: "←";
+      position: absolute;
+      left: -13px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      background: white;
+      border: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .bridge-step h4 {
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .bridge-step p {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .journey {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 12px;
+      direction: ltr;
+    }
+
+    .journey-step {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 18px 14px;
+      text-align: center;
+      position: relative;
+      min-height: 152px;
+    }
+
+    .journey-step.primary {
+      background: linear-gradient(180deg, var(--primary-soft), white);
+      border-color: #bfe6dc;
+    }
+
+    .journey-step:not(:last-child)::after {
+      content: "←";
+      position: absolute;
+      left: -14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #b8b2a6;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .journey-step .num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      background: #f5f3ee;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+
+    .journey-step.primary .num {
+      background: var(--primary);
+      color: white;
+    }
+
+    .journey-step h3 {
+      direction: rtl;
+      font-size: 15px;
+      margin-bottom: 8px;
+    }
+
+    .journey-step p {
+      direction: rtl;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+      margin-top: 24px;
+    }
+
+    .future-box {
+      padding: 26px;
+      background: linear-gradient(180deg, rgba(241, 243, 245, 0.82), rgba(255,255,255,0.86));
+    }
+
+    .future-box h2 {
+      margin-bottom: 14px;
+    }
+
+    .future-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid #d9dde2;
+      color: #5d6773;
+      font-size: 12px;
+      margin: 0 0 8px 8px;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 1100px) {
+      .hero,
+      .architecture,
+      .bottom-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .journey {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .journey-step:not(:last-child)::after,
+      .bridge-step::before {
+        display: none;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .page {
+        padding: 28px 16px 44px;
+      }
+
+      h1 {
+        font-size: 34px;
+      }
+
+      .journey {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div class="hero-card">
+        <div class="eyebrow">InsAgent MVP</div>
+        <h1>מייבאים נתוני לקוחות, מזהים מה דורש טיפול, ומעבירים את המשרד לפעולה מסודרת.</h1>
+        <p>
+          זהו <strong>שכבת אינטליגנציה תפעולית</strong> מעל קבצי המשרד הקיימים.
+          בשלב הראשון המערכת לא מחליפה CRM ולא מפעילה AI חופשי, אלא
+          <strong>מארגנת נתונים, מפיקה תובנות דטרמיניסטיות, מציגה המלצות לבדיקה אנושית, ומייצרת משימות לביצוע</strong>.
+        </p>
+      </div>
+
+      <aside class="legend">
+        <div>
+          <h2>מה כבר מגובה בקוד</h2>
+          <div class="legend-list">
+            <div class="legend-item"><span class="swatch primary"></span>מעטפת RTL בעברית, דשבורד, לקוחות ופרופיל לקוח</div>
+            <div class="legend-item"><span class="swatch soft"></span>מודל נתונים מלא ללקוחות, פוליסות, תובנות, המלצות, משימות וייבוא</div>
+            <div class="legend-item"><span class="swatch accent"></span>מנוע תובנות והמלצות דטרמיניסטי עם נימוק וזמן רלוונטי</div>
+            <div class="legend-item"><span class="swatch slate"></span>Traceability, Audit, ותשתית להמשך חיבור לקבצים אמיתיים</div>
+          </div>
+        </div>
+
+        <div class="notes">
+          <div class="note">המסר ללקוח: המערכת מתחילה מעבודה אמינה ומבוקרת, ואז מתרחבת ליכולות AI מתקדמות יותר.</div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2>תרשים המוצר</h2>
+          <p>המערכת בנויה כצינור עבודה ברור: קליטת נתונים, בניית תמונת לקוח, הפקת המלצות, אישור אנושי, וביצוע בפועל.</p>
+        </div>
+      </div>
+
+      <div class="architecture">
+        <div class="column">
+          <div class="panel">
+            <h3>מקורות קלט</h3>
+            <p class="sub">הקוד כבר מוכן להתחיל מ־BAFI HTML ולהתרחב בהמשך לקבצים נוספים.</p>
+            <div class="tag-row">
+              <span class="tag">קובץ BAFI HTML</span>
+              <span class="tag">CSV / Excel בהמשך</span>
+              <span class="tag">מסמכים בהמשך</span>
+            </div>
+          </div>
+
+          <div class="panel slate">
+            <h3>מרכז ייבוא</h3>
+            <p class="sub">העלאה, התאמה ללקוח לפי ת.ז., זיהוי כפילויות, היסטוריית ייבוא, ושמירת מקור הנתון.</p>
+            <div class="tag-row">
+              <span class="tag">Import Job</span>
+              <span class="tag">Matching</span>
+              <span class="tag">Source Traceability</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="column bridge">
+          <div class="bridge-step">
+            <h4>נרמול ובניית פרופיל לקוח</h4>
+            <p>לקוחות, בני משפחה, פוליסות, כיסויים, מסלולי השקעה ודמי ניהול נשמרים במודל אחיד.</p>
+          </div>
+          <div class="bridge-step">
+            <h4>מנוע תובנות דטרמיניסטי</h4>
+            <p>מזהה אירועים כמו חידוש קרוב, ריכוז פרמיה, חוסר בכיסוי, מידע לא עדכני או חיסכון גבוה עם הגנה נמוכה.</p>
+          </div>
+          <div class="bridge-step">
+            <h4>מנוע המלצות מבוקר</h4>
+            <p>ממיר תובנות להמלצות מסודרות עם "למה", "למה עכשיו", עוצמה, דחיפות וראיות מקור.</p>
+          </div>
+        </div>
+
+        <div class="column">
+          <div class="panel soft">
+            <h3>מרחב עבודה למשרד</h3>
+            <p class="sub">הדשבורד, רשימת הלקוחות, ופרופיל הלקוח המרכזי כבר מופיעים ביישום.</p>
+            <div class="tag-row">
+              <span class="tag primary">דשבורד</span>
+              <span class="tag primary">לקוחות</span>
+              <span class="tag primary">פרופיל לקוח</span>
+            </div>
+          </div>
+
+          <div class="panel accent">
+            <h3>בדיקה אנושית וביצוע</h3>
+            <p class="sub">כל המלצה נכנסת לתהליך בדיקה: אישור, דחייה, דחייה למועד אחר, או המרה למשימה.</p>
+            <div class="tag-row">
+              <span class="tag accent">Recommendation Queue</span>
+              <span class="tag accent">Tasks</span>
+              <span class="tag accent">Feedback</span>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h3>שכבת אמון ובקרה</h3>
+            <p class="sub">יומן פעילות, Provenance לכל שדה, והרשאות לפי תפקיד.</p>
+            <div class="tag-row">
+              <span class="tag">Audit Log</span>
+              <span class="tag">Field Provenance</span>
+              <span class="tag">Role-Based Access</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2>מסלול העבודה של המשתמש</h2>
+          <p>זה הזרם שהמוצר בנוי סביבו ב־MVP: פחות רעש, יותר פעולה ברורה.</p>
+        </div>
+      </div>
+
+      <div class="journey">
+        <div class="journey-step">
+          <div class="num">1</div>
+          <h3>ייבוא קובץ</h3>
+          <p>המשרד מעלה קובץ לקוחות או פוליסות, והמערכת מזהה למי הוא שייך ומה השתנה.</p>
+        </div>
+        <div class="journey-step">
+          <div class="num">2</div>
+          <h3>בניית תמונת לקוח</h3>
+          <p>הנתונים נשמרים כפרופיל לקוח אחד עם פוליסות, כיסויים, חיסכון, וסטטוס עדכניות.</p>
+        </div>
+        <div class="journey-step primary">
+          <div class="num">3</div>
+          <h3>זיהוי תובנות</h3>
+          <p>המערכת מפיקה ממצאים מחושבים: חידושים קרובים, פערי כיסוי, אי-פעילות, או ריכוז גבוה מדי.</p>
+        </div>
+        <div class="journey-step primary">
+          <div class="num">4</div>
+          <h3>המלצות לבדיקה</h3>
+          <p>נבנות המלצות עם נימוק, מקורות, ורמת ביטחון שמבוססת על שלמות ועדכניות המידע.</p>
+        </div>
+        <div class="journey-step">
+          <div class="num">5</div>
+          <h3>אישור מנהל / סוכן</h3>
+          <p>המשתמש מאשר, דוחה או דוחה למועד אחר. כל פעולה נרשמת ומסבירה למה ההמלצה טופלה כך.</p>
+        </div>
+        <div class="journey-step">
+          <div class="num">6</div>
+          <h3>המרה לפעולה</h3>
+          <p>המלצה מאושרת הופכת למשימה מסודרת לביצוע ומופיעה בדשבורד ובתורים התפעוליים.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="bottom-grid">
+      <div class="section" style="margin-bottom: 0;">
+        <div class="section-head">
+          <div>
+            <h2>המסכים המרכזיים שכבר ממופים במוצר</h2>
+            <p>היישום כבר בנוי סביב מעטפת עבודה ברורה ולא סביב צ׳אט או דמו של AI.</p>
+          </div>
+        </div>
+
+        <div class="mini-list">
+          <div class="note">דשבורד: מציג המלצות ממתינות, חידושים, פרופילים לא עדכניים ומשימות פתוחות.</div>
+          <div class="note">לקוחות: חיפוש לפי שם או ת.ז., קטגוריות ביטוח, פרמיה חודשית, שלמות ועדכניות.</div>
+          <div class="note">פרופיל לקוח: מפת ביטוח, פוליסות, תובנות, המלצות, ציר זמן, ומידע על מקור הנתון.</div>
+          <div class="note">ייבוא נתונים: נקודת הכניסה לכל המערכת.</div>
+          <div class="note">המלצות, משימות, ויומן פעילות: שכבת הבקרה והביצוע.</div>
+        </div>
+      </div>
+
+      <aside class="future-box">
+        <h2>הרחבות לשלב הבא</h2>
+        <div>
+          <span class="future-chip">AI על מסמכים</span>
+          <span class="future-chip">OCR</span>
+          <span class="future-chip">Rule Builder ויזואלי</span>
+          <span class="future-chip">למידה מהפידבק</span>
+          <span class="future-chip">סגמנטים ודראפטים</span>
+        </div>
+        <p class="small">
+          המסר העסקי ללקוח: קודם בונים תשתית אמינה של נתונים, המלצות ובקרה. אחר כך מוסיפים שכבות AI מתקדמות מעליה.
+        </p>
+      </aside>
+    </section>
+  </main>
+</body>
+</html>

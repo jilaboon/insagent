@@ -9,20 +9,26 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.68",
     "@prisma/client": "^6.19.3",
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.101.1",
     "@tanstack/react-query": "^5.96.2",
     "@tanstack/react-table": "^8.21.3",
+    "ai": "^6.0.153",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "csv-parse": "^6.2.1",
     "date-fns": "^4.1.0",
+    "iconv-lite": "^0.7.2",
     "lucide-react": "^1.7.0",
     "next": "16.2.2",
     "prisma": "^6.19.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "tailwind-merge": "^3.5.0"
+    "tailwind-merge": "^3.5.0",
+    "vercel": "^50.41.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

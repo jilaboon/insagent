@@ -52,6 +52,10 @@ model Customer {
   email            String?
   assignedManagerId String?
   assignedManager  User?    @relation(fields: [assignedManagerId], references: [id])
+  age              Int?
+  dateOfBirth      DateTime?
+  maritalStatus    String?
+  gender           String?
   lastReviewDate   DateTime?
   lastImportDate   DateTime?
   createdAt        DateTime @default(now())
@@ -64,6 +68,7 @@ model Customer {
   tasks            Task[]
   fieldProvenance  FieldProvenance[]
   importLinks      ImportJobCustomer[]
+  messageDrafts    MessageDraft[]
 
   @@index([israeliId])
   @@index([assignedManagerId])
@@ -109,6 +114,9 @@ enum PolicyStatus {
   PROPOSAL      // הצעה
   CANCELLED     // מבוטל
   EXPIRED       // פג תוקף
+  FROZEN        // מוקפאת
+  PAID_UP       // מסולקת
+  ARREARS       // בפיגור
   UNKNOWN
 }
 
@@ -215,6 +223,12 @@ enum InsightCategory {
   FAMILY_NO_COVERAGE
   HIGH_SAVINGS_LOW_PROTECTION
   COVERAGE_GAP
+  MANAGEMENT_FEE_HIGH
+  CROSS_SELL_OPPORTUNITY
+  AGE_MILESTONE
+  POLICY_AGE_REVIEW
+  DEPOSIT_GAP
+  AI_GENERATED
 }
 
 enum InsightStatus {
@@ -239,16 +253,20 @@ model Insight {
   profileCompleteness Int       @default(0) // 0=low, 1=medium, 2=high
   evidenceJson  Json?           // source references
   status        InsightStatus   @default(NEW)
+  strengthScore Int?            // composite score 1-100 for ranking
+  branch        String?         // "LIFE" or "ELEMENTARY"
   generatedBy   String          @default("DETERMINISTIC") // DETERMINISTIC / RULE / AI
   linkedRuleId  String?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
   recommendations Recommendation[]
+  messageDrafts   MessageDraft[]
 
   @@index([customerId])
   @@index([category])
   @@index([status])
+  @@index([strengthScore])
   @@map("insights")
 }
 
@@ -426,6 +444,37 @@ model ImportJobCustomer {
 
   @@unique([importJobId, customerId])
   @@map("import_job_customers")
+}
+
+// ============================================================
+// Messages
+// ============================================================
+
+enum MessageDraftStatus {
+  DRAFT
+  APPROVED
+  SENT
+  SKIPPED
+}
+
+model MessageDraft {
+  id          String             @id @default(uuid())
+  customerId  String
+  customer    Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  insightId   String?
+  insight     Insight?           @relation(fields: [insightId], references: [id])
+  body        String             // Hebrew WhatsApp message text
+  tone        String?            // professional / warm / urgent
+  purpose     String?            // renewal / tip / cross-sell / service
+  status      MessageDraftStatus @default(DRAFT)
+  generatedBy String             @default("AI")
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([customerId])
+  @@index([insightId])
+  @@index([status])
+  @@map("message_drafts")
 }
 
 // ============================================================

@@ -1,36 +1,64 @@
-import { mockCustomerDetail } from "@/lib/mock-customer-detail";
+"use client";
+
+import { useParams } from "next/navigation";
+import { useState } from "react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DataFreshness,
   UrgencyIndicator,
-  StrengthIndicator,
   CompletenessIndicator,
 } from "@/components/ui/indicators";
 import { DataCoverageBanner } from "@/components/ui/data-coverage-banner";
+import { ScoreBadge } from "@/components/shared/score-badge";
+import { MessageComposer } from "@/components/shared/message-composer";
+import { SkeletonCard, Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { useCustomerDetail } from "@/lib/api/hooks";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import {
-  policyCategoryLabels,
-  recommendationTypeLabels,
-} from "@/lib/mock-data";
+import { policyCategoryLabels, insightCategoryLabels } from "@/lib/constants";
 import {
   User,
   MapPin,
   Shield,
   ShieldOff,
-  Check,
-  X,
-  Clock,
-  ArrowLeft,
-  Upload,
   Lightbulb,
-  Star,
   FileText,
+  UserX,
+  MessageSquare,
 } from "lucide-react";
 
 export default function CustomerProfilePage() {
-  const customer = mockCustomerDetail;
+  const params = useParams<{ id: string }>();
+  const { data: customer, isLoading, error } = useCustomerDetail(params.id);
+
+  if (isLoading) {
+    return <CustomerProfileSkeleton />;
+  }
+
+  if (error || !customer) {
+    return (
+      <EmptyState
+        icon={UserX}
+        title="לקוח לא נמצא"
+        description="הלקוח המבוקש לא נמצא במערכת. ייתכן שהנתונים טרם יובאו."
+      />
+    );
+  }
+
+  // Calculate profile completeness based on available data
+  const profileCompleteness: 0 | 1 | 2 = (() => {
+    let score = 0;
+    if (customer.address) score++;
+    if (customer.phone) score++;
+    if (customer.email) score++;
+    if (customer.policies.length > 0) score++;
+    if (customer.age || customer.dateOfBirth) score++;
+    if (score >= 4) return 2;
+    if (score >= 2) return 1;
+    return 0;
+  })();
 
   return (
     <div className="space-y-6 animate-[fadeIn_0.3s_ease-out_forwards]">
@@ -59,18 +87,17 @@ export default function CustomerProfilePage() {
                   <User className="h-3.5 w-3.5" />
                   ת.ז. {customer.israeliId}
                 </span>
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-3.5 w-3.5" />
-                  {customer.address}
-                </span>
+                {customer.address && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3.5 w-3.5" />
+                    {customer.address}
+                  </span>
+                )}
               </div>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <CompletenessIndicator level={customer.profileCompleteness} />
-            <Badge variant="primary">
-              מנהל: {customer.assignedManager}
-            </Badge>
+            <CompletenessIndicator level={profileCompleteness} />
           </div>
         </div>
       </Card>
@@ -84,12 +111,11 @@ export default function CustomerProfilePage() {
           {(
             Object.entries(customer.insuranceMap) as [
               string,
-              (typeof customer.insuranceMap)[keyof typeof customer.insuranceMap]
+              (typeof customer.insuranceMap)[string],
             ][]
           ).map(([key, cat]) => (
             <InsuranceMapCard
               key={key}
-              category={key}
               label={policyCategoryLabels[key] || key}
               data={cat}
             />
@@ -99,7 +125,7 @@ export default function CustomerProfilePage() {
 
       {/* Main content — two column */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left column (2/3) — Insights + Recommendations */}
+        {/* Left column (2/3) — Insights */}
         <div className="space-y-6 lg:col-span-2">
           {/* Insights */}
           <Card>
@@ -112,92 +138,58 @@ export default function CustomerProfilePage() {
               </CardTitle>
               <Badge variant="muted">{customer.insights.length}</Badge>
             </CardHeader>
-            <div className="space-y-3">
-              {customer.insights.map((insight) => (
-                <div
-                  key={insight.id}
-                  className="rounded-lg border border-surface-100 p-4"
-                >
-                  <div className="mb-2 flex items-start justify-between">
-                    <h4 className="text-sm font-medium text-surface-900">
-                      {insight.title}
-                    </h4>
-                    <UrgencyIndicator level={insight.urgencyLevel} />
-                  </div>
-                  <p className="mb-2 text-sm text-surface-600">
-                    {insight.summary}
-                  </p>
-                  <div className="flex items-center gap-3 text-xs text-surface-400">
-                    <span>{insight.whyNow}</span>
-                    <Badge variant="muted">{insight.generatedBy === "DETERMINISTIC" ? "נתון מחושב" : "הערכת המערכת"}</Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {customer.insights.length > 0 ? (
+              <div className="space-y-3">
+                {customer.insights.map((insight) => (
+                  <InsightCard
+                    key={insight.id}
+                    insight={insight}
+                    customerName={`${customer.firstName} ${customer.lastName}`}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="py-6 text-center text-sm text-surface-400">
+                אין תובנות עדיין — יש להריץ ניתוח
+              </p>
+            )}
           </Card>
 
-          {/* Recommendations */}
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                <span className="flex items-center gap-2">
-                  <Star className="h-4 w-4 text-primary-600" />
-                  המלצות
-                </span>
-              </CardTitle>
-              <Badge variant="primary">
-                {customer.recommendations.length} ממתינות
-              </Badge>
-            </CardHeader>
-            <div className="space-y-3">
-              {customer.recommendations.map((rec) => (
-                <div
-                  key={rec.id}
-                  className="rounded-lg border border-surface-200 p-4"
-                >
-                  <div className="mb-2 flex items-start justify-between">
-                    <div>
-                      <div className="mb-1 flex items-center gap-2">
-                        <h4 className="text-sm font-semibold text-surface-900">
-                          {rec.title}
-                        </h4>
-                        <Badge variant="muted">
-                          {recommendationTypeLabels[rec.type]}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-surface-600">
-                        {rec.shortExplanation}
-                      </p>
+          {/* Message Drafts */}
+          {customer.messageDrafts.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  <span className="flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-emerald-500" />
+                    טיוטות הודעות
+                  </span>
+                </CardTitle>
+                <Badge variant="muted">{customer.messageDrafts.length}</Badge>
+              </CardHeader>
+              <div className="space-y-3">
+                {customer.messageDrafts.map((draft) => (
+                  <div
+                    key={draft.id}
+                    className="rounded-lg border border-surface-100 p-4"
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <MessageStatusBadge status={draft.status} />
+                      <span className="text-xs text-surface-400">
+                        {formatDate(draft.createdAt)}
+                      </span>
                     </div>
-                    <div className="flex flex-col items-end gap-1.5 pr-4">
-                      <StrengthIndicator level={rec.strengthLevel} />
-                      <UrgencyIndicator level={rec.urgencyLevel} />
-                    </div>
+                    <p className="whitespace-pre-wrap text-sm text-surface-700">
+                      {draft.body}
+                    </p>
                   </div>
-                  <div className="mt-3 flex items-center justify-between border-t border-surface-100 pt-3">
-                    <p className="text-xs text-surface-500">{rec.whyNow}</p>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="sm">
-                        <Clock className="h-3.5 w-3.5" />
-                        דחייה
-                      </Button>
-                      <Button variant="secondary" size="sm">
-                        <X className="h-3.5 w-3.5" />
-                        דחייה
-                      </Button>
-                      <Button variant="primary" size="sm">
-                        <Check className="h-3.5 w-3.5" />
-                        אישור
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
+                ))}
+              </div>
+            </Card>
+          )}
         </div>
 
-        {/* Right column (1/3) — Policies + Timeline */}
+        {/* Right column (1/3) — Policies */}
         <div className="space-y-6">
           {/* Policies summary */}
           <Card>
@@ -205,82 +197,48 @@ export default function CustomerProfilePage() {
               <CardTitle>פוליסות</CardTitle>
               <Badge variant="muted">{customer.policies.length}</Badge>
             </CardHeader>
-            <div className="space-y-2">
-              {customer.policies.map((policy) => (
-                <div
-                  key={policy.id}
-                  className="flex items-center justify-between rounded-lg border border-surface-100 p-3"
-                >
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-surface-800">
-                      {policy.subType}
-                    </p>
-                    <div className="flex items-center gap-2 text-xs text-surface-500">
-                      <span>{policy.insurer}</span>
-                      <span className="number">{policy.policyNumber}</span>
+            {customer.policies.length > 0 ? (
+              <div className="space-y-2">
+                {customer.policies.map((policy) => (
+                  <div
+                    key={policy.id}
+                    className="flex items-center justify-between rounded-lg border border-surface-100 p-3"
+                  >
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-surface-800">
+                        {policy.subType || policy.category}
+                      </p>
+                      <div className="flex items-center gap-2 text-xs text-surface-500">
+                        <span>{policy.insurer}</span>
+                        <span className="number">{policy.policyNumber}</span>
+                      </div>
+                    </div>
+                    <div className="text-left">
+                      {policy.premiumAnnual ? (
+                        <p className="text-sm font-medium text-surface-800 number">
+                          {formatCurrency(policy.premiumAnnual)}
+                          <span className="text-xs text-surface-400">
+                            {" "}
+                            /שנה
+                          </span>
+                        </p>
+                      ) : policy.accumulatedSavings ? (
+                        <p className="text-sm font-medium text-surface-800 number">
+                          {formatCurrency(policy.accumulatedSavings)}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-surface-400">₪0</p>
+                      )}
+                      <DataFreshness date={policy.dataFreshness} />
                     </div>
                   </div>
-                  <div className="text-left">
-                    {policy.premiumAnnual ? (
-                      <p className="text-sm font-medium text-surface-800 number">
-                        {formatCurrency(policy.premiumAnnual)}
-                        <span className="text-xs text-surface-400"> /שנה</span>
-                      </p>
-                    ) : policy.accumulatedSavings ? (
-                      <p className="text-sm font-medium text-surface-800 number">
-                        {formatCurrency(policy.accumulatedSavings)}
-                      </p>
-                    ) : (
-                      <p className="text-xs text-surface-400">₪0</p>
-                    )}
-                    <DataFreshness date={policy.dataFreshness} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Timeline */}
-          <Card>
-            <CardHeader>
-              <CardTitle>ציר זמן</CardTitle>
-            </CardHeader>
-            <div className="space-y-4">
-              {customer.timeline.map((event) => (
-                <div key={event.id} className="flex gap-3">
-                  <div className="flex flex-col items-center">
-                    <div
-                      className={`flex h-7 w-7 items-center justify-center rounded-full ${
-                        event.type === "import"
-                          ? "bg-sky-50 text-sky-600"
-                          : event.type === "insight"
-                            ? "bg-accent-50 text-accent-600"
-                            : "bg-primary-50 text-primary-600"
-                      }`}
-                    >
-                      {event.type === "import" && (
-                        <Upload className="h-3.5 w-3.5" />
-                      )}
-                      {event.type === "insight" && (
-                        <Lightbulb className="h-3.5 w-3.5" />
-                      )}
-                      {event.type === "recommendation" && (
-                        <Star className="h-3.5 w-3.5" />
-                      )}
-                    </div>
-                    <div className="mt-1 h-full w-px bg-surface-200" />
-                  </div>
-                  <div className="pb-4">
-                    <p className="text-sm text-surface-700">
-                      {event.description}
-                    </p>
-                    <p className="text-xs text-surface-400 number">
-                      {formatDate(event.date)}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <p className="py-6 text-center text-sm text-surface-400">
+                לא נמצאו פוליסות
+              </p>
+            )}
           </Card>
         </div>
       </div>
@@ -293,11 +251,9 @@ export default function CustomerProfilePage() {
 // ============================================================
 
 function InsuranceMapCard({
-  category,
   label,
   data,
 }: {
-  category: string;
   label: string;
   data: {
     exists: boolean;
@@ -326,17 +282,17 @@ function InsuranceMapCard({
     <div className="flex flex-col rounded-lg border border-surface-200 bg-white p-4 text-center">
       <Shield className="mx-auto mb-2 h-5 w-5 text-primary-500" />
       <p className="text-xs font-semibold text-surface-800">{label}</p>
-      {data.policyCount && (
+      {data.policyCount != null && data.policyCount > 0 && (
         <p className="mt-1 text-[10px] text-surface-500 number">
           {data.policyCount} פוליסות
         </p>
       )}
-      {data.totalAnnualPremium && (
+      {data.totalAnnualPremium != null && data.totalAnnualPremium > 0 && (
         <p className="mt-0.5 text-xs font-medium text-surface-700 number">
           {formatCurrency(data.totalAnnualPremium)}/שנה
         </p>
       )}
-      {data.totalAccumulated && (
+      {data.totalAccumulated != null && data.totalAccumulated > 0 && (
         <p className="mt-0.5 text-xs font-medium text-surface-700 number">
           {formatCurrency(data.totalAccumulated)}
         </p>
@@ -346,6 +302,148 @@ function InsuranceMapCard({
           <DataFreshness date={data.dataFreshness} />
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================================================
+// Insight Card with MessageComposer
+// ============================================================
+
+function InsightCard({
+  insight,
+  customerName,
+}: {
+  insight: {
+    id: string;
+    category: string;
+    title: string;
+    summary: string;
+    whyNow: string | null;
+    urgencyLevel: number;
+    strengthScore: number;
+    generatedBy: string;
+    messageDraft: {
+      id: string;
+      body: string;
+      status: string;
+    } | null;
+  };
+  customerName: string;
+}) {
+  const [showComposer, setShowComposer] = useState(false);
+
+  return (
+    <div className="rounded-lg border border-surface-100 p-4">
+      <div className="mb-2 flex items-start justify-between">
+        <div className="flex-1">
+          <div className="mb-1 flex items-center gap-2">
+            <h4 className="text-sm font-medium text-surface-900">
+              {insight.title}
+            </h4>
+            <ScoreBadge score={insight.strengthScore} />
+          </div>
+          <p className="text-sm text-surface-600">{insight.summary}</p>
+        </div>
+        <UrgencyIndicator level={insight.urgencyLevel as 0 | 1 | 2} />
+      </div>
+      <div className="mt-2 flex items-center justify-between">
+        <div className="flex items-center gap-3 text-xs text-surface-400">
+          {insight.whyNow && <span>{insight.whyNow}</span>}
+          <Badge variant="muted">
+            {insightCategoryLabels[
+              insight.category as keyof typeof insightCategoryLabels
+            ] || insight.category}
+          </Badge>
+          <Badge variant="muted">
+            {insight.generatedBy === "DETERMINISTIC"
+              ? "נתון מחושב"
+              : "הערכת המערכת"}
+          </Badge>
+        </div>
+        {!showComposer && !insight.messageDraft && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowComposer(true)}
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            צור הודעה
+          </Button>
+        )}
+      </div>
+      {(showComposer || insight.messageDraft) && (
+        <div className="mt-3 border-t border-surface-100 pt-3">
+          <MessageComposer
+            insightId={insight.id}
+            customerName={customerName}
+            existingMessage={
+              insight.messageDraft
+                ? {
+                    id: insight.messageDraft.id,
+                    customerId: "",
+                    customerName,
+                    insightId: insight.id,
+                    insightTitle: insight.title,
+                    body: insight.messageDraft.body,
+                    tone: null,
+                    purpose: null,
+                    status: insight.messageDraft.status as
+                      | "DRAFT"
+                      | "APPROVED"
+                      | "SENT"
+                      | "SKIPPED",
+                    generatedBy: "AI",
+                    createdAt: "",
+                    updatedAt: "",
+                  }
+                : undefined
+            }
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// Message Status Badge
+// ============================================================
+
+function MessageStatusBadge({ status }: { status: string }) {
+  const config: Record<
+    string,
+    { label: string; variant: "success" | "warning" | "info" | "muted" }
+  > = {
+    DRAFT: { label: "טיוטה", variant: "warning" },
+    APPROVED: { label: "מאושר", variant: "success" },
+    SENT: { label: "נשלח", variant: "info" },
+    SKIPPED: { label: "דולג", variant: "muted" },
+  };
+
+  const c = config[status] || { label: status, variant: "muted" as const };
+
+  return <Badge variant={c.variant}>{c.label}</Badge>;
+}
+
+// ============================================================
+// Loading Skeleton
+// ============================================================
+
+function CustomerProfileSkeleton() {
+  return (
+    <div className="space-y-6 animate-[fadeIn_0.3s_ease-out_forwards]">
+      <Skeleton className="h-10 w-full rounded-lg" />
+      <SkeletonCard />
+      <SkeletonCard />
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
+          <SkeletonCard />
+        </div>
+        <div className="space-y-6">
+          <SkeletonCard />
+        </div>
+      </div>
     </div>
   );
 }
