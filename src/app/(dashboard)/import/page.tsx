@@ -93,7 +93,7 @@ async function readFileAsText(file: File): Promise<string> {
 // Component
 // ============================================================
 
-const CHUNK_SIZE = 200; // rows per API call — keep small to avoid Vercel payload limit
+const CHUNK_SIZE = 50; // rows per API call — small to keep each request fast on Supabase pooler
 
 export default function ImportPage() {
   const [stage, setStage] = useState<Stage>("upload");
