@@ -1,23 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { runImportPipeline, detectFileType, type ImportFile } from "@/lib/import/pipeline";
-import { parseCsvBuffer } from "@/lib/import/parse-csv";
+import { runImportPipelineFromRows, type ImportRowBatch } from "@/lib/import/pipeline";
 
-export const maxDuration = 300; // 5 minutes for large imports
+export const maxDuration = 300;
 
-// Temporary operator ID until auth is implemented
 const TEMP_OPERATOR_ID = "system";
 
+/**
+ * Accepts pre-parsed CSV rows from the client as JSON.
+ * The client reads the file, decodes Windows-1255, parses CSV,
+ * and sends rows + headers in batches.
+ *
+ * Body: { fileName, headers: string[], rows: Record<string, string>[], fileType?: string }
+ */
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const files = formData.getAll("files") as File[];
-
-    if (!files || files.length === 0) {
-      return NextResponse.json({ error: "לא נבחרו קבצים" }, { status: 400 });
-    }
-
-    // Ensure system user exists for import jobs
     await prisma.user.upsert({
       where: { id: TEMP_OPERATOR_ID },
       create: {
@@ -29,49 +26,58 @@ export async function POST(request: NextRequest) {
       update: {},
     });
 
-    // Prepare files for pipeline
-    const importFiles: ImportFile[] = [];
+    const body = await request.json();
+    const { fileName, headers, rows, jobId: existingJobId } = body as {
+      fileName: string;
+      headers: string[];
+      rows: Record<string, string>[];
+      jobId?: string;
+    };
 
-    for (const file of files) {
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const parsed = parseCsvBuffer(buffer, "windows-1255");
-      const fileType = detectFileType(parsed.headers);
-
-      if (fileType === "unknown") {
-        return NextResponse.json(
-          { error: `לא ניתן לזהות את סוג הקובץ: ${file.name}` },
-          { status: 400 }
-        );
-      }
-
-      importFiles.push({
-        buffer,
-        fileName: file.name,
-        fileType,
-      });
+    if (!headers || !rows || rows.length === 0) {
+      return NextResponse.json({ error: "לא נמצאו נתונים בקובץ" }, { status: 400 });
     }
 
-    // Create import job
-    const job = await prisma.importJob.create({
-      data: {
-        fileName: files.map((f) => f.name).join(", "),
-        fileType: importFiles.map((f) => f.fileType).join(", "),
-        fileSize: importFiles.reduce((sum, f) => sum + f.buffer.length, 0),
-        status: "PENDING",
-        operatorId: TEMP_OPERATOR_ID,
-      },
-    });
+    // Use existing job or create a new one
+    let jobId = existingJobId;
+    if (!jobId) {
+      const job = await prisma.importJob.create({
+        data: {
+          fileName,
+          fileType: "csv",
+          status: "PENDING",
+          operatorId: TEMP_OPERATOR_ID,
+          totalRows: rows.length,
+        },
+      });
+      jobId = job.id;
+    } else {
+      // Append to existing job's total rows
+      const existing = await prisma.importJob.findUnique({ where: { id: jobId } });
+      if (existing) {
+        await prisma.importJob.update({
+          where: { id: jobId },
+          data: {
+            totalRows: (existing.totalRows || 0) + rows.length,
+            fileName: existing.fileName.includes(fileName)
+              ? existing.fileName
+              : `${existing.fileName}, ${fileName}`,
+          },
+        });
+      }
+    }
 
-    // Run pipeline (fire and forget — client polls for status)
-    runImportPipeline(job.id, importFiles).catch((err) => {
+    const batch: ImportRowBatch = { fileName, headers, rows };
+
+    // Run pipeline async
+    runImportPipelineFromRows(jobId, [batch]).catch((err) => {
       console.error("Import pipeline error:", err);
     });
 
     return NextResponse.json({
-      jobId: job.id,
+      jobId,
       message: "הייבוא החל",
-      fileCount: files.length,
-      fileTypes: importFiles.map((f) => f.fileType),
+      rowCount: rows.length,
     });
   } catch (error) {
     console.error("Upload error:", error);

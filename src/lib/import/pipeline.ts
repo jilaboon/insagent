@@ -2,7 +2,7 @@
  * Import Pipeline Orchestrator
  *
  * Coordinates the full import flow:
- * 1. Parse CSV files (Windows-1255 → UTF-8)
+ * 1. Parse CSV files or accept pre-parsed rows
  * 2. Map columns to normalized records
  * 3. Merge customers across files by ת.ז.
  * 4. Persist to database
@@ -27,6 +27,12 @@ export interface ImportFile {
   fileType: "life" | "elementary";
 }
 
+export interface ImportRowBatch {
+  fileName: string;
+  headers: string[];
+  rows: Record<string, string>[];
+}
+
 export interface PipelineResult {
   success: boolean;
   totalRowsParsed: number;
@@ -41,18 +47,13 @@ export interface PipelineResult {
 // File type detection
 // ============================================================
 
-/**
- * Detect whether a CSV file is life or elementary based on header columns.
- */
 export function detectFileType(headers: string[]): "life" | "elementary" | "unknown" {
   const headerSet = new Set(headers.map((h) => h.trim()));
 
-  // Life CSV has these unique columns
   if (headerSet.has("סוג מוצר פנסיוני") || headerSet.has("סה\"כ סכום חיסכון מצטבר")) {
     return "life";
   }
 
-  // Elementary CSV has these unique columns
   if (headerSet.has("שם ענף") || headerSet.has("מס' רכב") || headerSet.has("סיום ביטוח")) {
     return "elementary";
   }
@@ -61,71 +62,62 @@ export function detectFileType(headers: string[]): "life" | "elementary" | "unkn
 }
 
 // ============================================================
-// Pipeline
+// Pipeline from pre-parsed rows (used by the API route)
 // ============================================================
 
-export async function runImportPipeline(
+export async function runImportPipelineFromRows(
   importJobId: string,
-  files: ImportFile[]
+  batches: ImportRowBatch[]
 ): Promise<PipelineResult> {
   const allRecords: NormalizedRecord[] = [];
   let totalRowsParsed = 0;
 
   try {
-    // Update job status to PROCESSING
     await prisma.importJob.update({
       where: { id: importJobId },
       data: { status: "PROCESSING" },
     });
 
-    // Phase 1: Parse and normalize all files
-    for (const file of files) {
-      const parsed = parseCsvBuffer(file.buffer, "windows-1255");
-      totalRowsParsed += parsed.totalRows;
-
-      // Auto-detect file type if needed
-      const fileType = file.fileType || detectFileType(parsed.headers);
+    for (const batch of batches) {
+      const fileType = detectFileType(batch.headers);
+      totalRowsParsed += batch.rows.length;
 
       if (fileType === "life") {
-        for (let i = 0; i < parsed.rows.length; i++) {
+        for (let i = 0; i < batch.rows.length; i++) {
           try {
-            const mapped = mapLifeRow(parsed.rows[i], i + 1);
+            const mapped = mapLifeRow(batch.rows[i], i + 1);
             if (mapped.customer.israeliId) {
-              allRecords.push(normalizeLifeRow(mapped, file.fileName));
+              allRecords.push(normalizeLifeRow(mapped, batch.fileName));
             }
           } catch {
-            // Skip malformed rows silently
+            // Skip malformed rows
           }
         }
       } else if (fileType === "elementary") {
-        for (let i = 0; i < parsed.rows.length; i++) {
+        for (let i = 0; i < batch.rows.length; i++) {
           try {
-            const mapped = mapElementaryRow(parsed.rows[i], i + 1);
+            const mapped = mapElementaryRow(batch.rows[i], i + 1);
             if (mapped.customer.israeliId) {
-              allRecords.push(normalizeElementaryRow(mapped, file.fileName));
+              allRecords.push(normalizeElementaryRow(mapped, batch.fileName));
             }
           } catch {
-            // Skip malformed rows silently
+            // Skip malformed rows
           }
         }
       }
     }
 
-    // Update total rows
     await prisma.importJob.update({
       where: { id: importJobId },
       data: { totalRows: totalRowsParsed },
     });
 
-    // Phase 2: Merge customers across files
     const mergedCustomers = mergeRecords(allRecords);
 
-    // Phase 3: Persist to database
     const persistResult = await persistMergedCustomers(
       mergedCustomers,
       importJobId,
       async (progress) => {
-        // Update import job with progress
         await prisma.importJob.update({
           where: { id: importJobId },
           data: {
@@ -138,7 +130,6 @@ export async function runImportPipeline(
       }
     );
 
-    // Phase 4: Complete
     await prisma.importJob.update({
       where: { id: importJobId },
       data: {
@@ -162,7 +153,6 @@ export async function runImportPipeline(
       errors: persistResult.errors,
     };
   } catch (error) {
-    // Mark job as failed
     await prisma.importJob.update({
       where: { id: importJobId },
       data: {
@@ -182,4 +172,26 @@ export async function runImportPipeline(
       errors: [{ israeliId: "PIPELINE", error: error instanceof Error ? error.message : String(error) }],
     };
   }
+}
+
+// ============================================================
+// Pipeline from raw buffers (for local/testing use)
+// ============================================================
+
+export async function runImportPipeline(
+  importJobId: string,
+  files: ImportFile[]
+): Promise<PipelineResult> {
+  const batches: ImportRowBatch[] = [];
+
+  for (const file of files) {
+    const parsed = parseCsvBuffer(file.buffer, "windows-1255");
+    batches.push({
+      fileName: file.fileName,
+      headers: parsed.headers,
+      rows: parsed.rows,
+    });
+  }
+
+  return runImportPipelineFromRows(importJobId, batches);
 }
