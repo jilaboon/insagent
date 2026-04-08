@@ -9,7 +9,7 @@ import type {
   InvestmentTrack,
   ManagementFee,
   InsightCategory,
-} from "@/generated/prisma/client";
+} from "@prisma/client";
 
 // ============================================================
 // Customer Profile — enriched customer data for rule evaluation

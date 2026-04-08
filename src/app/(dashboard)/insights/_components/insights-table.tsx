@@ -31,7 +31,7 @@ import {
 } from "@/lib/constants";
 import { useInsights, type PaginatedInsights } from "@/lib/api/hooks";
 import type { InsightDetail } from "@/lib/types/insight";
-import type { InsightCategory } from "@/generated/prisma/client";
+import type { InsightCategory } from "@prisma/client";
 import { InsightRowDetail } from "./insight-row-detail";
 import { useFiltersFromURL } from "./insights-filters";
 

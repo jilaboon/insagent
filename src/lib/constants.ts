@@ -1,4 +1,4 @@
-import type { InsightCategory } from "@/generated/prisma/client";
+import type { InsightCategory } from "@prisma/client";
 
 // ============================================================
 // Policy Category Labels

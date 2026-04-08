@@ -1,7 +1,7 @@
 import type {
   PolicyCategory,
   PolicyStatus,
-} from "@/generated/prisma/client";
+} from "@prisma/client";
 
 export interface CustomerProfilePolicy {
   id: string;

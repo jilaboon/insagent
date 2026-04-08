@@ -11,7 +11,7 @@ import {
   urgencyLabels,
 } from "@/lib/constants";
 import type { InsightFilters } from "@/lib/types/insight";
-import type { InsightCategory } from "@/generated/prisma/client";
+import type { InsightCategory } from "@prisma/client";
 
 // ============================================================
 // Build filter options from constants

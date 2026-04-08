@@ -3,7 +3,7 @@
  * that works across both life and elementary insurance data.
  */
 
-import type { PolicyCategory, PolicyStatus } from "@/generated/prisma/client";
+import type { PolicyCategory, PolicyStatus } from "@prisma/client";
 import type { LifeNormalizedRow } from "./column-maps/life-columns";
 import type { ElementaryNormalizedRow } from "./column-maps/elementary-columns";
 

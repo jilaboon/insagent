@@ -1,4 +1,4 @@
-import type { InsightCategory, InsightStatus } from "@/generated/prisma/client";
+import type { InsightCategory, InsightStatus } from "@prisma/client";
 
 export interface InsightListItem {
   id: string;

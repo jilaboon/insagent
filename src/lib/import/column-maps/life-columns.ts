@@ -10,7 +10,7 @@
  */
 
 import { parseHebrewDate, parseNumber, parseInteger, cleanString } from "../parse-csv";
-import type { PolicyCategory, PolicyStatus } from "@/generated/prisma/client";
+import type { PolicyCategory, PolicyStatus } from "@prisma/client";
 import { bafiStatusMap } from "@/lib/constants";
 
 // ============================================================
