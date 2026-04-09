@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
           },
         },
         messageDrafts: {
-          select: { id: true, status: true },
+          select: { id: true, status: true, body: true },
           take: 1,
           orderBy: { createdAt: "desc" },
         },
@@ -102,6 +102,8 @@ export async function GET(request: NextRequest) {
     profileCompleteness: i.profileCompleteness,
     evidenceJson: i.evidenceJson,
     messageStatus: i.messageDrafts.length > 0 ? i.messageDrafts[0].status : "none",
+    messageId: i.messageDrafts.length > 0 ? i.messageDrafts[0].id : null,
+    messageBody: i.messageDrafts.length > 0 ? i.messageDrafts[0].body : null,
     createdAt: i.createdAt.toISOString(),
   }));
 
