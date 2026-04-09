@@ -154,21 +154,32 @@ async function upsertCustomerBatch(
   }
 
   if (policyValues.length > 0) {
-    // Batch insert policies — use policyNumber + insurer + customerId as conflict key
-    // Since there's no unique constraint, we use a subquery approach
     const policySql = `
       INSERT INTO policies (id, "customerId", "policyNumber", insurer, category, "subType", status, "productName", "startDate", "endDate", "premiumMonthly", "premiumAnnual", "accountType", employer, "accumulatedSavings", "redemptionValue", "dataFreshnessDate", "vehicleYear", "vehiclePlate", "vehicleModel", "propertyAddress", "importJobId", "createdAt", "updatedAt")
       VALUES ${policyValues.join(",\n")}
-      ON CONFLICT DO NOTHING
+      ON CONFLICT ("customerId", "policyNumber", insurer) DO UPDATE SET
+        category = EXCLUDED.category,
+        "subType" = COALESCE(EXCLUDED."subType", policies."subType"),
+        status = EXCLUDED.status,
+        "productName" = COALESCE(EXCLUDED."productName", policies."productName"),
+        "startDate" = COALESCE(EXCLUDED."startDate", policies."startDate"),
+        "endDate" = COALESCE(EXCLUDED."endDate", policies."endDate"),
+        "premiumMonthly" = COALESCE(EXCLUDED."premiumMonthly", policies."premiumMonthly"),
+        "premiumAnnual" = COALESCE(EXCLUDED."premiumAnnual", policies."premiumAnnual"),
+        "accountType" = COALESCE(EXCLUDED."accountType", policies."accountType"),
+        employer = COALESCE(EXCLUDED.employer, policies.employer),
+        "accumulatedSavings" = COALESCE(EXCLUDED."accumulatedSavings", policies."accumulatedSavings"),
+        "redemptionValue" = COALESCE(EXCLUDED."redemptionValue", policies."redemptionValue"),
+        "dataFreshnessDate" = COALESCE(EXCLUDED."dataFreshnessDate", policies."dataFreshnessDate"),
+        "vehicleYear" = COALESCE(EXCLUDED."vehicleYear", policies."vehicleYear"),
+        "vehiclePlate" = COALESCE(EXCLUDED."vehiclePlate", policies."vehiclePlate"),
+        "vehicleModel" = COALESCE(EXCLUDED."vehicleModel", policies."vehicleModel"),
+        "propertyAddress" = COALESCE(EXCLUDED."propertyAddress", policies."propertyAddress"),
+        "importJobId" = EXCLUDED."importJobId",
+        "updatedAt" = NOW()
     `;
 
-    try {
-      await prisma.$executeRawUnsafe(policySql);
-    } catch {
-      // If batch fails (e.g. no unique constraint), fall back to individual inserts
-      // This is fine — policies without a unique constraint just get duplicated on re-import
-      // We'll deduplicate later or add a unique constraint
-    }
+    await prisma.$executeRawUnsafe(policySql);
   }
 
   // Step 3: Link import job to customers
