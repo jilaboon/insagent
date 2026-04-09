@@ -91,7 +91,7 @@ function GenerateSection() {
     setProgress({ processed: 0, total: 0, insights: 0 });
 
     let offset = 0;
-    const batchSize = 100;
+    const batchSize = 25;
     let totalInsights = 0;
 
     try {
@@ -160,8 +160,9 @@ function GenerateSection() {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-surface-500 number">
-              {progress.processed.toLocaleString("he-IL")} / {progress.total.toLocaleString("he-IL")} לקוחות
-              {" · "}{progress.insights.toLocaleString("he-IL")} תובנות
+              {progress.total > 0
+                ? `${progress.processed.toLocaleString("he-IL")} / ${progress.total.toLocaleString("he-IL")} לקוחות · ${progress.insights.toLocaleString("he-IL")} תובנות`
+                : "מתחיל..."}
             </span>
             <Button variant="danger" size="sm" onClick={handleStop}>
               <Square className="h-3 w-3" />
