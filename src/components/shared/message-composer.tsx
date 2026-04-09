@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   MessageSquare,
+  Sparkles,
   Pencil,
   Check,
   SkipForward,
@@ -132,15 +133,18 @@ export function MessageComposer({
   if (state === "idle") {
     return (
       <div className={cn("flex items-center gap-2", className)}>
-        <Button
-          variant="secondary"
-          size="sm"
+        <button
           onClick={handleGenerate}
           disabled={generateMessage.isPending}
+          className="group relative inline-flex items-center gap-2 rounded-lg bg-gradient-to-l from-primary-600 to-primary-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:from-primary-700 hover:to-primary-600 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <MessageSquare className="h-3.5 w-3.5" />
-          צור הודעה
-        </Button>
+          <Sparkles className="h-4 w-4 transition-transform group-hover:scale-110" />
+          צור הודעה עם AI
+          <span className="absolute -top-1 -left-1 flex h-3 w-3">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+            <span className="relative inline-flex h-3 w-3 rounded-full bg-amber-400" />
+          </span>
+        </button>
       </div>
     );
   }
