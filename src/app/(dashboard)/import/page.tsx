@@ -3,21 +3,19 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
-import { Upload } from "lucide-react";
-import { useCallback, useState } from "react";
-import { ImportProgress } from "./_components/import-progress";
+import { Upload, Square } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
 import { ImportSummary } from "./_components/import-summary";
 import { ImportHistory } from "./_components/import-history";
 import { FileDropzone } from "./_components/file-dropzone";
 
-type Stage = "upload" | "parsing" | "uploading" | "processing" | "summary";
+type Stage = "upload" | "parsing" | "uploading" | "summary";
 
-interface CompletedJob {
-  totalRows: number | null;
-  newCustomers: number | null;
-  updatedCustomers: number | null;
-  customerCount: number;
-  policyCount: number;
+interface ImportResult {
+  totalRows: number;
+  customers: number;
+  created: number;
+  updated: number;
 }
 
 // ============================================================
@@ -28,7 +26,6 @@ function parseCSVText(text: string): { headers: string[]; rows: Record<string, s
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
   if (lines.length === 0) return { headers: [], rows: [] };
 
-  // Simple CSV parser that handles quoted fields
   function parseLine(line: string): string[] {
     const fields: string[] = [];
     let current = "";
@@ -61,7 +58,6 @@ function parseCSVText(text: string): { headers: string[]; rows: Record<string, s
     const values = parseLine(lines[i]);
     const row: Record<string, string> = {};
     for (let j = 0; j < headers.length; j++) {
-      // Only include non-empty values to reduce payload size
       if (values[j] && values[j].trim()) {
         row[headers[j]] = values[j].trim();
       }
@@ -74,18 +70,11 @@ function parseCSVText(text: string): { headers: string[]; rows: Record<string, s
 
 async function readFileAsText(file: File): Promise<string> {
   const buffer = await file.arrayBuffer();
-
-  // Try Windows-1255 first (BAFI default), fallback to UTF-8
   try {
     const decoder = new TextDecoder("windows-1255");
     const text = decoder.decode(buffer);
-    // Check if it decoded properly — Hebrew chars should be present
     if (/[\u0590-\u05FF]/.test(text)) return text;
-  } catch {
-    // windows-1255 not supported in this browser
-  }
-
-  // Fallback: UTF-8
+  } catch { /* fallback */ }
   return new TextDecoder("utf-8").decode(buffer);
 }
 
@@ -93,126 +82,106 @@ async function readFileAsText(file: File): Promise<string> {
 // Component
 // ============================================================
 
-const CHUNK_SIZE = 50; // rows per API call — small to keep each request fast on Supabase pooler
-
 export default function ImportPage() {
   const [stage, setStage] = useState<Stage>("upload");
   const [files, setFiles] = useState<File[]>([]);
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [completedJob, setCompletedJob] = useState<CompletedJob | null>(null);
   const [historyKey, setHistoryKey] = useState(0);
   const [statusMessage, setStatusMessage] = useState("");
   const [progressPercent, setProgressPercent] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const abortRef = useRef(false);
+
+  const handleStop = useCallback(() => {
+    abortRef.current = true;
+    setStatusMessage("עוצר...");
+  }, []);
 
   const handleUpload = useCallback(async () => {
     if (files.length === 0) return;
     setError(null);
+    abortRef.current = false;
 
+    let totalCreated = 0;
+    let totalUpdated = 0;
+    let totalCustomers = 0;
+    let totalRows = 0;
     let currentJobId: string | null = null;
 
     try {
-      // Phase 1: Read and parse files on client
       setStage("parsing");
-      const allBatches: Array<{ fileName: string; headers: string[]; rows: Record<string, string>[] }> = [];
-      let totalRows = 0;
 
       for (let f = 0; f < files.length; f++) {
-        setStatusMessage(`קורא קובץ ${f + 1} מתוך ${files.length}: ${files[f].name}...`);
-        setProgressPercent(Math.round(((f) / files.length) * 20));
+        if (abortRef.current) break;
+
+        // Parse file
+        setStatusMessage(`קורא קובץ ${files[f].name}...`);
+        setProgressPercent(Math.round((f / files.length) * 20));
 
         const text = await readFileAsText(files[f]);
-        setStatusMessage(`מפענח קובץ ${files[f].name}...`);
-
         const { headers, rows } = parseCSVText(text);
         totalRows += rows.length;
-        allBatches.push({ fileName: files[f].name, headers, rows });
 
-        setStatusMessage(`נמצאו ${rows.length.toLocaleString("he-IL")} שורות ב-${files[f].name}`);
-      }
+        setStatusMessage(`${files[f].name}: ${rows.length.toLocaleString("he-IL")} שורות — שולח לעיבוד...`);
+        setStage("uploading");
+        setProgressPercent(20 + Math.round(((f) / files.length) * 70));
 
-      // Phase 2: Send chunks to server — each chunk is processed synchronously
-      setStage("uploading");
-      let sentRows = 0;
-      let totalCreated = 0;
-      let totalUpdated = 0;
+        if (abortRef.current) break;
 
-      for (const batch of allBatches) {
-        const chunks: Record<string, string>[][] = [];
-        for (let i = 0; i < batch.rows.length; i += CHUNK_SIZE) {
-          chunks.push(batch.rows.slice(i, i + CHUNK_SIZE));
+        // Send entire file in one request
+        const response = await fetch("/api/import/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: files[f].name,
+            headers,
+            rows,
+            jobId: currentJobId,
+          }),
+        });
+
+        if (!response.ok) {
+          const errBody = await response.json();
+          throw new Error(errBody.error || "שגיאה בעיבוד");
         }
 
-        for (let c = 0; c < chunks.length; c++) {
-          sentRows += chunks[c].length;
-          const percent = 20 + Math.round((sentRows / totalRows) * 75);
-          setProgressPercent(percent);
-          setStatusMessage(
-            `מעבד ${sentRows.toLocaleString("he-IL")} מתוך ${totalRows.toLocaleString("he-IL")} שורות... (${totalCreated} חדשים, ${totalUpdated} עודכנו)`
-          );
+        const result = (await response.json()) as {
+          jobId: string;
+          customers: number;
+          created: number;
+          updated: number;
+        };
 
-          const response = await fetch("/api/import/upload", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              fileName: batch.fileName,
-              headers: batch.headers,
-              rows: chunks[c],
-              jobId: currentJobId,
-            }),
-          });
+        currentJobId = result.jobId;
+        totalCreated += result.created;
+        totalUpdated += result.updated;
+        totalCustomers += result.customers;
 
-          if (!response.ok) {
-            const errBody = await response.json();
-            throw new Error(errBody.error || "שגיאה בעיבוד נתונים");
-          }
-
-          const result = (await response.json()) as {
-            jobId: string;
-            created: number;
-            updated: number;
-          };
-          if (!currentJobId) {
-            currentJobId = result.jobId;
-          }
-          totalCreated += result.created;
-          totalUpdated += result.updated;
-        }
+        setStatusMessage(
+          `${files[f].name}: ${result.customers} לקוחות (${result.created} חדשים, ${result.updated} עודכנו)`
+        );
+        setProgressPercent(20 + Math.round(((f + 1) / files.length) * 70));
       }
 
-      // Phase 3: Mark job as complete and show summary
-      setProgressPercent(95);
-      setStatusMessage("מסיים...");
+      if (abortRef.current) {
+        setStatusMessage("הייבוא הופסק");
+        setStage("upload");
+        setHistoryKey((k) => k + 1);
+        return;
+      }
 
-      // Mark job completed
+      // Mark job complete
       if (currentJobId) {
         await fetch(`/api/import/${currentJobId}/complete`, { method: "POST" });
       }
 
-      // Fetch final job data for summary
-      if (currentJobId) {
-        const jobRes = await fetch(`/api/import/${currentJobId}`);
-        if (jobRes.ok) {
-          const job = await jobRes.json();
-          setCompletedJob({
-            totalRows: job.totalRows,
-            newCustomers: job.newCustomers,
-            updatedCustomers: job.updatedCustomers,
-            customerCount: job.customerCount || totalCreated + totalUpdated,
-            policyCount: job.policyCount || 0,
-          });
-        } else {
-          setCompletedJob({
-            totalRows: totalRows,
-            newCustomers: totalCreated,
-            updatedCustomers: totalUpdated,
-            customerCount: totalCreated + totalUpdated,
-            policyCount: 0,
-          });
-        }
-      }
-
       setProgressPercent(100);
+      setImportResult({
+        totalRows,
+        customers: totalCustomers,
+        created: totalCreated,
+        updated: totalUpdated,
+      });
       setStage("summary");
       setHistoryKey((k) => k + 1);
     } catch (err) {
@@ -221,19 +190,10 @@ export default function ImportPage() {
     }
   }, [files]);
 
-  const handleComplete = useCallback((job: CompletedJob) => {
-    setCompletedJob(job);
-    setStage("summary");
-    setHistoryKey((k) => k + 1);
-    setProgressPercent(100);
-    setStatusMessage("");
-  }, []);
-
   const handleReset = useCallback(() => {
     setStage("upload");
     setFiles([]);
-    setJobId(null);
-    setCompletedJob(null);
+    setImportResult(null);
     setProgressPercent(0);
     setStatusMessage("");
     setError(null);
@@ -252,7 +212,6 @@ export default function ImportPage() {
       {stage === "upload" && (
         <Card>
           <FileDropzone onChange={setFiles} />
-
           {files.length > 0 && (
             <div className="mt-4 flex items-center gap-3">
               <Button variant="primary" onClick={handleUpload}>
@@ -265,15 +224,21 @@ export default function ImportPage() {
         </Card>
       )}
 
-      {/* Parsing / Uploading stages */}
+      {/* Processing stage */}
       {(stage === "parsing" || stage === "uploading") && (
         <Card padding="lg">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-surface-900">
-                {stage === "parsing" ? "קורא ומפענח קבצים..." : "שולח נתונים לשרת..."}
+                {stage === "parsing" ? "קורא ומפענח קבצים..." : "מעבד נתונים..."}
               </h3>
-              <span className="text-xs text-surface-500 number">{progressPercent}%</span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-surface-500 number">{progressPercent}%</span>
+                <Button variant="danger" size="sm" onClick={handleStop}>
+                  <Square className="h-3 w-3" />
+                  עצור
+                </Button>
+              </div>
             </div>
             <ProgressBar value={progressPercent} variant="primary" />
             <p className="text-sm text-surface-600">{statusMessage}</p>
@@ -281,13 +246,8 @@ export default function ImportPage() {
         </Card>
       )}
 
-      {/* Server processing stage */}
-      {stage === "processing" && jobId && (
-        <ImportProgress jobId={jobId} onComplete={handleComplete} />
-      )}
-
       {/* Summary stage */}
-      {stage === "summary" && completedJob && (
+      {stage === "summary" && importResult && (
         <Card>
           <CardHeader>
             <CardTitle>סיכום ייבוא</CardTitle>
@@ -296,10 +256,10 @@ export default function ImportPage() {
             </Button>
           </CardHeader>
           <ImportSummary
-            totalCustomers={completedJob.customerCount}
-            newCustomers={completedJob.newCustomers ?? 0}
-            updatedCustomers={completedJob.updatedCustomers ?? 0}
-            policies={completedJob.policyCount}
+            totalCustomers={importResult.customers}
+            newCustomers={importResult.created}
+            updatedCustomers={importResult.updated}
+            policies={importResult.totalRows}
           />
         </Card>
       )}

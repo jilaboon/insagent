@@ -15,7 +15,7 @@ import { mapLifeRow } from "./column-maps/life-columns";
 import { mapElementaryRow } from "./column-maps/elementary-columns";
 import { normalizeLifeRow, normalizeElementaryRow, type NormalizedRecord } from "./normalizer";
 import { mergeRecords } from "./merger";
-import { persistMergedCustomers } from "./persister";
+import { batchPersistCustomers } from "./batch-persister";
 
 // ============================================================
 // Types
@@ -114,20 +114,9 @@ export async function runImportPipelineFromRows(
 
     const mergedCustomers = mergeRecords(allRecords);
 
-    const persistResult = await persistMergedCustomers(
+    const persistResult = await batchPersistCustomers(
       mergedCustomers,
-      importJobId,
-      async (progress) => {
-        await prisma.importJob.update({
-          where: { id: importJobId },
-          data: {
-            importedRows: progress.processed,
-            newCustomers: progress.created,
-            updatedCustomers: progress.updated,
-            failedRows: progress.failed,
-          },
-        });
-      }
+      importJobId
     );
 
     await prisma.importJob.update({
