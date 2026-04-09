@@ -186,6 +186,7 @@ export function InsightsTable({ className }: InsightsTableProps) {
     getRowId: (row) => row.id,
     getCoreRowModel: getCoreRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
+    getRowCanExpand: () => true,
     manualPagination: true,
     manualSorting: true,
     pageCount: data?.totalPages ?? 0,

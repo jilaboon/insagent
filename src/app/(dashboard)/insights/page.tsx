@@ -1,10 +1,12 @@
 "use client";
 
-import { Suspense } from "react";
-import { Lightbulb, AlertTriangle, MessageSquare, Sparkles, Loader2 } from "lucide-react";
+import { Suspense, useState, useCallback, useRef } from "react";
+import { Lightbulb, AlertTriangle, MessageSquare, Sparkles, Loader2, Square } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useInsights, useGenerateInsights } from "@/lib/api/hooks";
+import { ProgressBar } from "@/components/ui/progress-bar";
+import { useInsights } from "@/lib/api/hooks";
+import { useQueryClient } from "@tanstack/react-query";
 import { InsightsFilters, useFiltersFromURL } from "./_components/insights-filters";
 import { InsightsTable } from "./_components/insights-table";
 
@@ -74,25 +76,108 @@ function StatCard({
 }
 
 // ============================================================
-// Generate Button
+// Generate Button with batch progress
 // ============================================================
 
-function GenerateButton() {
-  const generateInsights = useGenerateInsights();
+function GenerateSection() {
+  const [isRunning, setIsRunning] = useState(false);
+  const [progress, setProgress] = useState({ processed: 0, total: 0, insights: 0 });
+  const abortRef = useRef(false);
+  const queryClient = useQueryClient();
+
+  const handleGenerate = useCallback(async () => {
+    setIsRunning(true);
+    abortRef.current = false;
+    setProgress({ processed: 0, total: 0, insights: 0 });
+
+    let offset = 0;
+    const batchSize = 100;
+    let totalInsights = 0;
+
+    try {
+      while (true) {
+        if (abortRef.current) break;
+
+        const res = await fetch("/api/insights/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ offset, limit: batchSize, includeAI: false }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "שגיאה");
+        }
+
+        const result = (await res.json()) as {
+          processed: number;
+          insightsCreated: number;
+          totalCustomers: number;
+          done: boolean;
+        };
+
+        totalInsights += result.insightsCreated;
+        offset += result.processed;
+        setProgress({
+          processed: offset,
+          total: result.totalCustomers,
+          insights: totalInsights,
+        });
+
+        // Refresh the insights list periodically
+        if (offset % 500 === 0 || result.done) {
+          queryClient.invalidateQueries({ queryKey: ["insights"] });
+        }
+
+        if (result.done) break;
+      }
+    } catch (err) {
+      console.error("Generation error:", err);
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["insights"] });
+    queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    setIsRunning(false);
+  }, [queryClient]);
+
+  const handleStop = useCallback(() => {
+    abortRef.current = true;
+  }, []);
+
+  if (isRunning) {
+    const percent = progress.total > 0
+      ? Math.round((progress.processed / progress.total) * 100)
+      : 0;
+
+    return (
+      <Card padding="sm" className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin text-primary-500" />
+            <span className="text-sm font-medium text-surface-800">
+              מנתח לקוחות...
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-surface-500 number">
+              {progress.processed.toLocaleString("he-IL")} / {progress.total.toLocaleString("he-IL")} לקוחות
+              {" · "}{progress.insights.toLocaleString("he-IL")} תובנות
+            </span>
+            <Button variant="danger" size="sm" onClick={handleStop}>
+              <Square className="h-3 w-3" />
+              עצור
+            </Button>
+          </div>
+        </div>
+        <ProgressBar value={percent} variant="primary" />
+      </Card>
+    );
+  }
 
   return (
-    <Button
-      variant="primary"
-      size="md"
-      onClick={() => generateInsights.mutate({ includeAI: false })}
-      disabled={generateInsights.isPending}
-    >
-      {generateInsights.isPending ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <Sparkles className="h-4 w-4" />
-      )}
-      {generateInsights.isPending ? "מנתח..." : "צור תובנות"}
+    <Button variant="primary" size="md" onClick={handleGenerate}>
+      <Sparkles className="h-4 w-4" />
+      צור תובנות
     </Button>
   );
 }
@@ -112,7 +197,7 @@ function InsightsContent() {
             תובנות עסקיות שזוהו אוטומטית מנתוני הלקוחות
           </p>
         </div>
-        <GenerateButton />
+        <GenerateSection />
       </div>
 
       {/* Stats */}
