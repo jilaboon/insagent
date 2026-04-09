@@ -30,22 +30,13 @@ function parseCSVText(text: string): { headers: string[]; rows: Record<string, s
     const fields: string[] = [];
     let current = "";
     let inQuotes = false;
-
     for (let i = 0; i < line.length; i++) {
       const ch = line[i];
       if (ch === '"') {
-        if (inQuotes && line[i + 1] === '"') {
-          current += '"';
-          i++;
-        } else {
-          inQuotes = !inQuotes;
-        }
-      } else if (ch === "," && !inQuotes) {
-        fields.push(current.trim());
-        current = "";
-      } else {
-        current += ch;
-      }
+        if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+        else inQuotes = !inQuotes;
+      } else if (ch === "," && !inQuotes) { fields.push(current.trim()); current = ""; }
+      else current += ch;
     }
     fields.push(current.trim());
     return fields;
@@ -53,18 +44,14 @@ function parseCSVText(text: string): { headers: string[]; rows: Record<string, s
 
   const headers = parseLine(lines[0]);
   const rows: Record<string, string>[] = [];
-
   for (let i = 1; i < lines.length; i++) {
     const values = parseLine(lines[i]);
     const row: Record<string, string> = {};
     for (let j = 0; j < headers.length; j++) {
-      if (values[j] && values[j].trim()) {
-        row[headers[j]] = values[j].trim();
-      }
+      if (values[j] && values[j].trim()) row[headers[j]] = values[j].trim();
     }
     rows.push(row);
   }
-
   return { headers, rows };
 }
 
@@ -78,9 +65,8 @@ async function readFileAsText(file: File): Promise<string> {
   return new TextDecoder("utf-8").decode(buffer);
 }
 
-// ============================================================
-// Component
-// ============================================================
+// Chunk size — keep JSON payload under ~3MB
+const CHUNK_SIZE = 500;
 
 export default function ImportPage() {
   const [stage, setStage] = useState<Stage>("upload");
@@ -114,74 +100,77 @@ export default function ImportPage() {
       for (let f = 0; f < files.length; f++) {
         if (abortRef.current) break;
 
-        // Parse file
         setStatusMessage(`קורא קובץ ${files[f].name}...`);
-        setProgressPercent(Math.round((f / files.length) * 20));
+        setProgressPercent(Math.round((f / files.length) * 10));
 
         const text = await readFileAsText(files[f]);
         const { headers, rows } = parseCSVText(text);
         totalRows += rows.length;
 
-        setStatusMessage(`${files[f].name}: ${rows.length.toLocaleString("he-IL")} שורות — שולח לעיבוד...`);
         setStage("uploading");
-        setProgressPercent(20 + Math.round(((f) / files.length) * 70));
 
-        if (abortRef.current) break;
+        // Send in chunks to stay under Vercel payload limit
+        const totalChunks = Math.ceil(rows.length / CHUNK_SIZE);
 
-        // Send entire file in one request
-        const response = await fetch("/api/import/upload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileName: files[f].name,
-            headers,
-            rows,
-            jobId: currentJobId,
-          }),
-        });
+        for (let c = 0; c < totalChunks; c++) {
+          if (abortRef.current) break;
 
-        if (!response.ok) {
-          const errBody = await response.json();
-          throw new Error(errBody.error || "שגיאה בעיבוד");
+          const chunk = rows.slice(c * CHUNK_SIZE, (c + 1) * CHUNK_SIZE);
+          const fileProgress = f / files.length;
+          const chunkProgress = (c + 1) / totalChunks;
+          const percent = Math.round((fileProgress + chunkProgress / files.length) * 90) + 10;
+          setProgressPercent(percent);
+          setStatusMessage(
+            `${files[f].name}: מעבד ${((c + 1) * CHUNK_SIZE > rows.length ? rows.length : (c + 1) * CHUNK_SIZE).toLocaleString("he-IL")} מתוך ${rows.length.toLocaleString("he-IL")} שורות` +
+            (totalCreated + totalUpdated > 0 ? ` (${totalCreated} חדשים, ${totalUpdated} עודכנו)` : "")
+          );
+
+          const response = await fetch("/api/import/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fileName: files[f].name,
+              headers,
+              rows: chunk,
+              jobId: currentJobId,
+            }),
+          });
+
+          if (!response.ok) {
+            const errBody = await response.json();
+            throw new Error(errBody.error || "שגיאה בעיבוד");
+          }
+
+          const result = (await response.json()) as {
+            jobId: string;
+            customers: number;
+            created: number;
+            updated: number;
+          };
+
+          currentJobId = result.jobId;
+          totalCreated += result.created;
+          totalUpdated += result.updated;
+          totalCustomers += result.customers;
         }
-
-        const result = (await response.json()) as {
-          jobId: string;
-          customers: number;
-          created: number;
-          updated: number;
-        };
-
-        currentJobId = result.jobId;
-        totalCreated += result.created;
-        totalUpdated += result.updated;
-        totalCustomers += result.customers;
-
-        setStatusMessage(
-          `${files[f].name}: ${result.customers} לקוחות (${result.created} חדשים, ${result.updated} עודכנו)`
-        );
-        setProgressPercent(20 + Math.round(((f + 1) / files.length) * 70));
       }
 
       if (abortRef.current) {
+        if (currentJobId) {
+          await fetch(`/api/import/${currentJobId}/complete`, { method: "POST" });
+        }
         setStatusMessage("הייבוא הופסק");
         setStage("upload");
         setHistoryKey((k) => k + 1);
         return;
       }
 
-      // Mark job complete
       if (currentJobId) {
         await fetch(`/api/import/${currentJobId}/complete`, { method: "POST" });
       }
 
       setProgressPercent(100);
-      setImportResult({
-        totalRows,
-        customers: totalCustomers,
-        created: totalCreated,
-        updated: totalUpdated,
-      });
+      setImportResult({ totalRows, customers: totalCustomers, created: totalCreated, updated: totalUpdated });
       setStage("summary");
       setHistoryKey((k) => k + 1);
     } catch (err) {
@@ -203,12 +192,9 @@ export default function ImportPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-lg font-bold text-surface-900">מרכז יבוא נתונים</h1>
-        <p className="text-sm text-surface-500">
-          העלו קובצי CSV לייבוא נתוני לקוחות ופוליסות
-        </p>
+        <p className="text-sm text-surface-500">העלו קובצי CSV לייבוא נתוני לקוחות ופוליסות</p>
       </div>
 
-      {/* Upload stage */}
       {stage === "upload" && (
         <Card>
           <FileDropzone onChange={setFiles} />
@@ -224,7 +210,6 @@ export default function ImportPage() {
         </Card>
       )}
 
-      {/* Processing stage */}
       {(stage === "parsing" || stage === "uploading") && (
         <Card padding="lg">
           <div className="space-y-4">
@@ -246,14 +231,11 @@ export default function ImportPage() {
         </Card>
       )}
 
-      {/* Summary stage */}
       {stage === "summary" && importResult && (
         <Card>
           <CardHeader>
             <CardTitle>סיכום ייבוא</CardTitle>
-            <Button variant="secondary" size="sm" onClick={handleReset}>
-              ייבוא נוסף
-            </Button>
+            <Button variant="secondary" size="sm" onClick={handleReset}>ייבוא נוסף</Button>
           </CardHeader>
           <ImportSummary
             totalCustomers={importResult.customers}
@@ -264,11 +246,8 @@ export default function ImportPage() {
         </Card>
       )}
 
-      {/* Import history */}
       <Card>
-        <CardHeader>
-          <CardTitle>היסטוריית ייבוא</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>היסטוריית ייבוא</CardTitle></CardHeader>
         <ImportHistory refreshKey={historyKey} />
       </Card>
     </div>
