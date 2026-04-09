@@ -46,7 +46,7 @@ export async function generateMessage(
 
   try {
     const result = await generateText({
-      model: anthropic("claude-haiku-4.5"),
+      model: anthropic("claude-haiku-4-5-20251001"),
       system: MESSAGE_SYSTEM_PROMPT,
       prompt,
     });

@@ -67,7 +67,7 @@ export async function generateAIInsights(
 
   try {
     const result = await generateText({
-      model: anthropic("claude-haiku-4.5"),
+      model: anthropic("claude-haiku-4-5-20251001"),
       output: Output.object({ schema: AIInsightSchema }),
       system: INSIGHT_SYSTEM_PROMPT,
       prompt: userPrompt,
