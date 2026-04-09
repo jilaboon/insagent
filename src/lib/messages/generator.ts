@@ -28,6 +28,7 @@ export async function generateMessage(
           firstName: true,
           lastName: true,
           age: true,
+          gender: true,
         },
       },
     },
@@ -35,8 +36,16 @@ export async function generateMessage(
 
   if (!insight) return null;
 
+  // Map gender from Hebrew to prompt instruction
+  const genderMap: Record<string, "male" | "female" | "unknown"> = {
+    "זכר": "male",
+    "נקבה": "female",
+  };
+  const customerGender = genderMap[insight.customer.gender || ""] || "unknown";
+
   const prompt = buildMessageUserPrompt({
     customerFirstName: insight.customer.firstName,
+    customerGender,
     agentName,
     insightTitle: insight.title,
     insightSummary: insight.summary,
