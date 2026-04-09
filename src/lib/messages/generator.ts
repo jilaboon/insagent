@@ -7,7 +7,7 @@
 import { generateText } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { prisma } from "@/lib/db";
-import { MESSAGE_SYSTEM_PROMPT, buildMessageUserPrompt } from "@/lib/ai/prompts/message-system";
+import { MESSAGE_SYSTEM_PROMPT, buildMessageUserPrompt, buildTipsContext } from "@/lib/ai/prompts/message-system";
 
 const DEFAULT_AGENT_NAME = "רפי";
 
@@ -54,9 +54,17 @@ export async function generateMessage(
   });
 
   try {
+    // Load active office tips for context
+    const activeTips = await prisma.officeTip.findMany({
+      where: { isActive: true },
+      select: { title: true, body: true },
+    });
+    const tipsContext = buildTipsContext(activeTips);
+    const systemPrompt = MESSAGE_SYSTEM_PROMPT + tipsContext;
+
     const result = await generateText({
       model: anthropic("claude-haiku-4-5-20251001"),
-      system: MESSAGE_SYSTEM_PROMPT,
+      system: systemPrompt,
       prompt,
     });
 

@@ -24,11 +24,16 @@ export async function PUT(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { status, bodyText } = body;
+  const { status, bodyText, feedbackFlag, feedbackNote } = body;
 
   const updateData: Record<string, unknown> = {};
   if (status) updateData.status = status;
   if (bodyText) updateData.body = bodyText;
+  if (feedbackFlag) {
+    updateData.feedbackFlag = feedbackFlag;
+    updateData.feedbackNote = feedbackNote || null;
+    updateData.feedbackAt = new Date();
+  }
 
   const updated = await prisma.messageDraft.update({
     where: { id },

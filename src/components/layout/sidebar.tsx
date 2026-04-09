@@ -10,6 +10,7 @@ import {
   Star,
   FileText,
   ListTodo,
+  BookOpen,
   Upload,
   Shield,
   Brain,
@@ -22,6 +23,7 @@ const navigation = [
   { name: "המלצות", href: "/recommendations", icon: Star },
   { name: "מסמכים", href: "/documents", icon: FileText },
   { name: "משימות", href: "/tasks", icon: ListTodo },
+  { name: "ספריית טיפים", href: "/tips", icon: BookOpen },
   { name: "יבוא נתונים", href: "/import", icon: Upload },
   { name: "יומן פעילות", href: "/audit", icon: Shield },
 ];

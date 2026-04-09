@@ -149,6 +149,24 @@ export interface CustomerDetail {
 // Query Keys
 // ============================================================
 
+export interface OfficeTipItem {
+  id: string;
+  title: string;
+  body: string;
+  category: string | null;
+  triggerHint: string | null;
+  isActive: boolean;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TipsResponse {
+  items: OfficeTipItem[];
+  total: number;
+  activeCount: number;
+}
+
 export const queryKeys = {
   insights: (filters: Partial<InsightFilters>) => ["insights", filters] as const,
   dashboardStats: () => ["dashboard", "stats"] as const,
@@ -157,6 +175,7 @@ export const queryKeys = {
   customerDetail: (id: string) => ["customer", id] as const,
   customerMessages: (customerId: string) =>
     ["messages", "customer", customerId] as const,
+  tips: () => ["tips"] as const,
 } as const;
 
 // ============================================================
@@ -350,15 +369,19 @@ export function useUpdateMessage() {
       id,
       status,
       bodyText,
+      feedbackFlag,
+      feedbackNote,
     }: {
       id: string;
       status?: string;
       bodyText?: string;
+      feedbackFlag?: string;
+      feedbackNote?: string;
     }) => {
       return fetchJSON<MessageDraftItem>(`/api/messages/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, bodyText }),
+        body: JSON.stringify({ status, bodyText, feedbackFlag, feedbackNote }),
       });
     },
     onSuccess: () => {
@@ -378,5 +401,95 @@ export function useCustomerMessages(customerId: string | null) {
     queryFn: () =>
       fetchJSON<MessageDraftItem[]>(`/api/messages/${customerId}`),
     enabled: !!customerId,
+  });
+}
+
+// ============================================================
+// Tips
+// ============================================================
+
+export function useTips() {
+  return useQuery({
+    queryKey: queryKeys.tips(),
+    queryFn: () => fetchJSON<TipsResponse>("/api/tips"),
+  });
+}
+
+export function useCreateTip() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: {
+      title: string;
+      body: string;
+      category?: string;
+      triggerHint?: string;
+    }) => {
+      return fetchJSON<OfficeTipItem>("/api/tips", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(params),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tips"] });
+    },
+  });
+}
+
+export function useUpdateTip() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      ...data
+    }: {
+      id: string;
+      title?: string;
+      body?: string;
+      category?: string;
+      triggerHint?: string;
+      isActive?: boolean;
+    }) => {
+      return fetchJSON<OfficeTipItem>(`/api/tips/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tips"] });
+    },
+  });
+}
+
+export function useDeleteTip() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      return fetchJSON<{ success: boolean }>(`/api/tips/${id}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tips"] });
+    },
+  });
+}
+
+export function useSeedTips() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      return fetchJSON<{ message: string; count: number }>("/api/tips/seed", {
+        method: "POST",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tips"] });
+    },
   });
 }

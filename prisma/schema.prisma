@@ -467,15 +467,36 @@ model MessageDraft {
   body        String             // Hebrew WhatsApp message text
   tone        String?            // professional / warm / urgent
   purpose     String?            // renewal / tip / cross-sell / service
-  status      MessageDraftStatus @default(DRAFT)
-  generatedBy String             @default("AI")
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  status         MessageDraftStatus @default(DRAFT)
+  generatedBy    String             @default("AI")
+  feedbackFlag   String?            // bad_hebrew / bad_content / wrong_tone / good
+  feedbackNote   String?            // free text from user
+  feedbackAt     DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
   @@index([customerId])
   @@index([insightId])
   @@index([status])
   @@map("message_drafts")
+}
+
+// ============================================================
+// Office Tips — רפי's tip library
+// ============================================================
+
+model OfficeTip {
+  id          String   @id @default(uuid())
+  title       String   // short title in Hebrew
+  body        String   // full tip text in Hebrew
+  category    String?  // renewal / coverage / savings / general / service
+  triggerHint String?  // when to use: "age > 60", "has motor", etc.
+  isActive    Boolean  @default(true)
+  createdBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("office_tips")
 }
 
 // ============================================================

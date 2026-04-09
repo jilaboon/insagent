@@ -10,9 +10,16 @@ import {
   SkipForward,
   Copy,
   Loader2,
+  ThumbsDown,
 } from "lucide-react";
 import { useGenerateMessage, useUpdateMessage } from "@/lib/api/hooks";
 import type { MessageDraftItem } from "@/lib/types/message";
+
+const FEEDBACK_OPTIONS = [
+  { flag: "bad_hebrew", label: "עברית לא נכונה" },
+  { flag: "bad_content", label: "תוכן לא מתאים" },
+  { flag: "wrong_tone", label: "טון לא מתאים" },
+] as const;
 
 type ComposerState = "idle" | "generating" | "preview" | "editing" | "approved";
 
@@ -44,6 +51,9 @@ export function MessageComposer({
   );
   const [editText, setEditText] = useState("");
   const [copied, setCopied] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState<string | null>(null);
+  const [feedbackNote, setFeedbackNote] = useState("");
+  const [feedbackSent, setFeedbackSent] = useState(false);
 
   async function handleGenerate() {
     setState("generating");
@@ -104,6 +114,19 @@ export function MessageComposer({
     await navigator.clipboard.writeText(message.body);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleFeedbackSubmit() {
+    if (!message || !feedbackOpen) return;
+    await updateMessage.mutateAsync({
+      id: message.id,
+      feedbackFlag: feedbackOpen,
+      feedbackNote: feedbackNote || undefined,
+    });
+    setFeedbackOpen(null);
+    setFeedbackNote("");
+    setFeedbackSent(true);
+    setTimeout(() => setFeedbackSent(false), 3000);
   }
 
   if (state === "idle") {
@@ -212,6 +235,68 @@ export function MessageComposer({
           </>
         )}
       </div>
+
+      {/* Feedback buttons — show in preview or approved state */}
+      {(state === "preview" || state === "approved") && !feedbackSent && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            {FEEDBACK_OPTIONS.map((opt) => (
+              <Button
+                key={opt.flag}
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "text-surface-400 hover:text-red-500",
+                  feedbackOpen === opt.flag && "text-red-500 bg-red-50"
+                )}
+                onClick={() => {
+                  setFeedbackOpen(feedbackOpen === opt.flag ? null : opt.flag);
+                  setFeedbackNote("");
+                }}
+              >
+                <ThumbsDown className="h-3 w-3" />
+                {opt.label}
+              </Button>
+            ))}
+          </div>
+
+          {feedbackOpen && (
+            <div className="flex items-center gap-2 max-w-md">
+              <input
+                type="text"
+                value={feedbackNote}
+                onChange={(e) => setFeedbackNote(e.target.value)}
+                placeholder="הערה (אופציונלי)..."
+                className="flex-1 rounded-lg border border-surface-300 bg-white px-3 py-1.5 text-xs text-surface-900 text-right placeholder:text-surface-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              />
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleFeedbackSubmit}
+                disabled={updateMessage.isPending}
+              >
+                שלח
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setFeedbackOpen(null);
+                  setFeedbackNote("");
+                }}
+              >
+                ביטול
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {feedbackSent && (
+        <p className="text-xs text-emerald-600 font-medium">
+          תודה על המשוב
+        </p>
+      )}
     </div>
   );
 }
