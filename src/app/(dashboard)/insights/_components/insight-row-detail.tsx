@@ -92,14 +92,14 @@ export function InsightRowDetail({ insight, className }: InsightRowDetailProps) 
           insightId={insight.id}
           customerName={insight.customerName}
           existingMessage={
-            hasMessage && (insight as Record<string, unknown>).messageBody
+            hasMessage && (insight as unknown as Record<string, unknown>).messageBody
               ? {
-                  id: ((insight as Record<string, unknown>).messageId as string) || insight.id,
+                  id: ((insight as unknown as Record<string, unknown>).messageId as string) || insight.id,
                   customerId: insight.customerId,
                   customerName: insight.customerName,
                   insightId: insight.id,
                   insightTitle: insight.title,
-                  body: (insight as Record<string, unknown>).messageBody as string,
+                  body: (insight as unknown as Record<string, unknown>).messageBody as string,
                   tone: null,
                   purpose: null,
                   status: insight.messageStatus === "approved" ? "APPROVED" : "DRAFT",
