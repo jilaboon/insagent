@@ -49,12 +49,25 @@ export function MessageComposer({
     setState("generating");
     try {
       const result = await generateMessage.mutateAsync({ insightId });
-      // Single insight returns a MessageDraftItem
-      if ("id" in result) {
-        setMessage(result as MessageDraftItem);
-        setEditText((result as MessageDraftItem).body);
-        setState("preview");
-      }
+      // API returns { messageId, body } — map to MessageDraftItem shape
+      const raw = result as Record<string, unknown>;
+      const draft: MessageDraftItem = {
+        id: (raw.messageId || raw.id || "") as string,
+        customerId: "",
+        customerName: customerName,
+        insightId,
+        insightTitle: null,
+        body: (raw.body || "") as string,
+        tone: null,
+        purpose: null,
+        status: "DRAFT",
+        generatedBy: "AI",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      setMessage(draft);
+      setEditText(draft.body);
+      setState("preview");
     } catch {
       setState("idle");
     }
