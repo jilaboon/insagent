@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     const topic = body.topic as string | undefined;
 
     const result = await generateText({
-      model: anthropic("claude-sonnet-4-20250514"),
+      model: anthropic("claude-haiku-4-5-20251001"),
       output: Output.object({ schema: DiscoveredArticlesSchema }),
       system: ARTICLE_DISCOVERY_SYSTEM_PROMPT,
       prompt: buildArticleDiscoveryUserPrompt(topic),
