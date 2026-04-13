@@ -25,7 +25,7 @@ const SuggestedTipSchema = z.object({
       triggerHint: z.string().describe("מתי להשתמש בטיפ"),
       reasoning: z.string().describe("איזה דפוס בנתונים הוביל להצעה"),
     })
-  ).min(3).max(5),
+  ),
 });
 
 export type SuggestedTip = z.infer<typeof SuggestedTipSchema>["suggestions"][number];
