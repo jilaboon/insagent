@@ -252,7 +252,7 @@ export async function POST() {
     });
 
     const result = await generateText({
-      model: anthropic("claude-haiku-4-5-20251001"),
+      model: anthropic("claude-sonnet-4-20250514"),
       output: Output.object({ schema: SuggestedTipSchema }),
       system: TIP_SUGGESTION_SYSTEM_PROMPT,
       prompt: userPrompt,
