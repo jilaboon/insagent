@@ -63,7 +63,7 @@ export async function generateMessage(
     const systemPrompt = MESSAGE_SYSTEM_PROMPT + tipsContext;
 
     const result = await generateText({
-      model: anthropic("claude-haiku-4-5-20251001"),
+      model: anthropic("claude-sonnet-4-20250514"),
       system: systemPrompt,
       prompt,
     });
@@ -123,7 +123,7 @@ export async function generateMessagesForInsights(
 async function fixHebrew(text: string): Promise<string> {
   try {
     const result = await generateText({
-      model: anthropic("claude-haiku-4-5-20251001"),
+      model: anthropic("claude-sonnet-4-20250514"),
       system: `אתה עורך לשוני מקצועי לעברית. תפקידך לתקן טקסט בעברית.
 
 כללים:
