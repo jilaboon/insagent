@@ -493,3 +493,26 @@ export function useSeedTips() {
     },
   });
 }
+
+// ============================================================
+// Suggest Tips (AI)
+// ============================================================
+
+export interface SuggestedTipItem {
+  title: string;
+  body: string;
+  category: string;
+  triggerHint: string;
+  reasoning: string;
+}
+
+export function useSuggestTips() {
+  return useMutation({
+    mutationFn: async () => {
+      return fetchJSON<{ suggestions: SuggestedTipItem[] }>(
+        "/api/tips/suggest",
+        { method: "POST" }
+      );
+    },
+  });
+}

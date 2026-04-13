@@ -15,6 +15,9 @@ import {
   X,
   Loader2,
   Lightbulb,
+  Sparkles,
+  Check,
+  Info,
 } from "lucide-react";
 import {
   useTips,
@@ -22,7 +25,9 @@ import {
   useUpdateTip,
   useDeleteTip,
   useSeedTips,
+  useSuggestTips,
   type OfficeTipItem,
+  type SuggestedTipItem,
 } from "@/lib/api/hooks";
 
 const CATEGORIES = [
@@ -56,11 +61,13 @@ export default function TipsPage() {
   const updateTip = useUpdateTip();
   const deleteTip = useDeleteTip();
   const seedTips = useSeedTips();
+  const suggestTips = useSuggestTips();
 
   const [showNewForm, setShowNewForm] = useState(false);
   const [newForm, setNewForm] = useState<TipFormData>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<TipFormData>(EMPTY_FORM);
+  const [suggestions, setSuggestions] = useState<SuggestedTipItem[]>([]);
 
   const tips = data?.items ?? [];
 
@@ -110,6 +117,25 @@ export default function TipsPage() {
     await seedTips.mutateAsync();
   }
 
+  async function handleSuggest() {
+    const result = await suggestTips.mutateAsync();
+    setSuggestions(result.suggestions);
+  }
+
+  async function handleApproveSuggestion(suggestion: SuggestedTipItem) {
+    await createTip.mutateAsync({
+      title: suggestion.title,
+      body: suggestion.body,
+      category: suggestion.category,
+      triggerHint: suggestion.triggerHint,
+    });
+    setSuggestions((prev) => prev.filter((s) => s.title !== suggestion.title));
+  }
+
+  function handleDismissSuggestion(suggestion: SuggestedTipItem) {
+    setSuggestions((prev) => prev.filter((s) => s.title !== suggestion.title));
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -135,6 +161,18 @@ export default function TipsPage() {
               טען טיפים של רפי
             </Button>
           )}
+          <Button
+            variant="secondary"
+            onClick={handleSuggest}
+            disabled={suggestTips.isPending}
+          >
+            {suggestTips.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            {suggestTips.isPending ? "מנתח נתונים..." : "הצע טיפים חדשים מ-AI"}
+          </Button>
           <Button
             variant="primary"
             onClick={() => {
@@ -168,6 +206,89 @@ export default function TipsPage() {
             saving={createTip.isPending}
           />
         </Card>
+      )}
+
+      {/* AI Suggestions */}
+      {suggestions.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-indigo-500" />
+            <h2 className="text-sm font-bold text-indigo-700">
+              הצעות AI ({suggestions.length})
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {suggestions.map((suggestion) => (
+              <Card
+                key={suggestion.title}
+                padding="sm"
+                className="border-2 border-dashed border-indigo-200 bg-indigo-50/30"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+                      <h3 className="text-sm font-bold text-surface-900">
+                        {suggestion.title}
+                      </h3>
+                    </div>
+                    <Badge variant={categoryVariant[suggestion.category] ?? "default"}>
+                      {suggestion.category}
+                    </Badge>
+                  </div>
+
+                  <p className="text-sm text-surface-700 leading-relaxed whitespace-pre-wrap">
+                    {suggestion.body}
+                  </p>
+
+                  {suggestion.triggerHint && (
+                    <p className="text-xs text-surface-400">
+                      מתי להשתמש: {suggestion.triggerHint}
+                    </p>
+                  )}
+
+                  <div className="rounded-lg bg-indigo-50 p-2.5 border border-indigo-100">
+                    <div className="flex items-start gap-1.5">
+                      <Info className="h-3.5 w-3.5 text-indigo-400 mt-0.5 shrink-0" />
+                      <div>
+                        <span className="text-xs font-medium text-indigo-600">
+                          למה?
+                        </span>
+                        <p className="text-xs text-indigo-700 mt-0.5 leading-relaxed">
+                          {suggestion.reasoning}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1 border-t border-indigo-100">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => handleApproveSuggestion(suggestion)}
+                      disabled={createTip.isPending}
+                    >
+                      {createTip.isPending ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Check className="h-3 w-3" />
+                      )}
+                      הוסף לספרייה
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDismissSuggestion(suggestion)}
+                    >
+                      <X className="h-3 w-3" />
+                      דחה
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Loading */}
