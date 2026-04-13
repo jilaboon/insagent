@@ -97,7 +97,9 @@ export default function CustomerProfilePage() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <CompletenessIndicator level={profileCompleteness} />
+            {customer.phone && (
+              <span className="text-xs text-surface-500 number">{customer.phone}</span>
+            )}
           </div>
         </div>
       </Card>
