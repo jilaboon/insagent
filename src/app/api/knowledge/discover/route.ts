@@ -41,7 +41,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ articles: output.articles });
+    // Hebrew quality review on all article texts
+    const { reviewHebrewBatch } = await import("@/lib/ai/hebrew-review");
+    const textsToReview = output.articles.flatMap((a) => [a.title, a.summary, a.content]);
+    const reviewed = await reviewHebrewBatch(textsToReview);
+
+    const articles = output.articles.map((a, i) => ({
+      ...a,
+      title: reviewed[i * 3] || a.title,
+      summary: reviewed[i * 3 + 1] || a.summary,
+      content: reviewed[i * 3 + 2] || a.content,
+    }));
+
+    return NextResponse.json({ articles });
   } catch (error) {
     console.error("Article discovery failed:", error);
     return NextResponse.json(

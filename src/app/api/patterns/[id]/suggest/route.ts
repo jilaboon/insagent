@@ -65,7 +65,7 @@ ${existingTipsSummary || "(אין טיפים קיימים)"}
 כתוב טיפ מעשי אחד שהסוכן יכול להשתמש בו על סמך הדפוס הזה.`;
 
     const result = await generateText({
-      model: anthropic("claude-sonnet-4-20250514"),
+      model: anthropic("claude-haiku-4-5-20251001"),
       output: Output.object({ schema: SuggestedTipSchema }),
       system: SYSTEM_PROMPT,
       prompt,
@@ -79,7 +79,15 @@ ${existingTipsSummary || "(אין טיפים קיימים)"}
       );
     }
 
-    return NextResponse.json(output);
+    // Hebrew quality review with Sonnet
+    const { reviewHebrewBatch } = await import("@/lib/ai/hebrew-review");
+    const reviewed = await reviewHebrewBatch([output.title, output.body]);
+
+    return NextResponse.json({
+      ...output,
+      title: reviewed[0] || output.title,
+      body: reviewed[1] || output.body,
+    });
   } catch (error) {
     console.error("Pattern suggest failed:", error);
     return NextResponse.json(

@@ -92,13 +92,24 @@ export async function POST(
       );
     }
 
+    // Hebrew quality review on extracted tips
+    const { reviewHebrewBatch } = await import("@/lib/ai/hebrew-review");
+    const textsToReview = output.tips.flatMap((t) => [t.title, t.body]);
+    const reviewed = await reviewHebrewBatch(textsToReview);
+
+    const tips = output.tips.map((t, i) => ({
+      ...t,
+      title: reviewed[i * 2] || t.title,
+      body: reviewed[i * 2 + 1] || t.body,
+    }));
+
     // Update the article's tipsExtracted count
     await prisma.knowledgeArticle.update({
       where: { id },
-      data: { tipsExtracted: output.tips.length },
+      data: { tipsExtracted: tips.length },
     });
 
-    return NextResponse.json({ tips: output.tips });
+    return NextResponse.json({ tips });
   } catch (error) {
     console.error("Knowledge extraction failed:", error);
     return NextResponse.json(

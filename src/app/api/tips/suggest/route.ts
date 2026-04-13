@@ -266,7 +266,17 @@ export async function POST() {
       );
     }
 
-    return NextResponse.json({ suggestions: output.suggestions });
+    // Hebrew quality review
+    const { reviewHebrewBatch } = await import("@/lib/ai/hebrew-review");
+    const textsToReview = output.suggestions.flatMap((s) => [s.title, s.body]);
+    const reviewed = await reviewHebrewBatch(textsToReview);
+    const suggestions = output.suggestions.map((s, i) => ({
+      ...s,
+      title: reviewed[i * 2] || s.title,
+      body: reviewed[i * 2 + 1] || s.body,
+    }));
+
+    return NextResponse.json({ suggestions });
   } catch (error) {
     console.error("Tip suggestion failed:", error);
     return NextResponse.json(
