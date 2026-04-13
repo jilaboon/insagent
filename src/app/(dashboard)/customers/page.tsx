@@ -1,34 +1,86 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  CompletenessIndicator,
-  DataFreshness,
-} from "@/components/ui/indicators";
 import { EmptyState } from "@/components/ui/empty-state";
-import {
-  mockCustomers,
-  policyCategoryLabels,
-} from "@/lib/mock-data";
 import { formatCurrency } from "@/lib/utils";
-import { Search, Filter, Users, ChevronLeft, Star } from "lucide-react";
+import {
+  Search,
+  Users,
+  ChevronLeft,
+  Lightbulb,
+  Loader2,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { getScoreTier } from "@/lib/constants";
+
+interface CustomerItem {
+  id: string;
+  firstName: string;
+  lastName: string;
+  israeliId: string;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  lastImportDate: string | null;
+  policyCount: number;
+  activePolicyCount: number;
+  insightCount: number;
+  latestInsightScore: number | null;
+}
+
+interface CustomersResponse {
+  items: CustomerItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
 
 export default function CustomersPage() {
   const [search, setSearch] = useState("");
-  const customers = mockCustomers.filter(
-    (c) =>
-      c.firstName.includes(search) ||
-      c.lastName.includes(search) ||
-      c.israeliId.includes(search)
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+
+  const handleSearch = useCallback(
+    (value: string) => {
+      setSearch(value);
+      if (debounceTimer) clearTimeout(debounceTimer);
+      const timer = setTimeout(() => {
+        setDebouncedSearch(value);
+        setPage(1);
+      }, 300);
+      setDebounceTimer(timer);
+    },
+    [debounceTimer]
   );
+
+  const { data, isLoading } = useQuery<CustomersResponse>({
+    queryKey: ["customers", debouncedSearch, page],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      params.set("limit", "50");
+      if (debouncedSearch) params.set("search", debouncedSearch);
+      const res = await fetch(`/api/customers?${params}`);
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+  });
+
+  const customers = data?.items ?? [];
 
   return (
     <div className="space-y-6 animate-[fadeIn_0.3s_ease-out_forwards]">
-      {/* Search & filter bar */}
+      {/* Search bar */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1">
           <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-400" />
@@ -36,33 +88,49 @@ export default function CustomersPage() {
             type="text"
             placeholder="חיפוש לפי שם, ת.ז. ..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearch(e.target.value)}
             className="h-10 w-full rounded-lg border border-surface-300 bg-white pr-10 pl-4 text-sm text-surface-900 placeholder:text-surface-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
           />
         </div>
-        <Button variant="secondary" size="md">
-          <Filter className="h-4 w-4" />
-          סינון
-        </Button>
       </div>
 
       {/* Results count */}
       <p className="text-sm text-surface-500">
-        <span className="font-medium text-surface-700 number">
-          {customers.length}
-        </span>{" "}
-        לקוחות
+        {isLoading ? (
+          <Loader2 className="inline h-3 w-3 animate-spin" />
+        ) : (
+          <>
+            <span className="font-medium text-surface-700 number">
+              {data?.total ?? 0}
+            </span>{" "}
+            לקוחות
+          </>
+        )}
       </p>
 
       {/* Customer list */}
-      {customers.length === 0 ? (
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Card key={i} padding="sm">
+              <div className="flex items-center gap-6">
+                <div className="h-11 w-11 animate-pulse rounded-full bg-surface-100" />
+                <div className="space-y-2 flex-1">
+                  <div className="h-4 w-32 animate-pulse rounded bg-surface-100" />
+                  <div className="h-3 w-24 animate-pulse rounded bg-surface-100" />
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      ) : customers.length === 0 ? (
         <EmptyState
           icon={Users}
           title="לא נמצאו לקוחות"
           description="נסו לשנות את החיפוש או לייבא קובץ חדש"
         />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {customers.map((customer) => (
             <Link key={customer.id} href={`/customers/${customer.id}`}>
               <Card
@@ -71,17 +139,17 @@ export default function CustomersPage() {
               >
                 <div className="flex items-center justify-between">
                   {/* Customer info */}
-                  <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-5">
                     {/* Avatar */}
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary-50 text-primary-700">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-700">
                       <span className="text-sm font-bold">
-                        {customer.firstName[0]}
-                        {customer.lastName[0]}
+                        {(customer.firstName || "?")[0]}
+                        {(customer.lastName || "?")[0]}
                       </span>
                     </div>
 
                     {/* Name & ID */}
-                    <div>
+                    <div className="min-w-0">
                       <h3 className="text-sm font-semibold text-surface-900">
                         {customer.firstName} {customer.lastName}
                       </h3>
@@ -89,44 +157,34 @@ export default function CustomersPage() {
                         ת.ז. {customer.israeliId}
                       </p>
                     </div>
-
-                    {/* Categories */}
-                    <div className="flex gap-1.5">
-                      {customer.policyCategories.map((cat) => (
-                        <Badge key={cat} variant="default">
-                          {policyCategoryLabels[cat] || cat}
-                        </Badge>
-                      ))}
-                    </div>
                   </div>
 
                   {/* Right side — metrics */}
-                  <div className="flex items-center gap-8">
-                    {/* Premium */}
-                    <div className="text-left">
-                      <p className="text-xs text-surface-500">פרמיה חודשית</p>
+                  <div className="flex items-center gap-6">
+                    {/* Policies */}
+                    <div className="text-left hidden sm:block">
+                      <p className="text-xs text-surface-500">פוליסות</p>
                       <p className="text-sm font-semibold text-surface-800 number">
-                        {formatCurrency(customer.totalMonthlyPremium)}
+                        {customer.policyCount}
                       </p>
                     </div>
 
-                    {/* Recommendations */}
-                    {customer.pendingRecommendations > 0 && (
-                      <div className="flex items-center gap-1">
-                        <Star className="h-3.5 w-3.5 text-accent-500" />
+                    {/* Insights */}
+                    {customer.insightCount > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <Lightbulb className="h-3.5 w-3.5 text-accent-500" />
                         <span className="text-xs font-medium text-accent-700 number">
-                          {customer.pendingRecommendations}
+                          {customer.insightCount}
                         </span>
                       </div>
                     )}
 
-                    {/* Completeness */}
-                    <CompletenessIndicator
-                      level={customer.profileCompleteness}
-                    />
-
-                    {/* Freshness */}
-                    <DataFreshness date={customer.dataFreshness} />
+                    {/* Top insight score */}
+                    {customer.latestInsightScore != null && (
+                      <Badge variant={getScoreTier(customer.latestInsightScore).color}>
+                        <span className="number">{customer.latestInsightScore}</span>
+                      </Badge>
+                    )}
 
                     <ChevronLeft className="h-4 w-4 text-surface-300" />
                   </div>
@@ -134,6 +192,52 @@ export default function CustomersPage() {
               </Card>
             </Link>
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {data && data.totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-surface-500">
+            עמוד{" "}
+            <span className="number font-medium text-surface-700">{data.page}</span>{" "}
+            מתוך{" "}
+            <span className="number font-medium text-surface-700">{data.totalPages}</span>
+          </p>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPage(1)}
+              disabled={data.page === 1}
+            >
+              <ChevronsRight className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={data.page === 1}
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
+              disabled={data.page === data.totalPages}
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPage(data.totalPages)}
+              disabled={data.page === data.totalPages}
+            >
+              <ChevronsLeft className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
       )}
     </div>
