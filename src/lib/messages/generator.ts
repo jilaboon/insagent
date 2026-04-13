@@ -68,7 +68,10 @@ export async function generateMessage(
       prompt,
     });
 
-    const body = result.text.trim();
+    const rawBody = result.text.trim();
+
+    // Second pass: Hebrew grammar and quality check
+    const body = await fixHebrew(rawBody);
 
     // Determine purpose from insight category
     const purpose = categorizePurpose(insight.category);
@@ -110,6 +113,42 @@ export async function generateMessagesForInsights(
   }
 
   return { generated, failed };
+}
+
+/**
+ * Second-pass Hebrew quality check.
+ * Sends the generated message through a focused grammar/quality review.
+ * If the review fails, returns the original text.
+ */
+async function fixHebrew(text: string): Promise<string> {
+  try {
+    const result = await generateText({
+      model: anthropic("claude-haiku-4-5-20251001"),
+      system: `אתה עורך לשוני מקצועי לעברית. תפקידך לתקן טקסט בעברית.
+
+כללים:
+1. תקן שגיאות דקדוק — נטיות פעלים, זכר/נקבה, יחיד/רבים
+2. תקן מילים שלא קיימות בעברית (כמו "נשיחה", "משמיר", "צלבון")
+3. תקן משפטים שנשמעים כמו תרגום מאנגלית — כתוב בעברית טבעית
+4. אל תשנה את המשמעות, את האורך, או את הטון
+5. אל תוסיף ואל תוריד מידע
+6. אם הטקסט תקין — החזר אותו כמו שהוא
+7. החזר רק את הטקסט המתוקן, ללא הסברים`,
+      prompt: `תקן את הטקסט הבא אם יש בו שגיאות עברית. אם הוא תקין, החזר אותו כמו שהוא.
+
+${text}`,
+    });
+
+    const fixed = result.text.trim();
+    // Sanity check: if the "fix" is wildly different length, keep original
+    if (fixed.length < text.length * 0.5 || fixed.length > text.length * 1.5) {
+      return text;
+    }
+    return fixed;
+  } catch {
+    // If the review call fails, return original
+    return text;
+  }
 }
 
 function categorizePurpose(category: string): string {
