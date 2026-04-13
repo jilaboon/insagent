@@ -20,6 +20,7 @@ import {
   FileText,
   Info,
   Save,
+  Search,
 } from "lucide-react";
 import {
   useKnowledgeArticles,
@@ -27,7 +28,9 @@ import {
   useDeleteArticle,
   useExtractTips,
   useCreateTip,
+  useDiscoverArticles,
   type ExtractedTipItem,
+  type DiscoveredArticleItem,
 } from "@/lib/api/hooks";
 
 const categoryVariant: Record<
@@ -63,6 +66,7 @@ export default function KnowledgeBaseTab() {
   const deleteArticle = useDeleteArticle();
   const extractTips = useExtractTips();
   const createTip = useCreateTip();
+  const discoverArticles = useDiscoverArticles();
 
   const [form, setForm] = useState<ArticleFormData>(EMPTY_FORM);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -70,6 +74,11 @@ export default function KnowledgeBaseTab() {
   const [extractedTips, setExtractedTips] = useState<
     Record<string, ExtractedTipWithEdit[]>
   >({});
+  const [discoverTopic, setDiscoverTopic] = useState("");
+  const [discoveredArticles, setDiscoveredArticles] = useState<
+    DiscoveredArticleItem[]
+  >([]);
+  const [savingIndex, setSavingIndex] = useState<number | null>(null);
 
   const articles = data?.items ?? [];
 
@@ -149,6 +158,31 @@ export default function KnowledgeBaseTab() {
     }));
   }
 
+  async function handleDiscover() {
+    const result = await discoverArticles.mutateAsync({
+      topic: discoverTopic || undefined,
+    });
+    setDiscoveredArticles(result.articles);
+  }
+
+  async function handleSaveDiscovered(article: DiscoveredArticleItem, index: number) {
+    setSavingIndex(index);
+    try {
+      await createArticle.mutateAsync({
+        title: article.title,
+        content: article.content,
+        source: article.source,
+      });
+      setDiscoveredArticles((prev) => prev.filter((_, i) => i !== index));
+    } finally {
+      setSavingIndex(null);
+    }
+  }
+
+  function handleDismissDiscovered(index: number) {
+    setDiscoveredArticles((prev) => prev.filter((_, i) => i !== index));
+  }
+
   function updateEditTip(
     articleId: string,
     tipTitle: string,
@@ -165,6 +199,134 @@ export default function KnowledgeBaseTab() {
 
   return (
     <div className="space-y-6">
+      {/* AI Article Discovery */}
+      <Card className="border-blue-200 bg-blue-50/30">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 mb-1">
+            <Search className="h-4 w-4 text-blue-600" />
+            <h2 className="text-sm font-bold text-surface-900">
+              גילוי מאמרים חכם
+            </h2>
+          </div>
+          <p className="text-xs text-surface-500">
+            חפשו מאמרים ועדכונים רלוונטיים לשוק הביטוח הישראלי באמצעות AI
+          </p>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={discoverTopic}
+              onChange={(e) => setDiscoverTopic(e.target.value)}
+              placeholder="נושא ספציפי (אופציונלי)..."
+              className="flex-1 rounded-lg border border-surface-300 bg-white px-3 py-2 text-sm text-surface-900 text-right placeholder:text-surface-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            />
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleDiscover}
+              disabled={discoverArticles.isPending}
+              className="bg-gradient-to-l from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shrink-0"
+            >
+              {discoverArticles.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Search className="h-3.5 w-3.5" />
+              )}
+              {discoverArticles.isPending
+                ? "מחפש מאמרים רלוונטיים..."
+                : "חפש מאמרים רלוונטיים"}
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Discovered Articles */}
+      {discoveredArticles.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-blue-500" />
+            <h3 className="text-sm font-bold text-blue-700">
+              מאמרים שנמצאו ({discoveredArticles.length})
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 gap-3">
+            {discoveredArticles.map((article, index) => (
+              <Card
+                key={`${article.title}-${index}`}
+                padding="sm"
+                className="border-2 border-blue-200 bg-blue-50/30"
+              >
+                <div className="space-y-3">
+                  {/* Title */}
+                  <div className="flex items-start gap-2">
+                    <Search className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
+                    <h4 className="text-sm font-bold text-surface-900">
+                      {article.title}
+                    </h4>
+                  </div>
+
+                  {/* Summary */}
+                  <p className="text-sm text-surface-700 leading-relaxed">
+                    {article.summary}
+                  </p>
+
+                  {/* Source */}
+                  <div className="text-xs text-surface-400">
+                    {article.source.startsWith("http") ? (
+                      <a
+                        href={article.source}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-blue-600 hover:text-blue-700"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        מקור
+                      </a>
+                    ) : (
+                      <span>{article.source}</span>
+                    )}
+                  </div>
+
+                  {/* Relevance */}
+                  <div className="rounded-lg bg-blue-50 p-2.5 border border-blue-100">
+                    <div className="flex items-start gap-1.5">
+                      <Info className="h-3.5 w-3.5 text-blue-400 mt-0.5 shrink-0" />
+                      <p className="text-xs text-blue-700 leading-relaxed">
+                        {article.relevance}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 pt-1 border-t border-blue-100">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => handleSaveDiscovered(article, index)}
+                      disabled={savingIndex === index}
+                    >
+                      {savingIndex === index ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Plus className="h-3 w-3" />
+                      )}
+                      הוסף לבסיס הידע
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDismissDiscovered(index)}
+                    >
+                      <X className="h-3 w-3" />
+                      דחה
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Add Article Form */}
       <Card className="border-primary-200 bg-primary-50/30">
         <div className="space-y-3">

@@ -626,6 +626,33 @@ export function useExtractTips() {
 }
 
 // ============================================================
+// Discover Articles (AI)
+// ============================================================
+
+export interface DiscoveredArticleItem {
+  title: string;
+  summary: string;
+  content: string;
+  source: string;
+  relevance: string;
+}
+
+export function useDiscoverArticles() {
+  return useMutation({
+    mutationFn: async (params: { topic?: string }) => {
+      return fetchJSON<{ articles: DiscoveredArticleItem[] }>(
+        "/api/knowledge/discover",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(params),
+        }
+      );
+    },
+  });
+}
+
+// ============================================================
 // Data Patterns
 // ============================================================
 
