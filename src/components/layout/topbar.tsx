@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Bell, LogOut, User } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -11,6 +12,7 @@ const pageTitles: Record<string, string> = {
   "/recommendations": "המלצות",
   "/documents": "מסמכים",
   "/tasks": "משימות",
+  "/tips": "ספריית טיפים",
   "/import": "יבוא נתונים",
   "/audit": "יומן פעילות",
 };
@@ -25,6 +27,24 @@ export function Topbar() {
   const pathname = usePathname();
   const router = useRouter();
   const title = getPageTitle(pathname);
+  const [userName, setUserName] = useState("סוכן");
+  const [userEmail, setUserEmail] = useState("");
+
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        const meta = data.user.user_metadata;
+        const displayName = meta?.display_name || meta?.full_name || meta?.name;
+        if (displayName) {
+          setUserName(displayName);
+        } else if (data.user.email) {
+          setUserName(data.user.email.split("@")[0]);
+        }
+        setUserEmail(data.user.email || "");
+      }
+    });
+  }, []);
 
   async function handleLogout() {
     const supabase = createSupabaseBrowserClient();
@@ -50,8 +70,10 @@ export function Topbar() {
             <User className="h-4 w-4" />
           </div>
           <div className="text-right">
-            <p className="text-sm font-medium text-surface-800">סוכן</p>
-            <p className="text-[11px] text-surface-500">מנהל</p>
+            <p className="text-sm font-medium text-surface-800">{userName}</p>
+            {userEmail && (
+              <p className="text-[11px] text-surface-500">{userEmail}</p>
+            )}
           </div>
         </div>
 
