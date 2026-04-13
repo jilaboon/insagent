@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { response: authResponse } = await requireAuth();
+  if (authResponse) return authResponse;
+
   const { id } = await params;
   const body = await request.json();
   const { title, body: tipBody, category, triggerHint, isActive } = body;
@@ -28,6 +32,9 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { response: authResponse } = await requireAuth();
+  if (authResponse) return authResponse;
+
   const { id } = await params;
 
   await prisma.officeTip.delete({

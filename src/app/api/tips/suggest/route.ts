@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 import { generateText, Output } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
@@ -237,6 +238,9 @@ async function getAggregateData() {
 // ============================================================
 
 export async function POST() {
+  const { response: authResponse } = await requireAuth();
+  if (authResponse) return authResponse;
+
   try {
     // Load aggregate data and existing tips in parallel
     const [aggregateData, existingTips] = await Promise.all([

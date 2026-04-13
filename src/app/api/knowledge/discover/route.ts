@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 import { generateText, Output } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
@@ -22,6 +23,9 @@ const DiscoveredArticlesSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const { response: authResponse } = await requireAuth();
+  if (authResponse) return authResponse;
+
   try {
     const body = await request.json().catch(() => ({}));
     const topic = body.topic as string | undefined;

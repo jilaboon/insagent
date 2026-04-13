@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { runImportPipelineFromRows } from "@/lib/import/pipeline";
 import { detectFileType } from "@/lib/import/pipeline";
+import { requireAuth } from "@/lib/auth";
 
 export const maxDuration = 300;
 
@@ -15,6 +16,8 @@ const TEMP_OPERATOR_ID = "system";
  * Body: { fileName, headers, rows[], jobId? }
  */
 export async function POST(request: NextRequest) {
+  const { response: authResponse } = await requireAuth();
+  if (authResponse) return authResponse;
   try {
     await prisma.user.upsert({
       where: { id: TEMP_OPERATOR_ID },

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { buildCustomerProfile } from "@/lib/insights/profile-builder";
 import { allRules } from "@/lib/insights/rules/all-rules";
 import { computeScore } from "@/lib/insights/scorer";
+import { requireAuth } from "@/lib/auth";
 
 export const maxDuration = 300;
 
@@ -13,6 +14,8 @@ export const maxDuration = 300;
  * Client calls this repeatedly with increasing offset until all customers processed.
  */
 export async function POST(request: NextRequest) {
+  const { response: authResponse } = await requireAuth();
+  if (authResponse) return authResponse;
   try {
     const body = await request.json();
     const { offset = 0, limit = 100, includeAI = false } = body as {

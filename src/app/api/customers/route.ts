@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
+  const { response: authResponse } = await requireAuth();
+  if (authResponse) return authResponse;
+
   const searchParams = request.nextUrl.searchParams;
 
   const page = parseInt(searchParams.get("page") || "1", 10);

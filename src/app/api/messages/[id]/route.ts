@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { response: authResponse } = await requireAuth();
+  if (authResponse) return authResponse;
+
   const { id } = await params;
 
   const messages = await prisma.messageDraft.findMany({
@@ -22,6 +26,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { response: authResponse } = await requireAuth();
+  if (authResponse) return authResponse;
+
   const { id } = await params;
   const body = await request.json();
   const { status, bodyText, feedbackFlag, feedbackNote } = body;

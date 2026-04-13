@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 export async function GET() {
+  const { response: authResponse } = await requireAuth();
+  if (authResponse) return authResponse;
   const articles = await prisma.knowledgeArticle.findMany({
     orderBy: { createdAt: "desc" },
   });
@@ -10,6 +13,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const { response: authResponse } = await requireAuth();
+  if (authResponse) return authResponse;
+
   const body = await request.json();
   const { title, content, source } = body;
 

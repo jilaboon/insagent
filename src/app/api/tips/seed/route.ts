@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { seedOfficeTips } from "@/lib/seed-tips";
+import { requireAuth } from "@/lib/auth";
 
 export async function POST() {
+  const { response: authResponse } = await requireAuth();
+  if (authResponse) return authResponse;
   const count = await seedOfficeTips();
 
   if (count === 0) {

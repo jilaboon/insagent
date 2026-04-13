@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 // ============================================================
 // Types
@@ -32,6 +33,9 @@ function pct(count: number, total: number): number {
 // ============================================================
 
 export async function GET() {
+  const { response: authResponse } = await requireAuth();
+  if (authResponse) return authResponse;
+
   try {
     const totalCustomers = await prisma.customer.count();
     if (totalCustomers === 0) {

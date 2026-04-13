@@ -1,7 +1,8 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { Bell, User } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Bell, LogOut, User } from "lucide-react";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "דשבורד",
@@ -22,7 +23,15 @@ function getPageTitle(pathname: string): string {
 
 export function Topbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const title = getPageTitle(pathname);
+
+  async function handleLogout() {
+    const supabase = createSupabaseBrowserClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-surface-200 bg-white/80 px-8 backdrop-blur-sm">
@@ -41,10 +50,19 @@ export function Topbar() {
             <User className="h-4 w-4" />
           </div>
           <div className="text-right">
-            <p className="text-sm font-medium text-surface-800">רפי בכר</p>
+            <p className="text-sm font-medium text-surface-800">סוכן</p>
             <p className="text-[11px] text-surface-500">מנהל</p>
           </div>
         </div>
+
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-surface-500 transition-colors hover:bg-surface-50 hover:text-danger"
+          aria-label="התנתק"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>התנתק</span>
+        </button>
       </div>
     </header>
   );

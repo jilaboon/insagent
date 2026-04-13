@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateMessage, generateMessagesForInsights } from "@/lib/messages/generator";
+import { requireAuth } from "@/lib/auth";
 
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
+  const { response: authResponse } = await requireAuth();
+  if (authResponse) return authResponse;
   try {
     const body = await request.json();
     const { insightId, insightIds, agentName } = body;
