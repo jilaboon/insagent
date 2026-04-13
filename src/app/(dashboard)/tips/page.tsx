@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs } from "@/components/ui/tabs";
 import {
   BookOpen,
   Plus,
@@ -29,6 +30,8 @@ import {
   type OfficeTipItem,
   type SuggestedTipItem,
 } from "@/lib/api/hooks";
+import { DataPatternsTab } from "./_components/data-patterns-tab";
+import KnowledgeBaseTab from "./_components/knowledge-base-tab";
 
 const CATEGORIES = [
   { value: "חידוש", label: "חידוש" },
@@ -55,6 +58,12 @@ interface TipFormData {
 
 const EMPTY_FORM: TipFormData = { title: "", body: "", category: "", triggerHint: "" };
 
+const TIPS_TABS = [
+  { id: "library", label: "ספריית טיפים" },
+  { id: "patterns", label: "תובנות מהנתונים" },
+  { id: "knowledge", label: "בסיס ידע מקצועי" },
+];
+
 export default function TipsPage() {
   const { data, isLoading } = useTips();
   const createTip = useCreateTip();
@@ -63,6 +72,7 @@ export default function TipsPage() {
   const seedTips = useSeedTips();
   const suggestTips = useSuggestTips();
 
+  const [activeTab, setActiveTab] = useState("library");
   const [showNewForm, setShowNewForm] = useState(false);
   const [newForm, setNewForm] = useState<TipFormData>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -149,43 +159,56 @@ export default function TipsPage() {
             הטיפים של רפי — בסיס הידע של המשרד
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {tips.length === 0 && (
+        {activeTab === "library" && (
+          <div className="flex items-center gap-2">
+            {tips.length === 0 && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleSeed}
+                disabled={seedTips.isPending}
+              >
+                {seedTips.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                טען טיפים של רפי
+              </Button>
+            )}
             <Button
               variant="secondary"
-              size="sm"
-              onClick={handleSeed}
-              disabled={seedTips.isPending}
+              onClick={handleSuggest}
+              disabled={suggestTips.isPending}
             >
-              {seedTips.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              טען טיפים של רפי
+              {suggestTips.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {suggestTips.isPending ? "מנתח נתונים..." : "הצע טיפים חדשים מ-AI"}
             </Button>
-          )}
-          <Button
-            variant="secondary"
-            onClick={handleSuggest}
-            disabled={suggestTips.isPending}
-          >
-            {suggestTips.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4" />
-            )}
-            {suggestTips.isPending ? "מנתח נתונים..." : "הצע טיפים חדשים מ-AI"}
-          </Button>
-          <Button
-            variant="primary"
-            onClick={() => {
-              setShowNewForm(true);
-              setNewForm(EMPTY_FORM);
-            }}
-          >
-            <Plus className="h-4 w-4" />
-            הוסף טיפ חדש
-          </Button>
-        </div>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setShowNewForm(true);
+                setNewForm(EMPTY_FORM);
+              }}
+            >
+              <Plus className="h-4 w-4" />
+              הוסף טיפ חדש
+            </Button>
+          </div>
+        )}
       </div>
 
+      {/* Tabs */}
+      <Tabs tabs={TIPS_TABS} activeTab={activeTab} onChange={setActiveTab} />
+
+      {/* Data Patterns Tab */}
+      {activeTab === "patterns" && <DataPatternsTab />}
+
+      {/* Knowledge Base Tab */}
+      {activeTab === "knowledge" && <KnowledgeBaseTab />}
+
+      {/* Library Tab */}
+      {activeTab === "library" && <>
       {/* Stats */}
       {data && (
         <div className="flex items-center gap-4 text-sm text-surface-500">
@@ -397,6 +420,7 @@ export default function TipsPage() {
           </Card>
         ))}
       </div>
+      </>}
     </div>
   );
 }

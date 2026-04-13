@@ -500,6 +500,24 @@ model OfficeTip {
 }
 
 // ============================================================
+// Knowledge Base — Industry articles & regulation updates
+// ============================================================
+
+model KnowledgeArticle {
+  id             String   @id @default(uuid())
+  title          String
+  content        String   // the pasted text
+  source         String?  // URL or "manual"
+  summary        String?  // AI-generated summary
+  tipsExtracted  Int      @default(0)
+  createdBy      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("knowledge_articles")
+}
+
+// ============================================================
 // Provenance
 // ============================================================
 

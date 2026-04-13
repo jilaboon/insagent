@@ -167,6 +167,28 @@ export interface TipsResponse {
   activeCount: number;
 }
 
+export interface DataPatternItem {
+  id: string;
+  title: string;
+  description: string;
+  count: number;
+  percentage: number;
+  category: "cross-sell" | "optimization" | "service" | "renewal";
+  severity: "high" | "medium" | "low";
+}
+
+export interface DataPatternsResponse {
+  patterns: DataPatternItem[];
+  totalCustomers: number;
+}
+
+export interface PatternSuggestion {
+  title: string;
+  body: string;
+  category: string;
+  triggerHint: string;
+}
+
 export const queryKeys = {
   insights: (filters: Partial<InsightFilters>) => ["insights", filters] as const,
   dashboardStats: () => ["dashboard", "stats"] as const,
@@ -176,6 +198,7 @@ export const queryKeys = {
   customerMessages: (customerId: string) =>
     ["messages", "customer", customerId] as const,
   tips: () => ["tips"] as const,
+  dataPatterns: () => ["data-patterns"] as const,
 } as const;
 
 // ============================================================
@@ -512,6 +535,126 @@ export function useSuggestTips() {
       return fetchJSON<{ suggestions: SuggestedTipItem[] }>(
         "/api/tips/suggest",
         { method: "POST" }
+      );
+    },
+  });
+}
+
+// ============================================================
+// Knowledge Articles
+// ============================================================
+
+export interface KnowledgeArticleItem {
+  id: string;
+  title: string;
+  content: string;
+  source: string | null;
+  summary: string | null;
+  tipsExtracted: number;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExtractedTipItem {
+  title: string;
+  body: string;
+  category: string;
+  triggerHint: string;
+  relevance: string;
+  estimatedCustomers: string;
+}
+
+export function useKnowledgeArticles() {
+  return useQuery({
+    queryKey: ["knowledge"],
+    queryFn: () =>
+      fetchJSON<{ items: KnowledgeArticleItem[] }>("/api/knowledge"),
+  });
+}
+
+export function useCreateArticle() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: {
+      title: string;
+      content: string;
+      source?: string;
+    }) => {
+      return fetchJSON<KnowledgeArticleItem>("/api/knowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(params),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["knowledge"] });
+    },
+  });
+}
+
+export function useDeleteArticle() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      return fetchJSON<{ success: boolean }>(`/api/knowledge/${id}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["knowledge"] });
+    },
+  });
+}
+
+export function useExtractTips() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (articleId: string) => {
+      return fetchJSON<{ tips: ExtractedTipItem[] }>(
+        `/api/knowledge/${articleId}/extract`,
+        { method: "POST" }
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["knowledge"] });
+    },
+  });
+}
+
+// ============================================================
+// Data Patterns
+// ============================================================
+
+export function useDataPatterns() {
+  return useQuery({
+    queryKey: queryKeys.dataPatterns(),
+    queryFn: () => fetchJSON<DataPatternsResponse>("/api/patterns"),
+  });
+}
+
+export function useSuggestFromPattern() {
+  return useMutation({
+    mutationFn: async (params: {
+      patternId: string;
+      patternTitle: string;
+      patternDescription: string;
+      count: number;
+    }) => {
+      return fetchJSON<PatternSuggestion>(
+        `/api/patterns/${params.patternId}/suggest`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            patternTitle: params.patternTitle,
+            patternDescription: params.patternDescription,
+            count: params.count,
+          }),
+        }
       );
     },
   });
