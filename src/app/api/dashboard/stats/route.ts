@@ -13,6 +13,9 @@ export async function GET() {
     totalPolicies,
     recentImports,
     topInsights,
+    lastInsightRunSetting,
+    latestRuleUpdate,
+    latestImport,
   ] = await Promise.all([
     prisma.customer.count(),
     prisma.insight.count(),
@@ -30,7 +33,20 @@ export async function GET() {
         },
       },
     }),
+    prisma.systemSetting.findUnique({ where: { key: "lastInsightRunAt" } }),
+    prisma.officeRule.findFirst({ where: { isActive: true }, orderBy: { updatedAt: "desc" }, select: { updatedAt: true } }),
+    prisma.importJob.findFirst({ where: { status: "COMPLETED" }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
   ]);
+
+  // Determine if re-run is needed
+  const lastRunAt = lastInsightRunSetting?.value ? new Date(lastInsightRunSetting.value) : null;
+  const needsRerun = !lastRunAt
+    || (latestImport?.createdAt && latestImport.createdAt > lastRunAt)
+    || (latestRuleUpdate?.updatedAt && latestRuleUpdate.updatedAt > lastRunAt);
+
+  const newRulesSinceLastRun = lastRunAt
+    ? await prisma.officeRule.count({ where: { isActive: true, updatedAt: { gt: lastRunAt } } })
+    : 0;
 
   return NextResponse.json({
     totalCustomers,
@@ -55,6 +71,9 @@ export async function GET() {
       newCustomers: j.newCustomers,
       updatedCustomers: j.updatedCustomers,
     })),
+    needsRerun,
+    newRulesSinceLastRun,
+    lastInsightRunAt: lastInsightRunSetting?.value ?? null,
     topInsights: topInsights.map((i) => ({
       id: i.id,
       customerId: i.customerId,
