@@ -93,22 +93,28 @@ function GenerateSection() {
     setProgress({ processed: 0, total: 0, insights: 0 });
 
     let offset = 0;
-    const batchSize = 50;
+    const batchSize = 500; // Large batches — API is fast now with batch SQL
     let totalInsights = 0;
 
     try {
       while (true) {
         if (abortRef.current) break;
 
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 120000); // 2min timeout per batch
+
         const res = await fetch("/api/insights/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ offset, limit: batchSize, includeAI: false }),
+          body: JSON.stringify({ offset, limit: batchSize }),
+          signal: controller.signal,
         });
 
+        clearTimeout(timeout);
+
         if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || "שגיאה");
+          const errData = await res.json().catch(() => ({ error: "שגיאת שרת" }));
+          throw new Error(errData.error || "שגיאה");
         }
 
         const result = (await res.json()) as {
@@ -126,15 +132,17 @@ function GenerateSection() {
           insights: totalInsights,
         });
 
-        if (offset % 500 === 0 || result.done) {
-          queryClient.invalidateQueries({ queryKey: ["insights"] });
-        }
+        queryClient.invalidateQueries({ queryKey: ["insights"] });
 
         if (result.done) break;
       }
     } catch (err) {
-      console.error("Generation error:", err);
-      setError(err instanceof Error ? err.message : "שגיאה לא צפויה");
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("הפעולה ארכה יותר מדי זמן — נסה שוב");
+      } else {
+        console.error("Generation error:", err);
+        setError(err instanceof Error ? err.message : "שגיאה לא צפויה");
+      }
     }
 
     queryClient.invalidateQueries({ queryKey: ["insights"] });
