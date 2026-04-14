@@ -25,6 +25,20 @@ export function daysBetween(from: Date, to: Date): number {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
+export function timeAgo(date: Date | string | null | undefined): string {
+  if (!date) return "מעולם לא";
+  const d = typeof date === "string" ? new Date(date) : date;
+  const diffMs = Date.now() - d.getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "זה עתה";
+  if (mins < 60) return `לפני ${mins} דקות`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `לפני ${hours} שעות`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `לפני ${days} ימים`;
+  return d.toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit" });
+}
+
 export function dataFreshnessLabel(date: Date | null | undefined): {
   label: string;
   level: "fresh" | "partial" | "stale";

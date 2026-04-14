@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   Users,
-  Lightbulb,
+  Search,
   Star,
   FileText,
   ListTodo,
@@ -15,12 +15,14 @@ import {
   Shield,
   ShieldCheck,
   Brain,
+  Clock,
 } from "lucide-react";
 
 const navigation = [
   { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
+  { name: "בקרוב", href: "/soon", icon: Clock },
   { name: "לקוחות", href: "/customers", icon: Users },
-  { name: "תובנות", href: "/insights", icon: Lightbulb },
+  { name: "חקור", href: "/insights", icon: Search },
   { name: "המלצות", href: "/recommendations", icon: Star },
   { name: "מסמכים", href: "/documents", icon: FileText },
   { name: "משימות", href: "/tasks", icon: ListTodo },

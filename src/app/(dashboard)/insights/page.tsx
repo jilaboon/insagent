@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState, useCallback, useRef } from "react";
-import { Lightbulb, AlertTriangle, MessageSquare, Sparkles, Loader2, Square, TriangleAlert } from "lucide-react";
+import { Lightbulb, AlertTriangle, MessageSquare, Sparkles, Loader2, Square } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -76,30 +76,8 @@ function StatCard({
 }
 
 // ============================================================
-// Needs Re-run Banner
+// Generate Button (animates when new rules/data exist)
 // ============================================================
-
-function NeedsRerunBanner() {
-  const { data } = useDashboardStats();
-
-  if (!data?.needsRerun) return null;
-
-  return (
-    <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-      <TriangleAlert className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-      <div>
-        <p className="text-sm font-medium text-amber-800">
-          יש חוקים חדשים או נתונים חדשים מאז הניתוח האחרון — כדאי לייצר תובנות מחדש
-        </p>
-        {data.newRulesSinceLastRun > 0 && (
-          <p className="text-xs text-amber-600 mt-1">
-            {data.newRulesSinceLastRun} חוקים חדשים מאז הניתוח האחרון
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function NeedsRerunGenerateButton({ onGenerate }: { onGenerate: () => void }) {
   const { data } = useDashboardStats();
@@ -417,16 +395,13 @@ function InsightsContent() {
       <div>
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-xl font-bold text-surface-900">מרכז תובנות</h1>
+            <h1 className="text-xl font-bold text-surface-900">חקור תובנות</h1>
             <p className="mt-1 text-sm text-surface-500">
-              תובנות עסקיות שזוהו אוטומטית מנתוני הלקוחות
+              כל התובנות במערכת — לחקירה מעמיקה
             </p>
           </div>
         </div>
       </div>
-
-      {/* Re-run banner */}
-      <NeedsRerunBanner />
 
       {/* Generate section — full width, separate from header */}
       <GenerateSection />

@@ -125,6 +125,39 @@ export const messageStatusLabels: Record<string, string> = {
 };
 
 // ============================================================
+// Queue Reason Categories
+// ============================================================
+
+export const reasonCategoryLabels: Record<string, string> = {
+  URGENT_EXPIRY: "פוליסה מתחדשת",
+  AGE_MILESTONE: "אבן דרך גילית",
+  HIGH_VALUE: "לקוח משמעותי",
+  COVERAGE_GAP: "פער כיסוי",
+  COST_OPTIMIZATION: "אופטימיזציית עלות",
+  SERVICE: "שירות",
+  CROSS_SELL: "הרחבת סל",
+};
+
+export const reasonCategoryIcons: Record<string, string> = {
+  URGENT_EXPIRY: "⏰",
+  AGE_MILESTONE: "🎯",
+  HIGH_VALUE: "💎",
+  COVERAGE_GAP: "🛡️",
+  COST_OPTIMIZATION: "💰",
+  SERVICE: "🤝",
+  CROSS_SELL: "✨",
+};
+
+export const queueStatusLabels: Record<string, string> = {
+  PENDING: "ממתינה",
+  COMPLETED: "הושלמה",
+  POSTPONED: "נדחתה",
+  DISMISSED: "לא רלוונטי",
+  BLOCKED: "חסומה",
+  EXTERNAL: "טופל מחוץ למערכת",
+};
+
+// ============================================================
 // Insurer Name Normalization
 // ============================================================
 

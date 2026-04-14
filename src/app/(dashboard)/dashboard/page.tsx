@@ -1,309 +1,286 @@
 "use client";
 
-import { Card, CardHeader, CardTitle, CardValue } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { UrgencyIndicator } from "@/components/ui/indicators";
-import { ScoreBadge } from "@/components/shared/score-badge";
-import { SkeletonCard } from "@/components/ui/skeleton";
-import { EmptyState } from "@/components/ui/empty-state";
-import { useDashboardStats } from "@/lib/api/hooks";
-import { insightCategoryLabels } from "@/lib/constants";
-import { formatDate } from "@/lib/utils";
-import {
-  Users,
-  Shield,
-  Lightbulb,
-  AlertTriangle,
-  MessageSquare,
-  Upload,
-  ChevronLeft,
-  FileText,
-  Inbox,
-} from "lucide-react";
+import { useState } from "react";
 import Link from "next/link";
+import {
+  RefreshCw,
+  Inbox,
+  Upload,
+  MessageSquare,
+  Lightbulb,
+  Clock,
+  CheckCircle2,
+  Loader2,
+  FileText,
+  Sparkles,
+} from "lucide-react";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { CustomerCard } from "@/components/queue/customer-card";
+import {
+  useQueueToday,
+  useQueueStats,
+  useRebuildQueue,
+} from "@/lib/api/hooks";
+import { timeAgo } from "@/lib/utils";
 
 export default function DashboardPage() {
-  const { data, isLoading } = useDashboardStats();
+  const today = useQueueToday();
+  const stats = useQueueStats();
+  const rebuild = useRebuildQueue();
+  const [toast, setToast] = useState<string | null>(null);
 
-  if (isLoading) {
-    return (
-      <div className="space-y-8 animate-[fadeIn_0.3s_ease-out_forwards]">
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <SkeletonCard key={i} />
-          ))}
-        </div>
-        <div className="grid gap-6 lg:grid-cols-2">
-          <SkeletonCard />
-          <SkeletonCard />
-        </div>
-      </div>
-    );
-  }
+  const entries = today.data?.items ?? [];
+  const lastRebuildAt = stats.data?.lastRebuildAt ?? null;
 
-  if (!data || data.totalCustomers === 0) {
-    return (
-      <EmptyState
-        icon={Inbox}
-        title="עדיין אין נתונים במערכת"
-        description="יש לייבא קובץ BAFI ראשון כדי להתחיל לעבוד עם המערכת"
-        action={
-          <Link
-            href="/import"
-            className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
-          >
-            <Upload className="h-4 w-4" />
-            יבוא קובץ ראשון
-          </Link>
-        }
-      />
-    );
+  async function handleRebuild() {
+    try {
+      await rebuild.mutateAsync({ reason: "MANUAL_REFRESH" });
+      setToast("התור עודכן בהצלחה");
+      setTimeout(() => setToast(null), 3000);
+    } catch {
+      /* handled via mutation state */
+    }
   }
 
   return (
-    <div className="space-y-8 animate-[fadeIn_0.3s_ease-out_forwards]">
-      {/* Stats grid */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-5">
-        <StatCard
-          icon={Users}
-          label="לקוחות"
-          value={data.totalCustomers}
-          color="primary"
-        />
-        <StatCard
-          icon={Shield}
-          label="פוליסות פעילות"
-          value={data.totalPolicies}
-          color="success"
-        />
-        <StatCard
-          icon={Lightbulb}
-          label="תובנות"
-          value={data.totalInsights}
-          color="info"
-        />
-        <StatCard
-          icon={AlertTriangle}
-          label="דחיפות גבוהה"
-          value={data.highUrgencyCount}
-          color="danger"
-        />
-        <StatCard
-          icon={MessageSquare}
-          label="הודעות ממתינות"
-          value={data.pendingMessages}
-          color="warning"
-        />
+    <div className="space-y-6 animate-[fadeIn_0.3s_ease-out_forwards]">
+      {/* Header */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-surface-900">
+            העבודה של היום
+          </h1>
+          <p className="mt-1 text-sm text-surface-500">
+            {today.isLoading ? (
+              "טוען..."
+            ) : (
+              <>
+                <span className="number">{entries.length}</span> משימות מחכות לך
+                <span className="mx-2 text-surface-300">·</span>
+                עודכן: {timeAgo(lastRebuildAt)}
+              </>
+            )}
+          </p>
+        </div>
+        <Button
+          variant="secondary"
+          size="md"
+          onClick={handleRebuild}
+          disabled={rebuild.isPending}
+        >
+          {rebuild.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4" />
+          )}
+          {rebuild.isPending ? "מעדכן..." : "רענן תור"}
+        </Button>
       </div>
 
-      {/* Needs rerun banner */}
-      {data.needsRerun && (
-        <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
-            <span className="text-sm font-medium text-amber-800">
-              נדרש עדכון תובנות
-            </span>
-            {data.newRulesSinceLastRun > 0 && (
-              <Badge variant="warning">
-                {data.newRulesSinceLastRun} חוקים חדשים
-              </Badge>
-            )}
-          </div>
-          <Link
-            href="/insights"
-            className="flex items-center gap-1 text-xs font-medium text-amber-700 hover:text-amber-800"
-          >
-            עבור לתובנות
-            <ChevronLeft className="h-3.5 w-3.5" />
-          </Link>
+      {/* Main 70/30 layout */}
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+        {/* Main list */}
+        <div className="min-w-0 space-y-3">
+          {today.isLoading ? (
+            <QueueListSkeleton />
+          ) : entries.length === 0 ? (
+            <EmptyQueueState
+              onRebuild={handleRebuild}
+              isBuilding={rebuild.isPending}
+            />
+          ) : (
+            entries.map((entry) => (
+              <CustomerCard key={entry.id} entry={entry} />
+            ))
+          )}
+        </div>
+
+        {/* Side strip */}
+        <aside className="space-y-4">
+          <Card padding="md">
+            <CardHeader>
+              <CardTitle>
+                <span className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary-500" />
+                  סטטוס מערכת
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <div className="space-y-3">
+              <SideLink
+                icon={<MessageSquare className="h-4 w-4 text-amber-500" />}
+                label="הודעות ממתינות לאישור"
+                value={stats.data?.pendingApprovals ?? 0}
+                href="/insights?messageStatus=draft"
+              />
+              <SideLink
+                icon={<Lightbulb className="h-4 w-4 text-sky-500" />}
+                label="תובנות סך הכל"
+                value={null}
+                href="/insights"
+                caption="עבור לחקירת תובנות"
+              />
+              <div className="pt-2 border-t border-surface-100">
+                <p className="text-[11px] text-surface-500">עדכון אחרון</p>
+                <p className="mt-0.5 text-sm font-medium text-surface-800">
+                  {timeAgo(lastRebuildAt)}
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          <Card padding="md">
+            <CardHeader>
+              <CardTitle>
+                <span className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-primary-500" />
+                  ניהול התור
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <div className="space-y-3">
+              <SideLink
+                icon={<Clock className="h-4 w-4 text-amber-500" />}
+                label="בקרוב"
+                value={stats.data?.soonCount ?? 0}
+                href="/soon"
+              />
+              <SideLink
+                icon={<CheckCircle2 className="h-4 w-4 text-emerald-500" />}
+                label="הושלמו היום"
+                value={stats.data?.completedToday ?? 0}
+                href="#"
+              />
+            </div>
+          </Card>
+
+          <Card padding="md">
+            <CardHeader>
+              <CardTitle>
+                <span className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-surface-400" />
+                  פעולות מהירות
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <div className="flex flex-col gap-2">
+              <Link
+                href="/import"
+                className="inline-flex items-center gap-2 rounded-lg border border-surface-200 bg-white px-3 py-2 text-xs font-medium text-surface-700 hover:bg-surface-50"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                יבוא קובץ BAFI
+              </Link>
+              <Link
+                href="/rules"
+                className="inline-flex items-center gap-2 rounded-lg border border-surface-200 bg-white px-3 py-2 text-xs font-medium text-surface-700 hover:bg-surface-50"
+              >
+                <Lightbulb className="h-3.5 w-3.5" />
+                מנוע חוקים
+              </Link>
+            </div>
+          </Card>
+        </aside>
+      </div>
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-surface-900 px-4 py-2 text-xs font-medium text-white shadow-lg animate-[fadeIn_0.2s_ease-out_forwards]">
+          {toast}
         </div>
       )}
-
-      {/* Main content — two columns */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Top Insights */}
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <span className="flex items-center gap-2">
-                <Lightbulb className="h-4 w-4 text-accent-500" />
-                תובנות מובילות
-              </span>
-            </CardTitle>
-            <Link
-              href="/insights"
-              className="flex items-center gap-1 text-xs font-medium text-primary-600 hover:text-primary-700"
-            >
-              הצג הכל
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </Link>
-          </CardHeader>
-          {data.topInsights && data.topInsights.length > 0 ? (
-            <div className="space-y-3">
-              {data.topInsights.map(
-                (insight: {
-                  id: string;
-                  customerId: string;
-                  customerName: string;
-                  title: string;
-                  strengthScore: number;
-                  urgencyLevel: number;
-                  category: string;
-                }) => (
-                  <Link
-                    key={insight.id}
-                    href={`/customers/${insight.customerId}`}
-                    className="flex items-start justify-between rounded-lg border border-surface-100 p-3 transition-colors hover:bg-surface-50"
-                  >
-                    <div className="flex-1">
-                      <div className="mb-1 flex items-center gap-2">
-                        <span className="text-sm font-medium text-surface-900">
-                          {insight.title}
-                        </span>
-                        <Badge variant="muted">
-                          {insightCategoryLabels[
-                            insight.category as keyof typeof insightCategoryLabels
-                          ] || insight.category}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-surface-500">
-                        {insight.customerName}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 pr-4">
-                      <ScoreBadge score={insight.strengthScore} />
-                      <UrgencyIndicator
-                        level={insight.urgencyLevel as 0 | 1 | 2}
-                      />
-                    </div>
-                  </Link>
-                )
-              )}
-            </div>
-          ) : (
-            <p className="py-6 text-center text-sm text-surface-400">
-              אין תובנות עדיין — יש להריץ ניתוח לאחר יבוא
-            </p>
-          )}
-        </Card>
-
-        {/* Import Status */}
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <span className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-sky-500" />
-                סטטוס יבוא
-              </span>
-            </CardTitle>
-          </CardHeader>
-          {data.recentImports && data.recentImports.length > 0 ? (
-            <div className="space-y-4">
-              {data.recentImports.map((job: { id: string; fileName: string; status: string; createdAt: string; newCustomers: number | null; updatedCustomers: number | null }) => (
-                <div key={job.id} className="rounded-lg border border-surface-100 p-3">
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="text-sm font-medium text-surface-900">
-                      {job.fileName}
-                    </span>
-                    <ImportStatusBadge status={job.status} />
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-surface-500">
-                    <span>{formatDate(job.createdAt)}</span>
-                    {job.newCustomers != null && (
-                      <span className="number">{job.newCustomers} חדשים</span>
-                    )}
-                    {job.updatedCustomers != null && job.updatedCustomers > 0 && (
-                      <span className="number">{job.updatedCustomers} עודכנו</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-              <Link
-                href="/import"
-                className="inline-flex items-center gap-2 rounded-lg border border-surface-300 bg-white px-4 py-2 text-sm font-medium text-surface-700 shadow-xs hover:bg-surface-50"
-              >
-                <Upload className="h-4 w-4" />
-                יבוא חדש
-              </Link>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center py-8 text-center">
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-surface-100">
-                <Upload className="h-5 w-5 text-surface-400" />
-              </div>
-              <p className="mb-1 text-sm font-medium text-surface-600">
-                לא בוצע יבוא עדיין
-              </p>
-              <p className="mb-4 text-xs text-surface-400">
-                יבוא קובץ BAFI כדי להתחיל
-              </p>
-              <Link
-                href="/import"
-                className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
-              >
-                <Upload className="h-4 w-4" />
-                יבוא חדש
-              </Link>
-            </div>
-          )}
-        </Card>
-      </div>
     </div>
   );
 }
 
-// ============================================================
-// Stat Card
-// ============================================================
-
-function StatCard({
-  icon: Icon,
+function SideLink({
+  icon,
   label,
   value,
-  color,
+  href,
+  caption,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ReactNode;
   label: string;
-  value: number;
-  color: "primary" | "success" | "warning" | "danger" | "info" | "default";
+  value: number | null;
+  href: string;
+  caption?: string;
 }) {
-  const iconColors = {
-    primary: "bg-primary-50 text-primary-600",
-    success: "bg-emerald-50 text-emerald-600",
-    warning: "bg-amber-50 text-amber-600",
-    danger: "bg-red-50 text-red-600",
-    info: "bg-sky-50 text-sky-600",
-    default: "bg-surface-100 text-surface-600",
-  };
-
   return (
-    <Card padding="sm">
-      <div
-        className={`mb-3 flex h-8 w-8 items-center justify-center rounded-lg ${iconColors[color]}`}
-      >
-        <Icon className="h-4 w-4" />
+    <Link
+      href={href}
+      className="flex items-center gap-3 rounded-lg px-2 py-1.5 -mx-2 hover:bg-surface-50 transition-colors"
+    >
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-50">
+        {icon}
       </div>
-      <CardValue>{value}</CardValue>
-      <p className="mt-1 text-xs text-surface-500">{label}</p>
-    </Card>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs text-surface-500">{label}</p>
+        {caption && (
+          <p className="text-[11px] text-surface-400 truncate">{caption}</p>
+        )}
+      </div>
+      {value != null && (
+        <span className="text-sm font-bold text-surface-900 number">
+          {value.toLocaleString("he-IL")}
+        </span>
+      )}
+    </Link>
   );
 }
 
-// ============================================================
-// Import Status Badge
-// ============================================================
+function QueueListSkeleton() {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div
+          key={i}
+          className="rounded-xl border border-surface-200 bg-white p-5"
+        >
+          <div className="flex items-start gap-4">
+            <div className="h-11 w-11 shrink-0 rounded-full bg-surface-100 animate-pulse" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 w-40 rounded bg-surface-100 animate-pulse" />
+              <div className="h-3 w-64 rounded bg-surface-100 animate-pulse" />
+              <div className="h-3 w-3/4 rounded bg-surface-100 animate-pulse" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
-function ImportStatusBadge({ status }: { status: string }) {
-  const config: Record<string, { label: string; variant: "success" | "warning" | "danger" | "info" | "muted" }> = {
-    COMPLETED: { label: "הושלם", variant: "success" },
-    PROCESSING: { label: "בעיבוד", variant: "info" },
-    PENDING: { label: "ממתין", variant: "warning" },
-    FAILED: { label: "נכשל", variant: "danger" },
-    PARTIAL: { label: "חלקי", variant: "warning" },
-  };
-
-  const c = config[status] || { label: status, variant: "muted" as const };
-
-  return <Badge variant={c.variant}>{c.label}</Badge>;
+function EmptyQueueState({
+  onRebuild,
+  isBuilding,
+}: {
+  onRebuild: () => void;
+  isBuilding: boolean;
+}) {
+  return (
+    <Card padding="lg">
+      <EmptyState
+        icon={Inbox}
+        title="אין משימות היום"
+        description="לחץ על 'רענן תור' כדי להתחיל — המערכת תנתח את כל הלקוחות ותכין לך רשימה ממוקדת של פעולות."
+        action={
+          <Button
+            variant="primary"
+            size="md"
+            onClick={onRebuild}
+            disabled={isBuilding}
+          >
+            {isBuilding ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            רענן תור
+          </Button>
+        }
+      />
+    </Card>
+  );
 }

@@ -726,6 +726,215 @@ export function useDataPatterns() {
   });
 }
 
+// ============================================================
+// Queue
+// ============================================================
+
+export type QueueLane = "TODAY" | "SOON";
+export type QueueStatus =
+  | "PENDING"
+  | "COMPLETED"
+  | "POSTPONED"
+  | "DISMISSED"
+  | "BLOCKED"
+  | "EXTERNAL";
+export type ReasonCategory =
+  | "URGENT_EXPIRY"
+  | "AGE_MILESTONE"
+  | "HIGH_VALUE"
+  | "COVERAGE_GAP"
+  | "COST_OPTIMIZATION"
+  | "SERVICE"
+  | "CROSS_SELL";
+export type GenerationReason =
+  | "DAILY_REBUILD"
+  | "POST_IMPORT"
+  | "POST_RULE_CHANGE"
+  | "MANUAL_REFRESH"
+  | "INCREMENTAL_FILL";
+
+export interface QueueSupportingInsight {
+  id: string;
+  title: string;
+  summary: string;
+  category: string;
+  strengthScore: number | null;
+}
+
+export interface QueuePrimaryInsight {
+  id: string;
+  title: string;
+  summary: string;
+  whyNow?: string | null;
+  category: string;
+  strengthScore: number | null;
+  urgencyLevel: number;
+  linkedRuleId?: string | null;
+}
+
+export interface QueueEntryWithRelations {
+  id: string;
+  rank: number;
+  lane: QueueLane;
+  status: QueueStatus;
+  queueDate: string;
+  whyTodayReason: string;
+  reasonCategory: ReasonCategory;
+  generationReason?: GenerationReason;
+  assignedUserId: string | null;
+  postponeUntil?: string | null;
+  actionedAt?: string | null;
+  createdAt?: string;
+  debugContext?: Record<string, unknown> | null;
+  customer: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    fullName: string;
+    israeliId: string;
+    phone: string | null;
+    email: string | null;
+    age: number | null;
+    activePolicyCount?: number;
+  };
+  primaryInsight: QueuePrimaryInsight | null;
+  supportingInsights?: QueueSupportingInsight[];
+  supportingInsightIds?: string[];
+}
+
+export interface QueueTodayResponse {
+  items: QueueEntryWithRelations[];
+  total: number;
+}
+
+export interface QueueSoonResponse {
+  items: QueueEntryWithRelations[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface QueueStatsResponse {
+  todayCount: number;
+  soonCount: number;
+  pendingApprovals: number;
+  lastRebuildAt: string | null;
+  completedToday: number;
+}
+
+export interface QueueRebuildResponse {
+  today: number;
+  soon: number;
+}
+
+export interface QueueActionResponse {
+  entry: QueueEntryWithRelations;
+  promoted: QueueEntryWithRelations | null;
+  /** Alias for `promoted` to match UI components that use this name. */
+  promotedEntry: QueueEntryWithRelations | null;
+}
+
+/** Alias so existing components can import `QueueEntry`. */
+export type QueueEntry = QueueEntryWithRelations;
+
+export const queueQueryKeys = {
+  today: (assignedUserId?: string) =>
+    ["queue", "today", assignedUserId ?? "all"] as const,
+  soon: (page: number, assignedUserId?: string) =>
+    ["queue", "soon", assignedUserId ?? "all", page] as const,
+  stats: (assignedUserId?: string) =>
+    ["queue", "stats", assignedUserId ?? "all"] as const,
+} as const;
+
+export function useQueueToday(assignedUserId?: string) {
+  return useQuery({
+    queryKey: queueQueryKeys.today(assignedUserId),
+    queryFn: () => {
+      const qs = assignedUserId
+        ? `?assignedUserId=${encodeURIComponent(assignedUserId)}`
+        : "";
+      return fetchJSON<QueueTodayResponse>(`/api/queue/today${qs}`);
+    },
+  });
+}
+
+export function useQueueSoon(page: number = 1, assignedUserId?: string) {
+  return useQuery({
+    queryKey: queueQueryKeys.soon(page, assignedUserId),
+    queryFn: () => {
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      if (assignedUserId) params.set("assignedUserId", assignedUserId);
+      return fetchJSON<QueueSoonResponse>(
+        `/api/queue/soon?${params.toString()}`
+      );
+    },
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useQueueStats(assignedUserId?: string) {
+  return useQuery({
+    queryKey: queueQueryKeys.stats(assignedUserId),
+    queryFn: () => {
+      const qs = assignedUserId
+        ? `?assignedUserId=${encodeURIComponent(assignedUserId)}`
+        : "";
+      return fetchJSON<QueueStatsResponse>(`/api/queue/stats${qs}`);
+    },
+  });
+}
+
+export function useRebuildQueue() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (params?: {
+      reason?: GenerationReason;
+      assignedUserId?: string;
+    }) => {
+      return fetchJSON<QueueRebuildResponse>("/api/queue/rebuild", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(params ?? {}),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["queue"] });
+    },
+  });
+}
+
+export function useQueueAction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: {
+      id: string;
+      /** Preferred name (matches route API). */
+      status?: Exclude<QueueStatus, "PENDING">;
+      /** Legacy alias used by some UI components. */
+      action?: Exclude<QueueStatus, "PENDING">;
+      note?: string;
+      postponeUntil?: string;
+    }) => {
+      const { id, status, action, ...rest } = params;
+      const resolvedStatus = status ?? action;
+      const resp = await fetchJSON<QueueActionResponse>(
+        `/api/queue/entries/${id}/action`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: resolvedStatus, ...rest }),
+        }
+      );
+      return resp;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["queue"] });
+    },
+  });
+}
+
 export function useSuggestFromPattern() {
   return useMutation({
     mutationFn: async (params: {

@@ -34,6 +34,7 @@ model User {
   importJobs        ImportJob[]
   auditEntries      AuditEntry[]
   recommendations   Recommendation[] @relation("ReviewedBy")
+  assignedQueue     QueueEntry[]     @relation("AssignedQueue")
 
   @@map("users")
 }
@@ -69,6 +70,7 @@ model Customer {
   fieldProvenance  FieldProvenance[]
   importLinks      ImportJobCustomer[]
   messageDrafts    MessageDraft[]
+  queueEntries     QueueEntry[]
 
   @@index([israeliId])
   @@index([assignedManagerId])
@@ -263,6 +265,7 @@ model Insight {
 
   recommendations Recommendation[]
   messageDrafts   MessageDraft[]
+  queueEntriesPrimary QueueEntry[] @relation("PrimaryInsight")
 
   @@index([customerId])
   @@index([category])
@@ -532,6 +535,82 @@ model KnowledgeArticle {
   updatedAt      DateTime @updatedAt
 
   @@map("knowledge_articles")
+}
+
+// ============================================================
+// Daily Action Queue — the main operational object
+// ============================================================
+
+enum QueueLane {
+  TODAY
+  SOON
+}
+
+enum QueueStatus {
+  PENDING
+  COMPLETED
+  POSTPONED
+  DISMISSED
+  BLOCKED
+  EXTERNAL
+}
+
+enum ReasonCategory {
+  URGENT_EXPIRY
+  AGE_MILESTONE
+  HIGH_VALUE
+  COVERAGE_GAP
+  COST_OPTIMIZATION
+  SERVICE
+  CROSS_SELL
+}
+
+enum GenerationReason {
+  DAILY_REBUILD
+  POST_IMPORT
+  POST_RULE_CHANGE
+  MANUAL_REFRESH
+  INCREMENTAL_FILL
+}
+
+model QueueEntry {
+  id                   String           @id @default(uuid())
+  queueDate            DateTime         @db.Date
+  lane                 QueueLane
+  rank                 Int
+
+  customerId           String
+  customer             Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  primaryInsightId     String?
+  primaryInsight       Insight?         @relation("PrimaryInsight", fields: [primaryInsightId], references: [id])
+  supportingInsightIds String[]
+
+  whyTodayReason       String
+  reasonCategory       ReasonCategory
+
+  assignedUserId       String?
+  assignedUser         User?            @relation("AssignedQueue", fields: [assignedUserId], references: [id])
+
+  generationReason     GenerationReason
+  generationVersion    Int              @default(1)
+  debugContext         Json?
+
+  status               QueueStatus      @default(PENDING)
+  actionedAt           DateTime?
+  actionedByUserId     String?
+  actionNote           String?
+  postponeUntil        DateTime?
+
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  @@unique([queueDate, lane, customerId, assignedUserId])
+  @@index([queueDate, lane])
+  @@index([customerId])
+  @@index([status])
+  @@index([assignedUserId, status])
+  @@map("queue_entries")
 }
 
 // ============================================================

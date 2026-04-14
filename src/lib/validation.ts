@@ -106,6 +106,40 @@ export const patternSuggestSchema = z.object({
 });
 
 // ============================================================
+// Queue
+// ============================================================
+
+const GENERATION_REASONS = [
+  "DAILY_REBUILD",
+  "POST_IMPORT",
+  "POST_RULE_CHANGE",
+  "MANUAL_REFRESH",
+  "INCREMENTAL_FILL",
+] as const;
+
+export const queueRebuildSchema = z.object({
+  reason: z.enum(GENERATION_REASONS).optional(),
+  assignedUserId: z.string().uuid().optional(),
+});
+
+export const queueActionSchema = z
+  .object({
+    status: z.enum([
+      "COMPLETED",
+      "POSTPONED",
+      "DISMISSED",
+      "BLOCKED",
+      "EXTERNAL",
+    ]),
+    note: z.string().max(1000).optional(),
+    postponeUntil: z.string().datetime().optional(),
+  })
+  .refine(
+    (data) => data.status !== "POSTPONED" || !!data.postponeUntil,
+    { message: "postponeUntil חובה בעת דחיית פריט" }
+  );
+
+// ============================================================
 // Helper: validate request body and return 400 on failure
 // ============================================================
 
