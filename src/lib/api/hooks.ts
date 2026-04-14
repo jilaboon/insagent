@@ -45,6 +45,14 @@ export interface DashboardStats {
   pendingMessages: number;
   lastImportDate: string | null;
   lastImport: DashboardLastImport | null;
+  recentImports: Array<{
+    id: string;
+    fileName: string;
+    status: string;
+    createdAt: string;
+    newCustomers: number | null;
+    updatedCustomers: number | null;
+  }>;
   topInsights: DashboardTopInsight[];
 }
 
