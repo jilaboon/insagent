@@ -156,6 +156,17 @@ export const queueSettingsSchema = z.object({
   costOptimizationMinSavings: z.number().min(0).optional(),
   cooldownAfterDismissalDays: z.number().int().min(0).max(365).optional(),
   recentContactSuppressionDays: z.number().int().min(0).max(365).optional(),
+  urgentCategories: z.array(
+    z.enum([
+      "URGENT_EXPIRY",
+      "AGE_MILESTONE",
+      "HIGH_VALUE",
+      "COVERAGE_GAP",
+      "COST_OPTIMIZATION",
+      "SERVICE",
+      "CROSS_SELL",
+    ])
+  ).optional(),
 });
 
 // ============================================================

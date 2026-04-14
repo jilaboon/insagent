@@ -34,6 +34,16 @@ export interface QueueSettings {
   cooldownAfterDismissalDays: number;
   /** Days after a SENT message before we re-surface the same customer. */
   recentContactSuppressionDays: number;
+  /** Reason categories that get urgent reserve slots. Others compete for value slots. */
+  urgentCategories: Array<
+    | "URGENT_EXPIRY"
+    | "AGE_MILESTONE"
+    | "HIGH_VALUE"
+    | "COVERAGE_GAP"
+    | "COST_OPTIMIZATION"
+    | "SERVICE"
+    | "CROSS_SELL"
+  >;
 }
 
 export const DEFAULT_SETTINGS: QueueSettings = {
@@ -49,6 +59,7 @@ export const DEFAULT_SETTINGS: QueueSettings = {
   costOptimizationMinSavings: 100_000,
   cooldownAfterDismissalDays: 60,
   recentContactSuppressionDays: 30,
+  urgentCategories: ["AGE_MILESTONE"],
 };
 
 const SETTING_KEY = "queueSettings";

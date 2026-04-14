@@ -14,6 +14,7 @@ import {
   ShieldOff,
   RefreshCw,
   Check,
+  AlertCircle,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,10 +39,21 @@ const DEFAULTS: QueueSettingsData = {
   costOptimizationMinSavings: 100_000,
   cooldownAfterDismissalDays: 60,
   recentContactSuppressionDays: 30,
+  urgentCategories: ["AGE_MILESTONE"],
 };
 
 const MILESTONE_AGE_OPTIONS = [55, 60, 65, 67];
 const FRESHNESS_OPTIONS = [30, 60, 90];
+
+const URGENT_CATEGORY_OPTIONS: Array<{ value: string; label: string; description: string }> = [
+  { value: "AGE_MILESTONE", label: "אבן דרך גילית", description: "הלקוח הגיע לגיל משמעותי (60, 65, וכו')" },
+  { value: "HIGH_VALUE", label: "לקוח משמעותי", description: "חיסכון גבוה או פרמיה גבוהה" },
+  { value: "COST_OPTIMIZATION", label: "אופטימיזציית עלות", description: "דמי ניהול חריגים" },
+  { value: "COVERAGE_GAP", label: "פער כיסוי", description: "חסר ביטוח חיים או בריאות" },
+  { value: "URGENT_EXPIRY", label: "פוליסה מתחדשת", description: "BAFI כבר מטפל בזה — בדרך כלל לא מומלץ" },
+  { value: "SERVICE", label: "שירות", description: "לא היה קשר תקופה ארוכה" },
+  { value: "CROSS_SELL", label: "הרחבת סל", description: "לקוח עם ענף אחד בלבד" },
+];
 
 function formatNumber(n: number): string {
   return n.toLocaleString("he-IL");
@@ -241,6 +253,53 @@ export default function QueueSettingsPage() {
       </Card>
 
       {/* Card 3 — High Value */}
+      {/* Urgent categories — which types of insights get reserved slots */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-amber-500" />
+            קטגוריות דחופות
+          </CardTitle>
+        </CardHeader>
+        <div className="space-y-3">
+          <p className="text-xs text-surface-500">
+            בחר אילו סוגי תובנות מקבלים מקומות שמורים בתור (פריטים דחופים).
+            שאר הקטגוריות מתחרות על המקומות הנותרים לפי ציון.
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {URGENT_CATEGORY_OPTIONS.map((opt) => {
+              const checked = form.urgentCategories.includes(opt.value);
+              return (
+                <label
+                  key={opt.value}
+                  className={`flex items-start gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${
+                    checked
+                      ? "border-amber-300 bg-amber-50/40"
+                      : "border-surface-200 bg-white hover:bg-surface-50"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => {
+                      const next = checked
+                        ? form.urgentCategories.filter((c) => c !== opt.value)
+                        : [...form.urgentCategories, opt.value];
+                      patch({ urgentCategories: next });
+                    }}
+                    className="mt-1 h-4 w-4 shrink-0 accent-amber-500"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <span className="text-sm font-medium text-surface-900">{opt.label}</span>
+                    <p className="mt-0.5 text-xs text-surface-500">{opt.description}</p>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

@@ -206,12 +206,12 @@ export function buildWhyTodayReason(
   return ctx.insight.title;
 }
 
-// Policy: BAFI already handles renewals. We de-prioritize them so we don't
-// compete with BAFI on its own turf.
+// What counts as "urgent enough to get a reserved slot" is configurable
+// per office in Queue Settings. Default: only AGE_MILESTONE.
 export function isTimeCritical(
   ctx: ReasonContext,
   settings: QueueSettings
 ): boolean {
   const category = determineReasonCategory(ctx, settings);
-  return category === "AGE_MILESTONE";
+  return settings.urgentCategories.includes(category);
 }

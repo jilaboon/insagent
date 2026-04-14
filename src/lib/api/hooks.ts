@@ -952,6 +952,7 @@ export interface QueueSettingsData {
   costOptimizationMinSavings: number;
   cooldownAfterDismissalDays: number;
   recentContactSuppressionDays: number;
+  urgentCategories: string[];
 }
 
 export const queueSettingsQueryKey = ["queue", "settings"] as const;

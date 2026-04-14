@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InsAgent | מדריך התחלה מהירה ושגרת עבודה</title>
+  <style>
+    :root {
+      --bg: #f6f5f1;
+      --panel: rgba(255, 255, 255, 0.92);
+      --panel-strong: #ffffff;
+      --line: #ddd9cf;
+      --line-strong: #cfc8bb;
+      --text: #1f1d19;
+      --muted: #686257;
+      --primary: #0d7a69;
+      --primary-strong: #07584c;
+      --primary-soft: #e8f8f3;
+      --accent: #af7a22;
+      --accent-soft: #fff4e3;
+      --sky-soft: #eef5fb;
+      --shadow: 0 22px 44px rgba(31, 29, 25, 0.08);
+      --radius-xl: 28px;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Heebo", "Segoe UI", Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 100% 0%, rgba(13, 122, 105, 0.08), transparent 28%),
+        radial-gradient(circle at 0% 6%, rgba(175, 122, 34, 0.06), transparent 22%),
+        linear-gradient(180deg, #fbfaf7 0%, var(--bg) 100%);
+      line-height: 1.5;
+    }
+
+    .page {
+      max-width: 1220px;
+      margin: 0 auto;
+      padding: 44px 24px 72px;
+    }
+
+    .hero,
+    .section,
+    .side-card {
+      background: var(--panel);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(221, 217, 207, 0.95);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+      padding: 34px 36px;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: 14px;
+      font-weight: 800;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      font-size: 44px;
+      line-height: 1.06;
+      letter-spacing: -0.8px;
+      margin-bottom: 14px;
+    }
+
+    .hero p {
+      color: var(--muted);
+      font-size: 17px;
+      max-width: 54rem;
+    }
+
+    .hero-grid {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .metric {
+      background: var(--panel-strong);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .metric-value {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .section {
+      padding: 28px 30px 30px;
+      margin-bottom: 22px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .section-head h2 {
+      font-size: 24px;
+      margin-bottom: 6px;
+    }
+
+    .section-head p {
+      color: var(--muted);
+      font-size: 15px;
+      max-width: 44rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 7px 12px;
+      background: #f7f5ef;
+      border: 1px solid #ece7da;
+      color: #4b473f;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 22px;
+    }
+
+    .steps {
+      display: grid;
+      gap: 12px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 56px 1fr;
+      gap: 14px;
+      align-items: start;
+      padding: 18px;
+      border-radius: var(--radius-lg);
+      background: var(--panel-strong);
+      border: 1px solid var(--line);
+    }
+
+    .step-num {
+      width: 42px;
+      height: 42px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--primary);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .step h3 {
+      font-size: 17px;
+      margin-bottom: 5px;
+    }
+
+    .step p {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .step-note {
+      margin-top: 10px;
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .tag {
+      font-size: 11px;
+      padding: 6px 9px;
+      border-radius: 999px;
+      border: 1px solid #e9e4d8;
+      background: #fbfaf7;
+      color: #5c564c;
+    }
+
+    .routine {
+      display: grid;
+      gap: 12px;
+    }
+
+    .routine-card {
+      padding: 18px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--line);
+      background: var(--panel-strong);
+    }
+
+    .routine-time {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: #7a5616;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .routine-card h3 {
+      font-size: 17px;
+      margin-bottom: 6px;
+    }
+
+    .routine-card ul {
+      list-style: none;
+      display: grid;
+      gap: 8px;
+    }
+
+    .routine-card li {
+      position: relative;
+      padding-right: 16px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .routine-card li::before {
+      content: "";
+      position: absolute;
+      right: 0;
+      top: 9px;
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--primary);
+    }
+
+    .checklist {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .check-item {
+      padding: 18px;
+      border-radius: var(--radius-lg);
+      background: var(--panel-strong);
+      border: 1px solid var(--line);
+    }
+
+    .check-item h3 {
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+
+    .check-item p {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .footer-note {
+      margin-top: 18px;
+      padding: 16px 18px;
+      border-radius: var(--radius-md);
+      background: var(--sky-soft);
+      border: 1px solid #d6e6f4;
+      color: #33526d;
+      font-size: 14px;
+    }
+
+    @media (max-width: 1024px) {
+      .hero,
+      .grid-2,
+      .checklist {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .page {
+        padding: 24px 16px 48px;
+      }
+
+      .hero,
+      .section {
+        padding: 22px 18px;
+      }
+
+      h1 {
+        font-size: 34px;
+      }
+
+      .step {
+        grid-template-columns: 44px 1fr;
+        padding: 16px;
+      }
+
+      .step-num {
+        width: 36px;
+        height: 36px;
+        font-size: 13px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">InsAgent · מדריך עבודה ללקוח</div>
+        <h1>מדריך התחלה מהירה ושגרת עבודה יומית</h1>
+        <p>
+          המערכת נועדה לעזור למשרד לעבוד כל יום מתוך <strong>רשימת עבודה ממוקדת</strong>,
+          ולא ללכת לאיבוד בתוך אלפי תובנות. המטרה היא פשוטה:
+          <strong>לפתוח את המערכת, להבין במה כדאי לטפל היום, לפעול, ולהמשיך הלאה.</strong>
+        </p>
+      </div>
+
+      <div class="hero-grid">
+        <div class="metric">
+          <div class="metric-label">המסך הראשי</div>
+          <div class="metric-value">העבודה של היום</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">יחידת עבודה</div>
+          <div class="metric-value">לקוח אחד עם סיבה מרכזית לפעולה</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">מטרת השימוש היומי</div>
+          <div class="metric-value">לפעול על רשימה קצרה, איכותית ומדורגת</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2>התחלה מהירה</h2>
+          <p>כך מתחילים לעבוד נכון במערכת כבר מהיום הראשון, בלי להעמיס על המשתמש ובלי ללכת לאיבוד.</p>
+        </div>
+        <div class="pill">5 שלבים פשוטים</div>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div>
+            <h3>נכנסים למסך “העבודה של היום”</h3>
+            <p>זהו המסך הראשי שמציג את הלקוחות שהכי נכון לטפל בהם עכשיו. לא מתחילים מ“כל התובנות” אלא מהרשימה היומית.</p>
+            <div class="step-note">
+              <span class="tag">ממוקד</span>
+              <span class="tag">יציב לאורך היום</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">2</div>
+          <div>
+            <h3>קוראים את “למה היום?”</h3>
+            <p>לכל כרטיס יש סיבה ברורה לפעולה, למשל: פוליסה שמסתיימת בקרוב, לקוח שלא טופל זמן רב, או הזדמנות בעלת ערך גבוה.</p>
+            <div class="step-note">
+              <span class="tag">למה עכשיו</span>
+              <span class="tag">ללא ניחושים</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">3</div>
+          <div>
+            <h3>פותחים את הכרטיס ומבינים את התמונה</h3>
+            <p>בכל כרטיס רואים את התובנה המרכזית, 1–2 הזדמנויות תומכות, ופרטי לקוח רלוונטיים כדי לקבל החלטה מהירה.</p>
+            <div class="step-note">
+              <span class="tag">לקוח אחד</span>
+              <span class="tag">1–3 הזדמנויות</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">4</div>
+          <div>
+            <h3>מייצרים או מעדכנים הודעה</h3>
+            <p>אם נכון לפנות ללקוח, המערכת מכינה טיוטת הודעה שאפשר לערוך, לאשר או להשתמש בה כבסיס לשיחה.</p>
+            <div class="step-note">
+              <span class="tag">טיוטה בלבד</span>
+              <span class="tag">אישור אנושי</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">5</div>
+          <div>
+            <h3>מסמנים תוצאה וממשיכים לכרטיס הבא</h3>
+            <p>בסיום הפעולה מסמנים: בוצע, נדחה, לא רלוונטי, חסום או טופל מחוץ למערכת. כך התור נשאר נקי ומדויק.</p>
+            <div class="step-note">
+              <span class="tag">שומר על סדר</span>
+              <span class="tag">משפר איכות תור</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2>שגרת עבודה יומית מומלצת</h2>
+          <p>המפתח להטמעה מוצלחת הוא לא לעבוד “על הכל”, אלא לעבוד כל יום על מספר מצומצם של לקוחות נכונים.</p>
+        </div>
+        <div class="pill">שגרה של 30–60 דקות</div>
+      </div>
+
+      <div class="routine">
+        <div class="routine-card">
+          <div class="routine-time">תחילת יום · 10–15 דקות</div>
+          <h3>פתיחת בוקר</h3>
+          <ul>
+            <li>פותחים את “העבודה של היום” ורואים את הרשימה המדורגת.</li>
+            <li>בודקים אם היה יבוא חדש או רענון תור מאז אתמול.</li>
+            <li>מזהים 5–10 לקוחות שבהם מתחילים לטפל מיד.</li>
+          </ul>
+        </div>
+
+        <div class="routine-card">
+          <div class="routine-time">במהלך היום · 20–30 דקות</div>
+          <h3>עבודה שוטפת</h3>
+          <ul>
+            <li>פותחים כל כרטיס, קוראים את “למה היום?”, ופועלים רק על מה שמוכן לפעולה.</li>
+            <li>אם יש צורך, פותחים כרטיס לקוח מלא כדי לראות פוליסות, תובנות וטיוטות קיימות.</li>
+            <li>מסמנים תוצאה מיד אחרי הפעולה כדי שהתור יישאר אמין ונקי.</li>
+          </ul>
+        </div>
+
+        <div class="routine-card">
+          <div class="routine-time">סוף יום · 5–10 דקות</div>
+          <h3>סגירת יום</h3>
+          <ul>
+            <li>מוודאים שאין כרטיסים שנשארו פתוחים בלי החלטה.</li>
+            <li>דוחים פריטים שצריך לחזור אליהם במועד מוגדר.</li>
+            <li>מסמנים “טופל מחוץ למערכת” כשכבר בוצעה פעולה ידנית.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-note">
+        המלצה תפעולית: לעבוד כל יום על מספר קטן ואיכותי של לקוחות. המערכת לא נועדה להראות “הכל”, אלא לעזור למשרד לבחור נכון על מה לפעול עכשיו.
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2>כללי עבודה שיעזרו להוציא יותר ערך</h2>
+          <p>הרגלים פשוטים שמגדילים את האמון במערכת ואת האפקטיביות של הצוות.</p>
+        </div>
+        <div class="pill">מומלץ להטמעה</div>
+      </div>
+
+      <div class="checklist">
+        <div class="check-item">
+          <h3>להתחיל מהתור, לא מהדאטה</h3>
+          <p>העבודה היומית צריכה להתחיל ממסך “העבודה של היום”, ורק משם לרדת לכרטיסי לקוח ולמסכים עמוקים יותר.</p>
+        </div>
+
+        <div class="check-item">
+          <h3>לסמן תוצאה לכל פעולה</h3>
+          <p>אם לא מסמנים מה קרה, התור יציף שוב את אותו לקוח ויאבד איכות. משמעת פעולה משפרת את התור לאורך זמן.</p>
+        </div>
+
+        <div class="check-item">
+          <h3>לרענן תור רק כשיש סיבה</h3>
+          <p>רענון מתאים אחרי יבוא נתונים, שינוי מהותי או החלטת מנהל. המטרה היא לשמור על תור יציב וברור במהלך היום.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
