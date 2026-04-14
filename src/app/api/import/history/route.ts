@@ -5,9 +5,9 @@ import { requireAuth } from "@/lib/auth";
 export async function GET() {
   const { response: authResponse } = await requireAuth();
   if (authResponse) return authResponse;
-  const jobs = await prisma.importJob.findMany({
+  const allJobs = await prisma.importJob.findMany({
     orderBy: { createdAt: "desc" },
-    take: 50,
+    take: 100,
     select: {
       id: true,
       fileName: true,
@@ -23,5 +23,13 @@ export async function GET() {
     },
   });
 
-  return NextResponse.json(jobs);
+  // Show only the latest job per file name
+  const latestByFile = new Map<string, (typeof allJobs)[number]>();
+  for (const job of allJobs) {
+    if (!latestByFile.has(job.fileName)) {
+      latestByFile.set(job.fileName, job);
+    }
+  }
+
+  return NextResponse.json(Array.from(latestByFile.values()));
 }
