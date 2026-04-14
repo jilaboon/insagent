@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
-import { maskIsraeliId } from "@/lib/ai/sanitize";
 
 export async function GET(request: NextRequest) {
   const { response: authResponse } = await requireAuth();
@@ -92,7 +91,7 @@ export async function GET(request: NextRequest) {
     id: i.id,
     customerId: i.customerId,
     customerName: `${i.customer.firstName} ${i.customer.lastName}`.trim(),
-    customerIsraeliId: maskIsraeliId(i.customer.israeliId),
+    customerIsraeliId: i.customer.israeliId,
     category: i.category,
     title: i.title,
     summary: i.summary,

@@ -39,18 +39,34 @@ export default function SecurityPage() {
             <ul className="space-y-2 text-sm text-surface-700 leading-relaxed">
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                כל הנתונים מאוחסנים בבסיס נתונים מוצפן (PostgreSQL) בשרתי AWS
-                באירופה (פרנקפורט)
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                הגישה מוגנת בחיבור מוצפן SSL
+                כל הנתונים מאוחסנים בבסיס נתונים מוצפן (PostgreSQL) בשרתי AWS באירופה (פרנקפורט)
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
                 גיבויים אוטומטיים מתבצעים באופן יומי
               </li>
             </ul>
+            <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/50 p-3">
+              <h3 className="mb-2 text-xs font-bold text-blue-800">הצפנה בתעבורה (Data in Transit)</h3>
+              <ul className="space-y-1.5 text-xs text-blue-900">
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-blue-500 mt-0.5 shrink-0" />
+                  דפדפן ↔ שרת: HTTPS/TLS מוצפן (תעודת SSL של Vercel)
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-blue-500 mt-0.5 shrink-0" />
+                  שרת ↔ בסיס נתונים: חיבור SSL מוצפן דרך Connection Pooler
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-blue-500 mt-0.5 shrink-0" />
+                  שרת ↔ AI: HTTPS מוצפן לשרתי Anthropic
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-blue-500 mt-0.5 shrink-0" />
+                  אין תעבורת מידע לא מוצפנת — כל הנתונים מוגנים בכל רגע
+                </li>
+              </ul>
+            </div>
           </div>
         </Card>
 
@@ -68,7 +84,7 @@ export default function SecurityPage() {
             <ul className="space-y-2 text-sm text-surface-700 leading-relaxed">
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                כל כניסה למערכת דורשת אימות מאובטח
+                כל כניסה למערכת דורשת אימות מאובטח (אימייל וסיסמה)
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
@@ -77,10 +93,6 @@ export default function SecurityPage() {
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
                 כל פעולה רגישה מתועדת ביומן ביקורת
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                {"מידע אישי מוסתר חלקית בממשק: ת.ז. מוצג כ-33****3, טלפון כ-****1975, מספרי פוליסה ולוחיות רכב מוסתרים"}
               </li>
             </ul>
           </div>
