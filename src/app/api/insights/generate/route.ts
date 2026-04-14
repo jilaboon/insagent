@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { offset = 0, limit = 200 } = body as {
+    const { offset = 0, limit = 500 } = body as {
       offset?: number;
       limit?: number;
     };
@@ -53,11 +53,7 @@ export async function POST(request: NextRequest) {
       take: limit,
       orderBy: { createdAt: "asc" },
       include: {
-        policies: {
-          include: {
-            managementFees: true,
-          },
-        },
+        policies: true,
       },
     });
 
