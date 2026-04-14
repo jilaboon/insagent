@@ -3,14 +3,21 @@ import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
-  const { response: authResponse, userId } = await requireAuth();
+  const { response: authResponse, userId, role } = await requireAuth();
   if (authResponse) return authResponse;
 
   const url = new URL(request.url);
   const assignedParam = url.searchParams.get("assignedUserId");
-  // "me" = current user; omitted = office-wide (no assignee filter)
-  const assignedUserId =
-    assignedParam === "me" ? userId : assignedParam ?? undefined;
+
+  // AGENTS can only query their own queue. OWNER/MANAGER/ADMIN can query any.
+  let assignedUserId: string | undefined | null;
+  if (role === "AGENT") {
+    assignedUserId = userId;
+  } else {
+    // "me" = current user; omitted = office-wide (no assignee filter)
+    assignedUserId =
+      assignedParam === "me" ? userId : assignedParam ?? undefined;
+  }
 
   const queueDate = startOfDayUTC();
 
@@ -94,7 +101,6 @@ export async function GET(request: NextRequest) {
     postponeUntil: e.postponeUntil,
     actionedAt: e.actionedAt,
     createdAt: e.createdAt,
-    debugContext: e.debugContext,
     customer: {
       ...e.customer,
       fullName: `${e.customer.firstName} ${e.customer.lastName}`,

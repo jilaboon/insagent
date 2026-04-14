@@ -8,8 +8,11 @@ import {
 } from "@/lib/queue/settings";
 
 export async function GET() {
-  const { response: authResponse } = await requireAuth();
+  const { response: authResponse, role } = await requireAuth();
   if (authResponse) return authResponse;
+
+  const roleResponse = requireRole(role, ["OWNER", "MANAGER", "ADMIN"]);
+  if (roleResponse) return roleResponse;
 
   const settings = await getQueueSettings();
   return NextResponse.json(settings);

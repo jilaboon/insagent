@@ -3,7 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
-  const { response: authResponse, userId } = await requireAuth();
+  const { response: authResponse, userId, role } = await requireAuth();
   if (authResponse) return authResponse;
 
   const url = new URL(request.url);
@@ -13,8 +13,15 @@ export async function GET(request: NextRequest) {
     Math.max(1, parseInt(url.searchParams.get("limit") ?? "25", 10) || 25)
   );
   const assignedParam = url.searchParams.get("assignedUserId");
-  const assignedUserId =
-    assignedParam === "me" ? userId : assignedParam ?? undefined;
+
+  // AGENTS can only query their own queue. OWNER/MANAGER/ADMIN can query any.
+  let assignedUserId: string | undefined | null;
+  if (role === "AGENT") {
+    assignedUserId = userId;
+  } else {
+    assignedUserId =
+      assignedParam === "me" ? userId : assignedParam ?? undefined;
+  }
 
   const queueDate = startOfDayUTC();
 
@@ -71,7 +78,6 @@ export async function GET(request: NextRequest) {
     },
     primaryInsight: e.primaryInsight,
     supportingInsightIds: e.supportingInsightIds,
-    debugContext: e.debugContext,
   }));
 
   return NextResponse.json({

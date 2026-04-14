@@ -9,8 +9,13 @@ import { requireAuth, requireRole } from "@/lib/auth";
  */
 
 export async function GET() {
-  const { response: authResponse } = await requireAuth();
+  // Legacy tips API is admin-only knowledge management.
+  // Only consumer is the /rules admin page (see src/app/(dashboard)/rules/page.tsx).
+  const { response: authResponse, role } = await requireAuth();
   if (authResponse) return authResponse;
+
+  const roleResponse = requireRole(role, ["OWNER", "MANAGER", "ADMIN"]);
+  if (roleResponse) return roleResponse;
 
   const tips = await prisma.officeTip.findMany({
     orderBy: { createdAt: "desc" },
