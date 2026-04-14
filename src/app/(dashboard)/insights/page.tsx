@@ -122,9 +122,19 @@ function NeedsRerunGenerateButton({ onGenerate }: { onGenerate: () => void }) {
 // Generate Button with batch progress
 // ============================================================
 
+interface RuleSummaryItem {
+  ruleId: string;
+  title: string;
+  triggerCondition: string | null;
+  insightCount: number;
+  coveragePercent: number;
+}
+
 function GenerateSection() {
   const [state, setState] = useState<"idle" | "running" | "done">("idle");
   const [progress, setProgress] = useState({ processed: 0, total: 0, insights: 0 });
+  const [ruleSummary, setRuleSummary] = useState<RuleSummaryItem[]>([]);
+  const [totalInsightsInDb, setTotalInsightsInDb] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef(false);
   const queryClient = useQueryClient();
@@ -165,6 +175,8 @@ function GenerateSection() {
           insightsCreated: number;
           totalCustomers: number;
           done: boolean;
+          totalInsights?: number;
+          ruleSummary?: RuleSummaryItem[];
         };
 
         totalInsights += result.insightsCreated;
@@ -177,7 +189,11 @@ function GenerateSection() {
 
         queryClient.invalidateQueries({ queryKey: ["insights"] });
 
-        if (result.done) break;
+        if (result.done) {
+          if (result.ruleSummary) setRuleSummary(result.ruleSummary);
+          if (result.totalInsights) setTotalInsightsInDb(result.totalInsights);
+          break;
+        }
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
@@ -200,16 +216,32 @@ function GenerateSection() {
   const handleReset = useCallback(() => {
     setState("idle");
     setProgress({ processed: 0, total: 0, insights: 0 });
+    setRuleSummary([]);
     setError(null);
   }, []);
 
+  const handleToggleRule = useCallback(async (ruleId: string, currentlyActive: boolean) => {
+    try {
+      await fetch(`/api/rules/${ruleId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !currentlyActive }),
+      });
+      setRuleSummary((prev) =>
+        prev.map((r) => r.ruleId === ruleId ? { ...r, _disabled: true } as RuleSummaryItem & { _disabled?: boolean } : r)
+      );
+    } catch { /* ignore */ }
+  }, []);
+
   if (state === "done") {
+    const broadRules = ruleSummary.filter((r) => r.coveragePercent > 50);
+
     return (
-      <Card padding="sm" className="space-y-2">
+      <Card padding="md" className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-emerald-500" />
-            <span className="text-sm font-medium text-surface-800">
+            <span className="text-sm font-bold text-surface-800">
               הניתוח הושלם
             </span>
           </div>
@@ -217,9 +249,99 @@ function GenerateSection() {
             סגור
           </Button>
         </div>
-        <p className="text-xs text-surface-600 number">
-          {progress.processed.toLocaleString("he-IL")} לקוחות נותחו · {progress.insights.toLocaleString("he-IL")} תובנות חדשות נוצרו
-        </p>
+
+        {/* Summary stats */}
+        <div className="flex gap-6 text-sm">
+          <div>
+            <span className="text-surface-500">תובנות:</span>{" "}
+            <span className="font-bold text-surface-900 number">{totalInsightsInDb.toLocaleString("he-IL")}</span>
+          </div>
+          <div>
+            <span className="text-surface-500">לקוחות:</span>{" "}
+            <span className="font-bold text-surface-900 number">{progress.total.toLocaleString("he-IL")}</span>
+          </div>
+          <div>
+            <span className="text-surface-500">ממוצע לכל לקוח:</span>{" "}
+            <span className="font-bold text-surface-900 number">
+              {progress.total > 0 ? (totalInsightsInDb / progress.total).toFixed(1) : "0"}
+            </span>
+          </div>
+        </div>
+
+        {/* Broad rules warning */}
+        {broadRules.length > 0 && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <span className="text-sm font-bold text-amber-800">
+                חוקים רחבים מדי?
+              </span>
+            </div>
+            <p className="text-xs text-amber-700 mb-3">
+              החוקים הבאים מתאימים ליותר מ-50% מהלקוחות. שקול לחדד אותם או לבטל אותם.
+            </p>
+            <div className="space-y-2">
+              {broadRules.map((r) => (
+                <div key={r.ruleId} className="flex items-center justify-between rounded-md bg-white p-2 border border-amber-100">
+                  <div className="min-w-0 flex-1">
+                    <span className="text-sm font-medium text-surface-800">{r.title}</span>
+                    <span className="text-xs text-amber-600 mr-2 number"> ({r.coveragePercent}% מהלקוחות)</span>
+                  </div>
+                  <button
+                    onClick={() => handleToggleRule(r.ruleId, true)}
+                    className="shrink-0 text-xs text-amber-700 hover:text-red-600 border border-amber-300 rounded px-2 py-1 hover:bg-red-50 transition-colors"
+                  >
+                    בטל חוק
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Full rule breakdown */}
+        {ruleSummary.length > 0 && (
+          <div>
+            <h4 className="text-xs font-bold text-surface-500 mb-2">פירוט לפי חוק</h4>
+            <div className="rounded-lg border border-surface-200 overflow-hidden">
+              <table className="w-full text-xs table-fixed">
+                <thead>
+                  <tr className="bg-surface-50 border-b border-surface-200">
+                    <th className="w-[50%] py-2 px-3 text-right font-medium text-surface-500">חוק</th>
+                    <th className="w-[20%] py-2 px-3 text-right font-medium text-surface-500">תובנות</th>
+                    <th className="w-[15%] py-2 px-3 text-right font-medium text-surface-500">כיסוי</th>
+                    <th className="w-[15%] py-2 px-3 text-right font-medium text-surface-500"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ruleSummary.map((r) => (
+                    <tr key={r.ruleId} className="border-b border-surface-100 hover:bg-surface-50">
+                      <td className="py-2 px-3 text-surface-800 truncate">{r.title}</td>
+                      <td className="py-2 px-3 text-surface-600 number">{r.insightCount.toLocaleString("he-IL")}</td>
+                      <td className="py-2 px-3">
+                        <span className={`number font-medium ${r.coveragePercent > 50 ? "text-amber-600" : r.coveragePercent > 20 ? "text-surface-700" : "text-surface-500"}`}>
+                          {r.coveragePercent}%
+                        </span>
+                      </td>
+                      <td className="py-2 px-3">
+                        {r.coveragePercent > 50 && (
+                          <button
+                            onClick={() => handleToggleRule(r.ruleId, true)}
+                            className="text-xs text-surface-400 hover:text-red-500 transition-colors"
+                            title="בטל חוק"
+                          >
+                            בטל
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {error && <p className="text-xs text-red-500">{error}</p>}
       </Card>
     );

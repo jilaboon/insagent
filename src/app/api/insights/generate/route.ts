@@ -171,12 +171,49 @@ export async function POST(request: NextRequest) {
 
     // Update lastInsightRunAt in SystemSettings
     const isDone = offset + customerIds.length >= totalCustomers;
+
+    // When done, compute rule distribution summary for the UI
+    type RuleSummary = {
+      ruleId: string;
+      title: string;
+      triggerCondition: string | null;
+      insightCount: number;
+      coveragePercent: number;
+    };
+    let ruleSummary: RuleSummary[] = [];
+    let totalInsightsInDb = 0;
+
     if (isDone) {
       await prisma.systemSetting.upsert({
         where: { key: "lastInsightRunAt" },
         update: { value: new Date().toISOString() },
         create: { key: "lastInsightRunAt", value: new Date().toISOString() },
       });
+
+      // Compute rule impact summary
+      const ruleStats = await prisma.$queryRawUnsafe<Array<{
+        ruleId: string;
+        title: string;
+        triggerCondition: string | null;
+        cnt: number;
+      }>>(`
+        SELECT r.id as "ruleId", r.title, r."triggerCondition", COUNT(i.id)::int as cnt
+        FROM office_rules r
+        LEFT JOIN insights i ON i."linkedRuleId" = r.id
+        WHERE r."isActive" = true
+        GROUP BY r.id, r.title, r."triggerCondition"
+        ORDER BY cnt DESC
+      `);
+
+      totalInsightsInDb = await prisma.insight.count();
+
+      ruleSummary = ruleStats.map((r) => ({
+        ruleId: r.ruleId,
+        title: r.title,
+        triggerCondition: r.triggerCondition,
+        insightCount: r.cnt,
+        coveragePercent: totalCustomers > 0 ? Math.round((r.cnt / totalCustomers) * 100) : 0,
+      }));
     }
 
     await logAudit({
@@ -197,6 +234,8 @@ export async function POST(request: NextRequest) {
       totalCustomers,
       rulesEvaluated: activeRules.length,
       done: isDone,
+      totalInsights: totalInsightsInDb,
+      ruleSummary,
     });
   } catch (error) {
     console.error("Insight generation error:", error);
