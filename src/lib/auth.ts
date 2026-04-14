@@ -43,18 +43,22 @@ export async function requireAuth(): Promise<{
 
   const email = user.email ?? "";
 
-  // Look up internal User record by email
+  // Look up or auto-create internal User record by email
   let role: UserRole | null = null;
   let userId: string | null = null;
   if (email) {
-    const internalUser = await prisma.user.findUnique({
+    const internalUser = await prisma.user.upsert({
       where: { email },
+      create: {
+        email,
+        name: user.user_metadata?.display_name || email.split("@")[0],
+        role: "OWNER", // First user gets OWNER — change for multi-user
+      },
+      update: {},
       select: { id: true, role: true },
     });
-    if (internalUser) {
-      role = internalUser.role;
-      userId = internalUser.id;
-    }
+    role = internalUser.role;
+    userId = internalUser.id;
   }
 
   return { user, email, role, userId, response: null };
