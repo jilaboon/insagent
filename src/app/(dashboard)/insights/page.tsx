@@ -307,14 +307,24 @@ function GenerateSection() {
           </div>
         )}
 
-        {/* Expand details link */}
+        {/* Expand details link + restore warning */}
         {ruleSummary.length > 0 && (
-          <button
-            onClick={() => setShowDetails((v) => !v)}
-            className="text-xs text-primary-600 hover:text-primary-700 font-medium"
-          >
-            {showDetails ? "הסתר פירוט" : "הצג פירוט מלא לפי חוק"} ↓
-          </button>
+          <div className="flex items-center gap-4 text-xs">
+            <button
+              onClick={() => setShowDetails((v) => !v)}
+              className="text-primary-600 hover:text-primary-700 font-medium"
+            >
+              {showDetails ? "הסתר פירוט" : "הצג פירוט מלא לפי חוק"} ↓
+            </button>
+            {broadRules.length > 0 && !showBroadWarning && (
+              <button
+                onClick={() => setShowBroadWarning(true)}
+                className="text-amber-600 hover:text-amber-700 font-medium"
+              >
+                הצג אזהרת חוקים רחבים ({broadRules.length})
+              </button>
+            )}
+          </div>
         )}
 
         {/* Full rule breakdown — only when expanded */}
@@ -342,7 +352,7 @@ function GenerateSection() {
                     <td className="py-2 px-3">
                       <button
                         onClick={() => handleToggleRule(r.ruleId, true)}
-                        className="text-xs text-surface-400 hover:text-red-500 transition-colors"
+                        className="text-xs text-red-600 hover:text-white hover:bg-red-500 border border-red-200 rounded px-2 py-0.5 transition-colors"
                         title="בטל חוק"
                       >
                         בטל
