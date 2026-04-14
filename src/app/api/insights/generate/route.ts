@@ -67,8 +67,8 @@ export async function POST(request: NextRequest) {
         p."vehiclePlate" as "p_vehiclePlate", p."propertyAddress" as "p_propertyAddress"
       FROM customers c
       LEFT JOIN policies p ON p."customerId" = c.id
-      ORDER BY c."createdAt" ASC
       WHERE c.id IN (SELECT id FROM customers ORDER BY "createdAt" ASC OFFSET ${offset} LIMIT ${limit})
+      ORDER BY c."createdAt" ASC
     `);
 
     // Group rows by customer
