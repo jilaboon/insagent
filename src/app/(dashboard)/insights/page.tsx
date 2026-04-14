@@ -136,7 +136,7 @@ function GenerateSection() {
     setProgress({ processed: 0, total: 0, insights: 0 });
 
     let offset = 0;
-    const batchSize = 500; // 500 per batch — fits in Vercel Pro timeout
+    const batchSize = 2000; // Large batches — functions run in Frankfurt near DB
     let totalInsights = 0;
 
     try {

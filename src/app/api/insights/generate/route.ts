@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { offset = 0, limit = 500 } = body as {
+    const { offset = 0, limit = 2000 } = body as {
       offset?: number;
       limit?: number;
     };
