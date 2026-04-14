@@ -76,13 +76,13 @@ export function ImportHistory({ refreshKey, className }: ImportHistoryProps) {
 
   return (
     <div className={cn("overflow-x-auto", className)}>
-      <table className="w-full text-sm">
+      <table className="w-full text-sm table-fixed">
         <thead>
           <tr className="border-b border-surface-200 text-right">
-            <th className="py-3 pr-4 font-medium text-surface-500">שם קובץ</th>
-            <th className="py-3 pr-4 font-medium text-surface-500">תאריך</th>
-            <th className="py-3 pr-4 font-medium text-surface-500">סטטוס</th>
-            <th className="py-3 pr-4 font-medium text-surface-500">לקוחות</th>
+            <th className="w-[40%] py-3 px-4 font-medium text-surface-500">שם קובץ</th>
+            <th className="w-[25%] py-3 px-4 font-medium text-surface-500">תאריך</th>
+            <th className="w-[20%] py-3 px-4 font-medium text-surface-500">סטטוס</th>
+            <th className="w-[15%] py-3 px-4 font-medium text-surface-500">לקוחות</th>
           </tr>
         </thead>
         <tbody>
@@ -95,16 +95,16 @@ export function ImportHistory({ refreshKey, className }: ImportHistoryProps) {
                 key={job.id}
                 className="border-b border-surface-100 hover:bg-surface-50 transition-colors"
               >
-                <td className="py-3 pr-4 text-surface-800 ltr-text">
+                <td className="py-3 px-4 text-surface-800 ltr-text truncate">
                   {job.fileName}
                 </td>
-                <td className="py-3 pr-4 text-surface-600 number">
+                <td className="py-3 px-4 text-surface-600 number">
                   {formatDate(job.createdAt)}
                 </td>
-                <td className="py-3 pr-4">
+                <td className="py-3 px-4">
                   <Badge variant={status.variant}>{status.label}</Badge>
                 </td>
-                <td className="py-3 pr-4 text-surface-600 number">
+                <td className="py-3 px-4 text-surface-600 number">
                   {customerCount > 0 ? customerCount.toLocaleString("he-IL") : "—"}
                 </td>
               </tr>
