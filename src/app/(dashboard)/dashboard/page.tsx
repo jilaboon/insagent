@@ -174,19 +174,27 @@ export default function DashboardPage() {
               </span>
             </CardTitle>
           </CardHeader>
-          {data.lastImport ? (
+          {data.recentImports && data.recentImports.length > 0 ? (
             <div className="space-y-4">
-              <div className="rounded-lg border border-surface-100 p-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-sm font-medium text-surface-900">
-                    {data.lastImport.fileName}
-                  </span>
-                  <ImportStatusBadge status={data.lastImport.status} />
+              {data.recentImports.map((job: { id: string; fileName: string; status: string; createdAt: string; newCustomers: number | null; updatedCustomers: number | null }) => (
+                <div key={job.id} className="rounded-lg border border-surface-100 p-3">
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="text-sm font-medium text-surface-900">
+                      {job.fileName}
+                    </span>
+                    <ImportStatusBadge status={job.status} />
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-surface-500">
+                    <span>{formatDate(job.createdAt)}</span>
+                    {job.newCustomers != null && (
+                      <span className="number">{job.newCustomers} חדשים</span>
+                    )}
+                    {job.updatedCustomers != null && job.updatedCustomers > 0 && (
+                      <span className="number">{job.updatedCustomers} עודכנו</span>
+                    )}
+                  </div>
                 </div>
-                <p className="text-xs text-surface-500">
-                  {formatDate(data.lastImport.createdAt)}
-                </p>
-              </div>
+              ))}
               <Link
                 href="/import"
                 className="inline-flex items-center gap-2 rounded-lg border border-surface-300 bg-white px-4 py-2 text-sm font-medium text-surface-700 shadow-xs hover:bg-surface-50"

@@ -11,7 +11,7 @@ export async function GET() {
     highUrgencyCount,
     pendingMessages,
     totalPolicies,
-    lastImport,
+    recentImports,
     topInsights,
   ] = await Promise.all([
     prisma.customer.count(),
@@ -19,7 +19,7 @@ export async function GET() {
     prisma.insight.count({ where: { urgencyLevel: 2 } }),
     prisma.messageDraft.count({ where: { status: "DRAFT" } }),
     prisma.policy.count({ where: { status: "ACTIVE" } }),
-    prisma.importJob.findFirst({ orderBy: { createdAt: "desc" } }),
+    prisma.importJob.findMany({ orderBy: { createdAt: "desc" }, take: 5, where: { status: "COMPLETED" } }),
     prisma.insight.findMany({
       where: { strengthScore: { not: null } },
       orderBy: { strengthScore: "desc" },
@@ -38,15 +38,23 @@ export async function GET() {
     totalInsights,
     highUrgencyCount,
     pendingMessages,
-    lastImportDate: lastImport?.createdAt.toISOString() ?? null,
-    lastImport: lastImport
+    lastImportDate: recentImports[0]?.createdAt.toISOString() ?? null,
+    lastImport: recentImports[0]
       ? {
-          id: lastImport.id,
-          fileName: lastImport.fileName,
-          status: lastImport.status,
-          createdAt: lastImport.createdAt.toISOString(),
+          id: recentImports[0].id,
+          fileName: recentImports[0].fileName,
+          status: recentImports[0].status,
+          createdAt: recentImports[0].createdAt.toISOString(),
         }
       : null,
+    recentImports: recentImports.map((j) => ({
+      id: j.id,
+      fileName: j.fileName,
+      status: j.status,
+      createdAt: j.createdAt.toISOString(),
+      newCustomers: j.newCustomers,
+      updatedCustomers: j.updatedCustomers,
+    })),
     topInsights: topInsights.map((i) => ({
       id: i.id,
       customerId: i.customerId,
