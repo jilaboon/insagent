@@ -43,48 +43,33 @@ export async function POST(request: NextRequest) {
       await prisma.$executeRawUnsafe('DELETE FROM insights');
     }
 
-    // All data in ONE raw SQL query — customers + policies joined
-    const rows: Array<{
-      c_id: string; c_firstName: string; c_lastName: string;
-      c_age: number | null; c_gender: string | null; c_maritalStatus: string | null;
-      c_phone: string | null; c_email: string | null; c_address: string | null;
-      p_id: string | null; p_policyNumber: string | null; p_insurer: string | null;
-      p_category: string | null; p_subType: string | null; p_status: string | null;
-      p_premiumMonthly: number | null; p_premiumAnnual: number | null;
-      p_accumulatedSavings: number | null; p_startDate: Date | null;
-      p_endDate: Date | null; p_vehicleYear: number | null;
-      p_vehiclePlate: string | null; p_propertyAddress: string | null;
-    }> = await prisma.$queryRawUnsafe(`
-      SELECT
-        c.id as c_id, c."firstName" as "c_firstName", c."lastName" as "c_lastName",
-        c.age as c_age, c.gender as c_gender, c."maritalStatus" as "c_maritalStatus",
-        c.phone as c_phone, c.email as c_email, c.address as c_address,
-        p.id as p_id, p."policyNumber" as "p_policyNumber", p.insurer as p_insurer,
-        p.category as p_category, p."subType" as "p_subType", p.status as p_status,
-        p."premiumMonthly" as "p_premiumMonthly", p."premiumAnnual" as "p_premiumAnnual",
-        p."accumulatedSavings" as "p_accumulatedSavings", p."startDate" as "p_startDate",
-        p."endDate" as "p_endDate", p."vehicleYear" as "p_vehicleYear",
-        p."vehiclePlate" as "p_vehiclePlate", p."propertyAddress" as "p_propertyAddress"
-      FROM customers c
-      LEFT JOIN policies p ON p."customerId" = c.id
-      WHERE c.id IN (SELECT id FROM customers ORDER BY "createdAt" ASC OFFSET ${offset} LIMIT ${limit})
-      ORDER BY c."createdAt" ASC
-    `);
+    // Two simple queries — faster than JOIN through Supabase pooler
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const customerRows: any[] = await prisma.$queryRawUnsafe(
+      `SELECT id, "firstName", "lastName", age, gender, "maritalStatus", phone, email, address
+       FROM customers ORDER BY "createdAt" ASC OFFSET ${offset} LIMIT ${limit}`
+    );
 
-    // Group rows by customer
-    const customerMap = new Map<string, { customer: typeof rows[0]; policies: typeof rows }>();
-    for (const row of rows) {
-      if (!customerMap.has(row.c_id)) {
-        customerMap.set(row.c_id, { customer: row, policies: [] });
-      }
-      if (row.p_id) {
-        customerMap.get(row.c_id)!.policies.push(row);
-      }
+    const customerIds = customerRows.map((c: { id: string }) => c.id);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const policyRows: any[] = customerIds.length > 0
+      ? await prisma.$queryRawUnsafe(
+          `SELECT id, "customerId", "policyNumber", insurer, category, "subType", status,
+                  "premiumMonthly", "premiumAnnual", "accumulatedSavings",
+                  "startDate", "endDate", "vehicleYear", "vehiclePlate", "propertyAddress"
+           FROM policies WHERE "customerId" = ANY($1)`,
+          customerIds
+        )
+      : [];
+
+    // Group policies by customer
+    const policyMap = new Map<string, typeof policyRows>();
+    for (const p of policyRows) {
+      const arr = policyMap.get(p.customerId) || [];
+      arr.push(p);
+      policyMap.set(p.customerId, arr);
     }
-
-    // Get unique customer IDs (respect the limit)
-    const allCustomerIds = Array.from(customerMap.keys());
-    const customerIds = allCustomerIds.slice(0, limit);
 
     const totalCustomers: number = ((await prisma.$queryRawUnsafe(
       'SELECT COUNT(*)::int as cnt FROM customers'
@@ -110,9 +95,10 @@ export async function POST(request: NextRequest) {
       linkedRuleId: string;
     }> = [];
 
-    for (const custId of customerIds) {
-      const entry = customerMap.get(custId)!;
-      const profile = buildProfileFromRawRows(entry.customer, entry.policies);
+    for (const custRow of customerRows) {
+      const custId = custRow.id;
+      const custPolicies = policyMap.get(custId) || [];
+      const profile = buildProfileFromRawRows(custRow, custPolicies);
 
       for (const rule of activeRules) {
         // Skip if already exists
@@ -228,36 +214,36 @@ export async function POST(request: NextRequest) {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function buildProfileFromRawRows(customerRow: any, policyRows: any[]): CustomerProfile {
-  // Build a customer object from raw SQL columns
+  // Build customer object — columns now match DB names directly (no prefix)
   const customer = {
-    id: customerRow.c_id,
-    firstName: customerRow.c_firstName,
-    lastName: customerRow.c_lastName,
-    age: customerRow.c_age,
-    gender: customerRow.c_gender,
-    maritalStatus: customerRow.c_maritalStatus,
-    phone: customerRow.c_phone,
-    email: customerRow.c_email,
-    address: customerRow.c_address,
+    id: customerRow.id,
+    firstName: customerRow.firstName,
+    lastName: customerRow.lastName,
+    age: customerRow.age,
+    gender: customerRow.gender,
+    maritalStatus: customerRow.maritalStatus,
+    phone: customerRow.phone,
+    email: customerRow.email,
+    address: customerRow.address,
     policies: [] as unknown[],
   };
 
-  // Build policy objects from raw rows
+  // Build policy objects — columns match DB names directly
   const policies = policyRows.map((r) => ({
-    id: r.p_id,
-    policyNumber: r.p_policyNumber,
-    insurer: r.p_insurer,
-    category: r.p_category,
-    subType: r.p_subType,
-    status: r.p_status,
-    premiumMonthly: r.p_premiumMonthly ? Number(r.p_premiumMonthly) : null,
-    premiumAnnual: r.p_premiumAnnual ? Number(r.p_premiumAnnual) : null,
-    accumulatedSavings: r.p_accumulatedSavings ? Number(r.p_accumulatedSavings) : null,
-    startDate: r.p_startDate,
-    endDate: r.p_endDate,
-    vehicleYear: r.p_vehicleYear,
-    vehiclePlate: r.p_vehiclePlate,
-    propertyAddress: r.p_propertyAddress,
+    id: r.id,
+    policyNumber: r.policyNumber,
+    insurer: r.insurer,
+    category: r.category,
+    subType: r.subType,
+    status: r.status,
+    premiumMonthly: r.premiumMonthly ? Number(r.premiumMonthly) : null,
+    premiumAnnual: r.premiumAnnual ? Number(r.premiumAnnual) : null,
+    accumulatedSavings: r.accumulatedSavings ? Number(r.accumulatedSavings) : null,
+    startDate: r.startDate,
+    endDate: r.endDate,
+    vehicleYear: r.vehicleYear,
+    vehiclePlate: r.vehiclePlate,
+    propertyAddress: r.propertyAddress,
     managementFees: [],
     coverages: [],
     investmentTracks: [],
