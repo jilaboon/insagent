@@ -136,7 +136,7 @@ function GenerateSection() {
     setProgress({ processed: 0, total: 0, insights: 0 });
 
     let offset = 0;
-    const batchSize = 1000; // Raw SQL load — very fast
+    const batchSize = 10000; // All customers in one request — raw SQL is fast
     let totalInsights = 0;
 
     try {

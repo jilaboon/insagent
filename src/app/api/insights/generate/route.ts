@@ -22,20 +22,12 @@ export async function POST(request: NextRequest) {
   const roleResponse = requireRole(role, ["OWNER", "MANAGER", "ADMIN"]);
   if (roleResponse) return roleResponse;
 
-  const rl = checkRateLimit(
-    rateLimitKey("insightGenerate", email),
-    AI_RATE_LIMITS.insightGenerate
-  );
-  if (rl.limited) {
-    return NextResponse.json(
-      { error: "חרגת ממגבלת הבקשות — נסה שוב בעוד דקה" },
-      { status: 429 }
-    );
-  }
+  // No rate limit on insight generation — it's role-protected and
+  // needs multiple sequential requests to process all customers.
 
   try {
     const body = await request.json();
-    const { offset = 0, limit = 1000 } = body as {
+    const { offset = 0, limit = 10000 } = body as {
       offset?: number;
       limit?: number;
     };
