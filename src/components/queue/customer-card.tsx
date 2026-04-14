@@ -9,9 +9,11 @@ import { MessageComposer } from "@/components/shared/message-composer";
 import { ActionModal, type ActionKind } from "@/components/queue/action-modal";
 import {
   useQueueAction,
+  useGenerateCombinedMessage,
   type QueueEntryWithRelations,
   type QueueStatus,
 } from "@/lib/api/hooks";
+import type { MessageDraftItem } from "@/lib/types/message";
 import {
   reasonCategoryLabels,
   reasonCategoryIcons,
@@ -302,33 +304,12 @@ export function CustomerCard({
               </div>
             )}
 
-            {/* All insights */}
-            <div>
-              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-surface-500">
-                תובנות רלוונטיות
-              </h4>
-              <div className="space-y-2">
-                {primaryInsight && (
-                  <InsightRow insight={primaryInsight} primary />
-                )}
-                {supportingInsights?.map((ins) => (
-                  <InsightRow key={ins.id} insight={ins} />
-                ))}
-              </div>
-            </div>
-
-            {/* Message composer */}
-            {primaryInsight && (
-              <div className="rounded-lg border border-surface-200 bg-white p-4">
-                <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-surface-500">
-                  הודעה ללקוח
-                </h4>
-                <MessageComposer
-                  insightId={primaryInsight.id}
-                  customerName={fullName}
-                />
-              </div>
-            )}
+            {/* Insight selection + combined message */}
+            <InsightSelectAndMessage
+              primaryInsight={primaryInsight}
+              supportingInsights={supportingInsights ?? []}
+              customerName={fullName}
+            />
 
             {/* Bottom actions */}
             <div className="flex flex-wrap items-center gap-2 border-t border-surface-200 pt-4">
@@ -456,6 +437,194 @@ function InsightRow({
           <ScoreBadge score={insight.strengthScore} />
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================================================
+// Insight selection + combined message generation
+// ============================================================
+
+interface InsightLite {
+  id: string;
+  title: string;
+  summary: string;
+  category: string;
+  strengthScore: number | null;
+}
+
+function InsightSelectAndMessage({
+  primaryInsight,
+  supportingInsights,
+  customerName,
+}: {
+  primaryInsight: InsightLite | null;
+  supportingInsights: InsightLite[];
+  customerName: string;
+}) {
+  const allInsights = primaryInsight
+    ? [primaryInsight, ...supportingInsights]
+    : supportingInsights;
+
+  // By default, only the primary insight is selected
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    new Set(primaryInsight ? [primaryInsight.id] : [])
+  );
+  const [generatedMessage, setGeneratedMessage] =
+    useState<MessageDraftItem | null>(null);
+  const generate = useGenerateCombinedMessage();
+
+  function toggle(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleGenerate() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    try {
+      const result = await generate.mutateAsync({
+        insightIds: ids,
+        combined: true,
+      });
+      const raw = result as unknown as Record<string, unknown>;
+      setGeneratedMessage({
+        id: (raw.messageId || raw.id || "") as string,
+        customerId: "",
+        customerName,
+        insightId: ids[0] ?? null,
+        insightTitle: null,
+        body: (raw.body || "") as string,
+        tone: null,
+        purpose: null,
+        status: "DRAFT",
+        generatedBy: "AI",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    } catch {
+      /* handled via mutation state */
+    }
+  }
+
+  const selectedCount = selectedIds.size;
+  const isSingle = selectedCount === 1;
+
+  return (
+    <div className="space-y-4">
+      {/* Insight selector */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-surface-500">
+            בחר תובנות להודעה ({selectedCount})
+          </h4>
+          {allInsights.length > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() =>
+                  setSelectedIds(new Set(allInsights.map((i) => i.id)))
+                }
+                className="text-xs text-primary-600 hover:text-primary-700"
+              >
+                בחר הכל
+              </button>
+              <span className="text-surface-300">|</span>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="text-xs text-surface-500 hover:text-surface-700"
+              >
+                נקה
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="space-y-2">
+          {allInsights.map((ins, idx) => {
+            const isChecked = selectedIds.has(ins.id);
+            const isPrimary = idx === 0 && primaryInsight;
+            return (
+              <label
+                key={ins.id}
+                className={cn(
+                  "flex items-start gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors",
+                  isChecked
+                    ? "border-primary-300 bg-primary-50/40"
+                    : "border-surface-200 bg-white hover:bg-surface-50"
+                )}
+              >
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={() => toggle(ins.id)}
+                  className="mt-1 h-4 w-4 shrink-0 accent-primary-600"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    {isPrimary && <Badge variant="primary">ראשי</Badge>}
+                    <span className="text-sm font-medium text-surface-900 truncate">
+                      {ins.title}
+                    </span>
+                  </div>
+                  {ins.summary && (
+                    <p className="mt-1 text-xs text-surface-500 line-clamp-2">
+                      {ins.summary}
+                    </p>
+                  )}
+                </div>
+                {ins.strengthScore != null && (
+                  <div className="shrink-0">
+                    <ScoreBadge score={ins.strengthScore} />
+                  </div>
+                )}
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Message generator */}
+      <div className="rounded-lg border border-surface-200 bg-white p-4">
+        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-surface-500">
+          הודעה ללקוח
+        </h4>
+
+        {selectedCount === 0 ? (
+          <p className="text-xs text-surface-500">
+            בחר לפחות תובנה אחת כדי לייצר הודעה
+          </p>
+        ) : isSingle && !generatedMessage ? (
+          // Single insight — use the existing MessageComposer flow
+          <MessageComposer
+            insightId={Array.from(selectedIds)[0]}
+            customerName={customerName}
+          />
+        ) : generatedMessage ? (
+          // Combined message generated — show as MessageComposer preview
+          <MessageComposer
+            insightId={Array.from(selectedIds)[0]}
+            customerName={customerName}
+            existingMessage={generatedMessage}
+          />
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs text-surface-500">
+              {selectedCount} תובנות נבחרו — ה-AI ישלב אותן להודעה אחת טבעית
+            </p>
+            <button
+              onClick={handleGenerate}
+              disabled={generate.isPending}
+              className="group relative inline-flex items-center gap-2 rounded-lg bg-gradient-to-l from-primary-600 to-primary-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:from-primary-700 hover:to-primary-600 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Sparkles className="h-4 w-4" />
+              {generate.isPending ? "יוצר הודעה משולבת..." : "צור הודעה משולבת"}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -103,7 +103,9 @@ function worstManagementFeePolicy(policies: ReasonPolicy[]): ReasonPolicy | null
 }
 
 export function determineReasonCategory(ctx: ReasonContext): ReasonCategory {
-  if (nearestExpiringActivePolicy(ctx.policies)) return "URGENT_EXPIRY";
+  // Priority order: our unique value FIRST, renewal LAST.
+  // BAFI already handles renewals, so URGENT_EXPIRY is the fallback —
+  // only picked if the customer has no other story to tell.
   if (recentMilestoneAge(ctx.customer) != null) return "AGE_MILESTONE";
   if (
     ctx.totalAccumulatedSavings > HIGH_VALUE_SAVINGS_THRESHOLD ||
@@ -123,6 +125,8 @@ export function determineReasonCategory(ctx: ReasonContext): ReasonCategory {
   }
   if (!ctx.lastContactAt) return "SERVICE";
   if (ctx.activeCategoryCount === 1) return "CROSS_SELL";
+  // Last resort — if nothing else stands out but there's an expiring policy
+  if (nearestExpiringActivePolicy(ctx.policies)) return "URGENT_EXPIRY";
   return "CROSS_SELL";
 }
 
@@ -178,7 +182,13 @@ export function buildWhyTodayReason(ctx: ReasonContext): string {
   return ctx.insight.title;
 }
 
+// Policy: BAFI already handles renewals. We de-prioritize them so we don't
+// compete with BAFI on its own turf. Renewals can still appear in the queue
+// if they pass gates + score high, but they don't claim urgent reserve slots
+// and they don't bypass the "recently contacted" suppression.
 export function isTimeCritical(ctx: ReasonContext): boolean {
   const category = determineReasonCategory(ctx);
-  return category === "URGENT_EXPIRY" || category === "AGE_MILESTONE";
+  // AGE_MILESTONE is time-critical (life event). URGENT_EXPIRY is NOT —
+  // BAFI handles renewals, our value is in the other reason categories.
+  return category === "AGE_MILESTONE";
 }

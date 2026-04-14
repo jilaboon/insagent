@@ -586,13 +586,13 @@ export function useGenerateCombinedMessage() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: { insightIds: string[] }) => {
-      return fetchJSON<MessageDraftItem | { message: string; generated: number }>(
+    mutationFn: async (params: { insightIds: string[]; combined?: boolean }) => {
+      return fetchJSON<MessageDraftItem | { messageId: string; body: string } | { message: string; generated: number }>(
         "/api/messages/generate",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(params),
+          body: JSON.stringify({ ...params, combined: params.combined ?? true }),
         }
       );
     },
