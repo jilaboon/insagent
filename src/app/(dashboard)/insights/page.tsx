@@ -136,7 +136,7 @@ function GenerateSection() {
     setProgress({ processed: 0, total: 0, insights: 0 });
 
     let offset = 0;
-    const batchSize = 500; // Larger batches — rule matching is fast in memory
+    const batchSize = 1000; // Raw SQL load — very fast
     let totalInsights = 0;
 
     try {
