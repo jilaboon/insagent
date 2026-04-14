@@ -40,12 +40,14 @@ export async function generateAIInsights(
   profile: CustomerProfile,
   existingInsightTitles: string[]
 ): Promise<Array<AIInsightResult & { strengthScore: number }>> {
-  const customerName = `${profile.customer.firstName} ${profile.customer.lastName}`.trim();
+  // AI Data Minimization: send only first name (no last name, no ת.ז., no phone/email/address)
+  const customerName = profile.customer.firstName;
 
   const userPrompt = buildInsightUserPrompt({
     customerName,
     age: profile.customer.age,
     maritalStatus: profile.customer.maritalStatus,
+    // Strip policy numbers, vehicle plates, and property addresses — only send analytical data
     policies: profile.activePolicies.map((p) => ({
       category: p.category,
       subType: p.subType,

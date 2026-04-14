@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { runImportPipelineFromRows } from "@/lib/import/pipeline";
 import { detectFileType } from "@/lib/import/pipeline";
 import { requireAuth } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
+import { importUploadSchema, validateBody } from "@/lib/validation";
 
 export const maxDuration = 300;
 
@@ -16,7 +18,7 @@ const TEMP_OPERATOR_ID = "system";
  * Body: { fileName, headers, rows[], jobId? }
  */
 export async function POST(request: NextRequest) {
-  const { response: authResponse } = await requireAuth();
+  const { response: authResponse, email } = await requireAuth();
   if (authResponse) return authResponse;
   try {
     await prisma.user.upsert({
@@ -30,17 +32,10 @@ export async function POST(request: NextRequest) {
       update: {},
     });
 
-    const body = await request.json();
-    const { fileName, headers, rows, jobId: existingJobId } = body as {
-      fileName: string;
-      headers: string[];
-      rows: Record<string, string>[];
-      jobId?: string;
-    };
-
-    if (!headers || !rows || rows.length === 0) {
-      return NextResponse.json({ error: "לא נמצאו נתונים" }, { status: 400 });
-    }
+    const rawBody = await request.json();
+    const validation = validateBody(importUploadSchema, rawBody);
+    if (!validation.success) return validation.response;
+    const { fileName, headers, rows, jobId: existingJobId } = validation.data;
 
     // Create or reuse import job
     let jobId = existingJobId;
@@ -66,10 +61,33 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Audit: import started
+    await logAudit({
+      actorEmail: email,
+      action: "import_started",
+      entityType: "import",
+      entityId: jobId,
+      details: { fileName, rowCount: rows.length },
+    });
+
     // Run the full pipeline synchronously — with batch SQL this is fast
     const result = await runImportPipelineFromRows(jobId, [
       { fileName, headers, rows },
     ]);
+
+    // Audit: import completed
+    await logAudit({
+      actorEmail: email,
+      action: "import_completed",
+      entityType: "import",
+      entityId: jobId,
+      details: {
+        totalRows: result.totalRowsParsed,
+        newCustomers: result.newCustomers,
+        updatedCustomers: result.updatedCustomers,
+        failed: result.failedCustomers,
+      },
+    });
 
     return NextResponse.json({
       jobId,

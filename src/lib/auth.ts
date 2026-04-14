@@ -15,21 +15,23 @@ export async function getAuthUser() {
 
 /**
  * Require authentication for API routes.
- * Returns the user if authenticated, or a 401 JSON response.
+ * Returns the user and their email if authenticated, or a 401 JSON response.
  */
 export async function requireAuth(): Promise<{
   user: Awaited<ReturnType<typeof getAuthUser>>;
+  email: string;
   response: NextResponse | null;
 }> {
   const user = await getAuthUser();
   if (!user) {
     return {
       user: null,
+      email: "",
       response: NextResponse.json(
         { error: "לא מורשה — נדרשת התחברות" },
         { status: 401 }
       ),
     };
   }
-  return { user, response: null };
+  return { user, email: user.email ?? "", response: null };
 }

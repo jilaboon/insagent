@@ -2,6 +2,9 @@
  * Shared Hebrew quality review.
  * Takes any Hebrew text, sends it through Sonnet for grammar/quality fix.
  * Used as a final pass on all AI-generated Hebrew content.
+ *
+ * DATA SAFETY: This module only receives AI-generated text (no customer PII).
+ * It does NOT receive names, ת.ז., phone numbers, emails, or addresses.
  */
 
 import { generateText } from "ai";

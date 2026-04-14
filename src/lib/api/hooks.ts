@@ -439,7 +439,7 @@ export function useCustomerMessages(customerId: string | null) {
   return useQuery({
     queryKey: queryKeys.customerMessages(customerId ?? ""),
     queryFn: () =>
-      fetchJSON<MessageDraftItem[]>(`/api/messages/${customerId}`),
+      fetchJSON<MessageDraftItem[]>(`/api/messages/customer/${customerId}`),
     enabled: !!customerId,
   });
 }

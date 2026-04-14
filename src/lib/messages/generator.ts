@@ -8,6 +8,7 @@ import { generateText } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { prisma } from "@/lib/db";
 import { MESSAGE_SYSTEM_PROMPT, buildMessageUserPrompt, buildCombinedMessagePrompt, buildTipsContext } from "@/lib/ai/prompts/message-system";
+import { sanitizeEvidenceForAI } from "@/lib/ai/sanitize";
 
 const DEFAULT_AGENT_NAME = "רפי";
 
@@ -50,7 +51,10 @@ export async function generateMessage(
     insightTitle: insight.title,
     insightSummary: insight.summary,
     insightExplanation: insight.explanation || insight.summary,
-    relevantData: (insight.evidenceJson as Record<string, unknown>) || {},
+    // Sanitize evidence — strip PII before sending to AI
+    relevantData: sanitizeEvidenceForAI(
+      (insight.evidenceJson as Record<string, unknown>) || {}
+    ),
   });
 
   try {
@@ -148,7 +152,10 @@ export async function generateCombinedMessage(
       title: i.title,
       summary: i.summary,
       explanation: i.explanation || i.summary,
-      relevantData: (i.evidenceJson as Record<string, unknown>) || {},
+      // Sanitize evidence — strip PII before sending to AI
+      relevantData: sanitizeEvidenceForAI(
+        (i.evidenceJson as Record<string, unknown>) || {}
+      ),
     })),
   });
 
