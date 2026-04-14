@@ -131,17 +131,7 @@ export function determineReasonCategory(ctx: ReasonContext): ReasonCategory {
 }
 
 export function buildWhyTodayReason(ctx: ReasonContext): string {
-  const expiring = nearestExpiringActivePolicy(ctx.policies);
-  if (expiring && expiring.endDate) {
-    const days = Math.max(
-      0,
-      Math.ceil(
-        (expiring.endDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000)
-      )
-    );
-    return `פוליסה מסתיימת בעוד ${days} ימים`;
-  }
-
+  // Same priority as determineReasonCategory — renewal is the LAST fallback.
   const milestone = recentMilestoneAge(ctx.customer);
   if (milestone != null) {
     return `הלקוח הגיע לגיל ${milestone} לאחרונה`;
@@ -177,6 +167,18 @@ export function buildWhyTodayReason(ctx: ReasonContext): string {
 
   if (ctx.activeCategoryCount === 1) {
     return "ללקוח קטגוריית ביטוח אחת בלבד";
+  }
+
+  // Last fallback — renewal (only if customer has no other story)
+  const expiring = nearestExpiringActivePolicy(ctx.policies);
+  if (expiring && expiring.endDate) {
+    const days = Math.max(
+      0,
+      Math.ceil(
+        (expiring.endDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000)
+      )
+    );
+    return `פוליסה מסתיימת בעוד ${days} ימים`;
   }
 
   return ctx.insight.title;
