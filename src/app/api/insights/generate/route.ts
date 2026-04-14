@@ -20,14 +20,14 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { offset = 0, limit = 200 } = body as {
+    const { offset = 0, limit = 200 } = body as { // Match client batch size
       offset?: number;
       limit?: number;
     };
 
     const totalCustomers = await prisma.customer.count();
 
-    // Batch-load customers WITH all their policies in ONE query
+    // Batch-load customers with policies only (skip heavy nested relations)
     const customers = await prisma.customer.findMany({
       skip: offset,
       take: limit,
@@ -35,9 +35,8 @@ export async function POST(request: NextRequest) {
       include: {
         policies: {
           include: {
-            coverages: true,
-            investmentTracks: true,
-            managementFees: true,
+            managementFees: true, // Only 1 rule uses this
+            // coverages and investmentTracks NOT needed by any rule
           },
         },
       },

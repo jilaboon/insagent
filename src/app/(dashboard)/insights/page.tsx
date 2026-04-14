@@ -93,7 +93,7 @@ function GenerateSection() {
     setProgress({ processed: 0, total: 0, insights: 0 });
 
     let offset = 0;
-    const batchSize = 500; // Large batches — API is fast now with batch SQL
+    const batchSize = 200; // Balance between speed and query size
     let totalInsights = 0;
 
     try {
