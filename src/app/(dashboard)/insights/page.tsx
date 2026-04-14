@@ -136,6 +136,8 @@ function GenerateSection() {
   const [ruleSummary, setRuleSummary] = useState<RuleSummaryItem[]>([]);
   const [totalInsightsInDb, setTotalInsightsInDb] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const [showBroadWarning, setShowBroadWarning] = useState(true);
   const abortRef = useRef(false);
   const queryClient = useQueryClient();
 
@@ -218,6 +220,8 @@ function GenerateSection() {
     setProgress({ processed: 0, total: 0, insights: 0 });
     setRuleSummary([]);
     setError(null);
+    setShowDetails(false);
+    setShowBroadWarning(true);
   }, []);
 
   const handleToggleRule = useCallback(async (ruleId: string, currentlyActive: boolean) => {
@@ -268,28 +272,32 @@ function GenerateSection() {
           </div>
         </div>
 
-        {/* Broad rules warning */}
-        {broadRules.length > 0 && (
+        {/* Broad rules warning — dismissible */}
+        {broadRules.length > 0 && showBroadWarning && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
-              <span className="text-sm font-bold text-amber-800">
-                חוקים רחבים מדי?
-              </span>
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                <span className="text-sm font-bold text-amber-800">
+                  {broadRules.length} חוקים מתאימים ליותר מ-50% מהלקוחות
+                </span>
+              </div>
+              <button
+                onClick={() => setShowBroadWarning(false)}
+                className="text-xs text-amber-600 hover:text-amber-800 shrink-0"
+              >
+                סגור
+              </button>
             </div>
-            <p className="text-xs text-amber-700 mb-3">
-              החוקים הבאים מתאימים ליותר מ-50% מהלקוחות. שקול לחדד אותם או לבטל אותם.
-            </p>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {broadRules.map((r) => (
-                <div key={r.ruleId} className="flex items-center justify-between rounded-md bg-white p-2 border border-amber-100">
-                  <div className="min-w-0 flex-1">
-                    <span className="text-sm font-medium text-surface-800">{r.title}</span>
-                    <span className="text-xs text-amber-600 mr-2 number"> ({r.coveragePercent}% מהלקוחות)</span>
-                  </div>
+                <div key={r.ruleId} className="flex items-center justify-between text-xs">
+                  <span className="text-amber-900 truncate">
+                    {r.title} <span className="text-amber-600 number">({r.coveragePercent}%)</span>
+                  </span>
                   <button
                     onClick={() => handleToggleRule(r.ruleId, true)}
-                    className="shrink-0 text-xs text-amber-700 hover:text-red-600 border border-amber-300 rounded px-2 py-1 hover:bg-red-50 transition-colors"
+                    className="shrink-0 text-amber-700 hover:text-red-600 underline mr-2"
                   >
                     בטל חוק
                   </button>
@@ -299,46 +307,51 @@ function GenerateSection() {
           </div>
         )}
 
-        {/* Full rule breakdown */}
+        {/* Expand details link */}
         {ruleSummary.length > 0 && (
-          <div>
-            <h4 className="text-xs font-bold text-surface-500 mb-2">פירוט לפי חוק</h4>
-            <div className="rounded-lg border border-surface-200 overflow-hidden">
-              <table className="w-full text-xs table-fixed">
-                <thead>
-                  <tr className="bg-surface-50 border-b border-surface-200">
-                    <th className="w-[50%] py-2 px-3 text-right font-medium text-surface-500">חוק</th>
-                    <th className="w-[20%] py-2 px-3 text-right font-medium text-surface-500">תובנות</th>
-                    <th className="w-[15%] py-2 px-3 text-right font-medium text-surface-500">כיסוי</th>
-                    <th className="w-[15%] py-2 px-3 text-right font-medium text-surface-500"></th>
+          <button
+            onClick={() => setShowDetails((v) => !v)}
+            className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+          >
+            {showDetails ? "הסתר פירוט" : "הצג פירוט מלא לפי חוק"} ↓
+          </button>
+        )}
+
+        {/* Full rule breakdown — only when expanded */}
+        {showDetails && ruleSummary.length > 0 && (
+          <div className="rounded-lg border border-surface-200 overflow-hidden">
+            <table className="w-full text-xs table-fixed">
+              <thead>
+                <tr className="bg-surface-50 border-b border-surface-200">
+                  <th className="w-[55%] py-2 px-3 text-right font-medium text-surface-500">חוק</th>
+                  <th className="w-[20%] py-2 px-3 text-right font-medium text-surface-500">תובנות</th>
+                  <th className="w-[15%] py-2 px-3 text-right font-medium text-surface-500">כיסוי</th>
+                  <th className="w-[10%] py-2 px-3 text-right font-medium text-surface-500"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {ruleSummary.map((r) => (
+                  <tr key={r.ruleId} className="border-b border-surface-100 hover:bg-surface-50">
+                    <td className="py-2 px-3 text-surface-800 truncate">{r.title}</td>
+                    <td className="py-2 px-3 text-surface-600 number">{r.insightCount.toLocaleString("he-IL")}</td>
+                    <td className="py-2 px-3">
+                      <span className={`number font-medium ${r.coveragePercent > 50 ? "text-amber-600" : r.coveragePercent > 20 ? "text-surface-700" : "text-surface-500"}`}>
+                        {r.coveragePercent}%
+                      </span>
+                    </td>
+                    <td className="py-2 px-3">
+                      <button
+                        onClick={() => handleToggleRule(r.ruleId, true)}
+                        className="text-xs text-surface-400 hover:text-red-500 transition-colors"
+                        title="בטל חוק"
+                      >
+                        בטל
+                      </button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {ruleSummary.map((r) => (
-                    <tr key={r.ruleId} className="border-b border-surface-100 hover:bg-surface-50">
-                      <td className="py-2 px-3 text-surface-800 truncate">{r.title}</td>
-                      <td className="py-2 px-3 text-surface-600 number">{r.insightCount.toLocaleString("he-IL")}</td>
-                      <td className="py-2 px-3">
-                        <span className={`number font-medium ${r.coveragePercent > 50 ? "text-amber-600" : r.coveragePercent > 20 ? "text-surface-700" : "text-surface-500"}`}>
-                          {r.coveragePercent}%
-                        </span>
-                      </td>
-                      <td className="py-2 px-3">
-                        {r.coveragePercent > 50 && (
-                          <button
-                            onClick={() => handleToggleRule(r.ruleId, true)}
-                            className="text-xs text-surface-400 hover:text-red-500 transition-colors"
-                            title="בטל חוק"
-                          >
-                            בטל
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
