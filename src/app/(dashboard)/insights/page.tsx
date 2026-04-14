@@ -80,18 +80,20 @@ function StatCard({
 // ============================================================
 
 function GenerateSection() {
-  const [isRunning, setIsRunning] = useState(false);
+  const [state, setState] = useState<"idle" | "running" | "done">("idle");
   const [progress, setProgress] = useState({ processed: 0, total: 0, insights: 0 });
+  const [error, setError] = useState<string | null>(null);
   const abortRef = useRef(false);
   const queryClient = useQueryClient();
 
   const handleGenerate = useCallback(async () => {
-    setIsRunning(true);
+    setState("running");
+    setError(null);
     abortRef.current = false;
     setProgress({ processed: 0, total: 0, insights: 0 });
 
     let offset = 0;
-    const batchSize = 25;
+    const batchSize = 50;
     let totalInsights = 0;
 
     try {
@@ -124,7 +126,6 @@ function GenerateSection() {
           insights: totalInsights,
         });
 
-        // Refresh the insights list periodically
         if (offset % 500 === 0 || result.done) {
           queryClient.invalidateQueries({ queryKey: ["insights"] });
         }
@@ -133,21 +134,50 @@ function GenerateSection() {
       }
     } catch (err) {
       console.error("Generation error:", err);
+      setError(err instanceof Error ? err.message : "שגיאה לא צפויה");
     }
 
     queryClient.invalidateQueries({ queryKey: ["insights"] });
     queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
-    setIsRunning(false);
+    setState("done");
   }, [queryClient]);
 
   const handleStop = useCallback(() => {
     abortRef.current = true;
   }, []);
 
-  if (isRunning) {
+  const handleReset = useCallback(() => {
+    setState("idle");
+    setProgress({ processed: 0, total: 0, insights: 0 });
+    setError(null);
+  }, []);
+
+  if (state === "done") {
+    return (
+      <Card padding="sm" className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-emerald-500" />
+            <span className="text-sm font-medium text-surface-800">
+              הניתוח הושלם
+            </span>
+          </div>
+          <Button variant="secondary" size="sm" onClick={handleReset}>
+            סגור
+          </Button>
+        </div>
+        <p className="text-xs text-surface-600 number">
+          {progress.processed.toLocaleString("he-IL")} לקוחות נותחו · {progress.insights.toLocaleString("he-IL")} תובנות חדשות נוצרו
+        </p>
+        {error && <p className="text-xs text-red-500">{error}</p>}
+      </Card>
+    );
+  }
+
+  if (state === "running") {
     const percent = progress.total > 0
       ? Math.round((progress.processed / progress.total) * 100)
-      : 0;
+      : 2; // Start at 2% so the bar is visible immediately
 
     return (
       <Card padding="sm" className="space-y-3">
@@ -155,14 +185,14 @@ function GenerateSection() {
           <div className="flex items-center gap-2">
             <Loader2 className="h-4 w-4 animate-spin text-primary-500" />
             <span className="text-sm font-medium text-surface-800">
-              מנתח לקוחות...
+              {progress.total > 0 ? "מנתח לקוחות..." : "מתחיל ניתוח..."}
             </span>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-surface-500 number">
               {progress.total > 0
-                ? `${progress.processed.toLocaleString("he-IL")} / ${progress.total.toLocaleString("he-IL")} לקוחות · ${progress.insights.toLocaleString("he-IL")} תובנות`
-                : "מתחיל..."}
+                ? `${progress.processed.toLocaleString("he-IL")} / ${progress.total.toLocaleString("he-IL")} · ${progress.insights.toLocaleString("he-IL")} תובנות`
+                : "טוען נתוני לקוחות..."}
             </span>
             <Button variant="danger" size="sm" onClick={handleStop}>
               <Square className="h-3 w-3" />
