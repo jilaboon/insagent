@@ -7,6 +7,7 @@
  */
 
 import { prisma } from "@/lib/db";
+import { DEFAULT_SETTINGS, type QueueSettings } from "./settings";
 
 export interface EligibilityResult {
   eligible: boolean;
@@ -36,16 +37,22 @@ export interface EligibilityCache {
   insightStatusById: Map<string, string>;
 }
 
-const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Build a cache of all the aggregate lookups in a handful of queries.
- * This is called once at the start of buildQueue.
+ * This is called once at the start of buildQueue. The cooldown windows are
+ * taken from the queue settings so רפי can tune them from the admin UI.
  */
-export async function buildEligibilityCache(): Promise<EligibilityCache> {
-  const sixtyDaysAgo = new Date(Date.now() - SIXTY_DAYS_MS);
-  const thirtyDaysAgo = new Date(Date.now() - THIRTY_DAYS_MS);
+export async function buildEligibilityCache(
+  settings: QueueSettings = DEFAULT_SETTINGS
+): Promise<EligibilityCache> {
+  const dismissalCutoff = new Date(
+    Date.now() - settings.cooldownAfterDismissalDays * DAY_MS
+  );
+  const contactCutoff = new Date(
+    Date.now() - settings.recentContactSuppressionDays * DAY_MS
+  );
   const now = new Date();
 
   const [dismissed, postponed, openTasks, recentMessages, insights] =
@@ -53,7 +60,7 @@ export async function buildEligibilityCache(): Promise<EligibilityCache> {
       prisma.queueEntry.findMany({
         where: {
           status: "DISMISSED",
-          createdAt: { gte: sixtyDaysAgo },
+          createdAt: { gte: dismissalCutoff },
         },
         select: {
           customerId: true,
@@ -81,7 +88,7 @@ export async function buildEligibilityCache(): Promise<EligibilityCache> {
       prisma.messageDraft.findMany({
         where: {
           status: "SENT",
-          updatedAt: { gte: thirtyDaysAgo },
+          updatedAt: { gte: contactCutoff },
         },
         select: { customerId: true },
       }),

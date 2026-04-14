@@ -16,11 +16,13 @@ import {
   ShieldCheck,
   Brain,
   Clock,
+  Settings,
 } from "lucide-react";
 
 const navigation = [
   { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
   { name: "בקרוב", href: "/soon", icon: Clock },
+  { name: "הגדרות תור", href: "/queue-settings", icon: Settings },
   { name: "לקוחות", href: "/customers", icon: Users },
   { name: "חקור", href: "/insights", icon: Search },
   { name: "המלצות", href: "/recommendations", icon: Star },

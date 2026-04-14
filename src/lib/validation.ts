@@ -140,6 +140,25 @@ export const queueActionSchema = z
   );
 
 // ============================================================
+// Queue Settings
+// ============================================================
+
+export const queueSettingsSchema = z.object({
+  dailyCapacity: z.number().int().min(1).max(100).optional(),
+  urgentReserveSlots: z.number().int().min(0).max(50).optional(),
+  ageMilestones: z.array(z.number().int().min(18).max(120)).optional(),
+  milestoneFreshnessDays: z.number().int().min(1).max(365).optional(),
+  milestoneRequiresPensionOrSavings: z.boolean().optional(),
+  milestoneMinSavings: z.number().min(0).optional(),
+  highValueSavingsThreshold: z.number().min(0).optional(),
+  highValueMonthlyPremiumThreshold: z.number().min(0).optional(),
+  managementFeeThreshold: z.number().min(0).max(10).optional(),
+  costOptimizationMinSavings: z.number().min(0).optional(),
+  cooldownAfterDismissalDays: z.number().int().min(0).max(365).optional(),
+  recentContactSuppressionDays: z.number().int().min(0).max(365).optional(),
+});
+
+// ============================================================
 // Helper: validate request body and return 400 on failure
 // ============================================================
 

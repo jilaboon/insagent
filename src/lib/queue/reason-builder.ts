@@ -1,9 +1,14 @@
 /**
  * Build the human-readable "why today" Hebrew reason for a queue entry,
  * determine its ReasonCategory, and flag time-critical items.
+ *
+ * Thresholds (age milestones, high-value, management fees, etc.) are
+ * supplied via a QueueSettings argument so רפי can tune them from the
+ * Queue Settings page without code changes.
  */
 
 import type { ReasonCategory } from "@prisma/client";
+import type { QueueSettings } from "./settings";
 
 export interface ReasonInsight {
   id: string;
@@ -19,6 +24,10 @@ export interface ReasonCustomer {
   age: number | null;
   dateOfBirth: Date | null;
   lastReviewDate: Date | null;
+  /** True if the customer has at least one ACTIVE PENSION policy. */
+  hasPensionPolicy: boolean;
+  /** Sum of accumulatedSavings across active policies. */
+  totalSavings: number;
 }
 
 export interface ReasonPolicy {
@@ -42,15 +51,9 @@ export interface ReasonContext {
   activeCategoryCount: number;
 }
 
-const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-const TWELVE_MONTHS_MS = 365 * 24 * 60 * 60 * 1000;
-
-const MILESTONE_AGES = [60, 65, 67];
-const HIGH_VALUE_SAVINGS_THRESHOLD = 500_000;
-const HIGH_VALUE_PREMIUM_THRESHOLD = 1_500;
-const MGMT_FEE_THRESHOLD = 1.5;
-const COST_OPT_SAVINGS_THRESHOLD = 100_000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const THIRTY_DAYS_MS = 30 * DAY_MS;
+const TWELVE_MONTHS_MS = 365 * DAY_MS;
 
 function formatIlsWhole(n: number): string {
   return `₪${Math.round(n).toLocaleString("he-IL")}`;
@@ -71,15 +74,30 @@ function nearestExpiringActivePolicy(policies: ReasonPolicy[]): ReasonPolicy | n
   return best;
 }
 
-function recentMilestoneAge(customer: ReasonCustomer): number | null {
+function recentMilestoneAge(
+  customer: ReasonCustomer,
+  settings: QueueSettings
+): number | null {
   if (!customer.dateOfBirth) return null;
+  if (settings.ageMilestones.length === 0) return null;
+
+  // Business rule: only trigger if the customer has something meaningful
+  // for us to talk about at the milestone. Pension OR significant savings.
+  if (settings.milestoneRequiresPensionOrSavings) {
+    const qualifies =
+      customer.hasPensionPolicy ||
+      customer.totalSavings >= settings.milestoneMinSavings;
+    if (!qualifies) return null;
+  }
+
   const now = Date.now();
-  for (const age of MILESTONE_AGES) {
+  const windowMs = settings.milestoneFreshnessDays * DAY_MS;
+  for (const age of settings.ageMilestones) {
     const bday = new Date(customer.dateOfBirth);
     const milestoneDate = new Date(bday);
     milestoneDate.setFullYear(bday.getFullYear() + age);
     const diff = now - milestoneDate.getTime();
-    if (diff >= 0 && diff <= NINETY_DAYS_MS) return age;
+    if (diff >= 0 && diff <= windowMs) return age;
   }
   return null;
 }
@@ -88,13 +106,16 @@ function hasCategory(policies: ReasonPolicy[], category: string): boolean {
   return policies.some((p) => p.category === category && p.status === "ACTIVE");
 }
 
-function worstManagementFeePolicy(policies: ReasonPolicy[]): ReasonPolicy | null {
+function worstManagementFeePolicy(
+  policies: ReasonPolicy[],
+  settings: QueueSettings
+): ReasonPolicy | null {
   let best: ReasonPolicy | null = null;
   for (const p of policies) {
     if (p.status !== "ACTIVE") continue;
     if (p.managementFeePercent == null) continue;
-    if (p.managementFeePercent <= MGMT_FEE_THRESHOLD) continue;
-    if ((p.accumulatedSavings ?? 0) <= COST_OPT_SAVINGS_THRESHOLD) continue;
+    if (p.managementFeePercent <= settings.managementFeeThreshold) continue;
+    if ((p.accumulatedSavings ?? 0) <= settings.costOptimizationMinSavings) continue;
     if (!best || p.managementFeePercent > (best.managementFeePercent ?? 0)) {
       best = p;
     }
@@ -102,18 +123,21 @@ function worstManagementFeePolicy(policies: ReasonPolicy[]): ReasonPolicy | null
   return best;
 }
 
-export function determineReasonCategory(ctx: ReasonContext): ReasonCategory {
+export function determineReasonCategory(
+  ctx: ReasonContext,
+  settings: QueueSettings
+): ReasonCategory {
   // Priority order: our unique value FIRST, renewal LAST.
   // BAFI already handles renewals, so URGENT_EXPIRY is the fallback —
   // only picked if the customer has no other story to tell.
-  if (recentMilestoneAge(ctx.customer) != null) return "AGE_MILESTONE";
+  if (recentMilestoneAge(ctx.customer, settings) != null) return "AGE_MILESTONE";
   if (
-    ctx.totalAccumulatedSavings > HIGH_VALUE_SAVINGS_THRESHOLD ||
-    ctx.totalMonthlyPremium > HIGH_VALUE_PREMIUM_THRESHOLD
+    ctx.totalAccumulatedSavings > settings.highValueSavingsThreshold ||
+    ctx.totalMonthlyPremium > settings.highValueMonthlyPremiumThreshold
   ) {
     return "HIGH_VALUE";
   }
-  if (worstManagementFeePolicy(ctx.policies)) return "COST_OPTIMIZATION";
+  if (worstManagementFeePolicy(ctx.policies, settings)) return "COST_OPTIMIZATION";
   if (!hasCategory(ctx.policies, "HEALTH") || !hasCategory(ctx.policies, "LIFE")) {
     return "COVERAGE_GAP";
   }
@@ -125,30 +149,31 @@ export function determineReasonCategory(ctx: ReasonContext): ReasonCategory {
   }
   if (!ctx.lastContactAt) return "SERVICE";
   if (ctx.activeCategoryCount === 1) return "CROSS_SELL";
-  // Last resort — if nothing else stands out but there's an expiring policy
   if (nearestExpiringActivePolicy(ctx.policies)) return "URGENT_EXPIRY";
   return "CROSS_SELL";
 }
 
-export function buildWhyTodayReason(ctx: ReasonContext): string {
-  // Same priority as determineReasonCategory — renewal is the LAST fallback.
-  const milestone = recentMilestoneAge(ctx.customer);
+export function buildWhyTodayReason(
+  ctx: ReasonContext,
+  settings: QueueSettings
+): string {
+  const milestone = recentMilestoneAge(ctx.customer, settings);
   if (milestone != null) {
     return `הלקוח הגיע לגיל ${milestone} לאחרונה`;
   }
 
   if (
-    ctx.totalAccumulatedSavings > HIGH_VALUE_SAVINGS_THRESHOLD ||
-    ctx.totalMonthlyPremium > HIGH_VALUE_PREMIUM_THRESHOLD
+    ctx.totalAccumulatedSavings > settings.highValueSavingsThreshold ||
+    ctx.totalMonthlyPremium > settings.highValueMonthlyPremiumThreshold
   ) {
     const valueBasis =
-      ctx.totalAccumulatedSavings > HIGH_VALUE_SAVINGS_THRESHOLD
+      ctx.totalAccumulatedSavings > settings.highValueSavingsThreshold
         ? ctx.totalAccumulatedSavings
         : ctx.totalMonthlyPremium * 12;
     return `לקוח בעל ערך גבוה (${formatIlsWhole(valueBasis)})`;
   }
 
-  const feePolicy = worstManagementFeePolicy(ctx.policies);
+  const feePolicy = worstManagementFeePolicy(ctx.policies, settings);
   if (feePolicy && feePolicy.accumulatedSavings != null) {
     return `דמי ניהול חריגים על חיסכון של ${formatIlsWhole(
       feePolicy.accumulatedSavings
@@ -169,14 +194,11 @@ export function buildWhyTodayReason(ctx: ReasonContext): string {
     return "ללקוח קטגוריית ביטוח אחת בלבד";
   }
 
-  // Last fallback — renewal (only if customer has no other story)
   const expiring = nearestExpiringActivePolicy(ctx.policies);
   if (expiring && expiring.endDate) {
     const days = Math.max(
       0,
-      Math.ceil(
-        (expiring.endDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000)
-      )
+      Math.ceil((expiring.endDate.getTime() - Date.now()) / DAY_MS)
     );
     return `פוליסה מסתיימת בעוד ${days} ימים`;
   }
@@ -185,12 +207,11 @@ export function buildWhyTodayReason(ctx: ReasonContext): string {
 }
 
 // Policy: BAFI already handles renewals. We de-prioritize them so we don't
-// compete with BAFI on its own turf. Renewals can still appear in the queue
-// if they pass gates + score high, but they don't claim urgent reserve slots
-// and they don't bypass the "recently contacted" suppression.
-export function isTimeCritical(ctx: ReasonContext): boolean {
-  const category = determineReasonCategory(ctx);
-  // AGE_MILESTONE is time-critical (life event). URGENT_EXPIRY is NOT —
-  // BAFI handles renewals, our value is in the other reason categories.
+// compete with BAFI on its own turf.
+export function isTimeCritical(
+  ctx: ReasonContext,
+  settings: QueueSettings
+): boolean {
+  const category = determineReasonCategory(ctx, settings);
   return category === "AGE_MILESTONE";
 }

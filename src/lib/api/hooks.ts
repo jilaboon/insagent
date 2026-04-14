@@ -935,6 +935,51 @@ export function useQueueAction() {
   });
 }
 
+// ============================================================
+// Queue Settings
+// ============================================================
+
+export interface QueueSettingsData {
+  dailyCapacity: number;
+  urgentReserveSlots: number;
+  ageMilestones: number[];
+  milestoneFreshnessDays: number;
+  milestoneRequiresPensionOrSavings: boolean;
+  milestoneMinSavings: number;
+  highValueSavingsThreshold: number;
+  highValueMonthlyPremiumThreshold: number;
+  managementFeeThreshold: number;
+  costOptimizationMinSavings: number;
+  cooldownAfterDismissalDays: number;
+  recentContactSuppressionDays: number;
+}
+
+export const queueSettingsQueryKey = ["queue", "settings"] as const;
+
+export function useQueueSettings() {
+  return useQuery({
+    queryKey: queueSettingsQueryKey,
+    queryFn: () => fetchJSON<QueueSettingsData>("/api/queue/settings"),
+  });
+}
+
+export function useUpdateQueueSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (patch: Partial<QueueSettingsData>) => {
+      return fetchJSON<QueueSettingsData>("/api/queue/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(queueSettingsQueryKey, data);
+      queryClient.invalidateQueries({ queryKey: ["queue"] });
+    },
+  });
+}
+
 export function useSuggestFromPattern() {
   return useMutation({
     mutationFn: async (params: {

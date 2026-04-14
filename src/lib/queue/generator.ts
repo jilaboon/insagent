@@ -22,6 +22,7 @@ import {
   type ReasonCustomer,
   type ReasonInsight,
 } from "./reason-builder";
+import { getQueueSettings } from "./settings";
 
 interface BuildQueueOptions {
   reason: GenerationReason;
@@ -43,8 +44,6 @@ interface Candidate {
   daysToExpiry: number | null;
 }
 
-const DEFAULT_CAPACITY = 20;
-const DEFAULT_URGENT_RESERVE = 8;
 const SOON_CAPACITY = 50;
 
 function startOfDayUTC(d = new Date()): Date {
@@ -77,9 +76,10 @@ export async function buildQueue(
 ): Promise<{ today: number; soon: number }> {
   const reason = options.reason;
   const assignedUserId = options.assignedUserId ?? null;
-  const capacity = options.capacity ?? DEFAULT_CAPACITY;
+  const settings = await getQueueSettings();
+  const capacity = options.capacity ?? settings.dailyCapacity;
   const reserveUrgentSlots = Math.min(
-    options.reserveUrgentSlots ?? DEFAULT_URGENT_RESERVE,
+    options.reserveUrgentSlots ?? settings.urgentReserveSlots,
     capacity
   );
 
@@ -218,7 +218,7 @@ export async function buildQueue(
     lastContactByCustomer.set(r.customerId, r.last_sent);
   }
 
-  const cache: EligibilityCache = await buildEligibilityCache();
+  const cache: EligibilityCache = await buildEligibilityCache(settings);
 
   // Build candidates: one per customer, picking the best eligible insight
   const candidates: Candidate[] = [];
@@ -240,12 +240,15 @@ export async function buildQueue(
     );
     const activeCategories = new Set(activePolicies.map((p) => p.category));
     const lastContactAt = lastContactByCustomer.get(cust.id) ?? null;
+    const hasPensionPolicy = activePolicies.some((p) => p.category === "PENSION");
 
     const reasonCustomer: ReasonCustomer = {
       id: cust.id,
       age: cust.age,
       dateOfBirth: cust.dateOfBirth,
       lastReviewDate: cust.lastReviewDate,
+      hasPensionPolicy,
+      totalSavings: totalAccumulatedSavings,
     };
 
     let best: Candidate | null = null;
@@ -261,15 +264,15 @@ export async function buildQueue(
         activeCategoryCount: activeCategories.size,
       };
 
-      const critical = isTimeCritical(ctx);
+      const critical = isTimeCritical(ctx, settings);
       const elig = await checkEligibility(cust.id, ins.id, ins.linkedRuleId, {
         timeCritical: critical,
         cache,
       });
       if (!elig.eligible) continue;
 
-      const reasonCategory = determineReasonCategory(ctx);
-      const whyToday = buildWhyTodayReason(ctx);
+      const reasonCategory = determineReasonCategory(ctx, settings);
+      const whyToday = buildWhyTodayReason(ctx, settings);
 
       // Compute days-to-expiry for sort (nearest active expiring policy)
       let daysToExpiry: number | null = null;
