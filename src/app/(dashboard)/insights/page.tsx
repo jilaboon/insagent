@@ -221,15 +221,19 @@ function InsightsContent() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-surface-900">מרכז תובנות</h1>
-          <p className="mt-1 text-sm text-surface-500">
-            תובנות עסקיות שזוהו אוטומטית מנתוני הלקוחות
-          </p>
+      <div>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-surface-900">מרכז תובנות</h1>
+            <p className="mt-1 text-sm text-surface-500">
+              תובנות עסקיות שזוהו אוטומטית מנתוני הלקוחות
+            </p>
+          </div>
         </div>
-        <GenerateSection />
       </div>
+
+      {/* Generate section — full width, separate from header */}
+      <GenerateSection />
 
       {/* Stats */}
       <InsightsStats />
