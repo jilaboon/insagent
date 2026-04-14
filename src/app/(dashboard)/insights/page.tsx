@@ -1,11 +1,11 @@
 "use client";
 
 import { Suspense, useState, useCallback, useRef } from "react";
-import { Lightbulb, AlertTriangle, MessageSquare, Sparkles, Loader2, Square } from "lucide-react";
+import { Lightbulb, AlertTriangle, MessageSquare, Sparkles, Loader2, Square, TriangleAlert } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ProgressBar } from "@/components/ui/progress-bar";
-import { useInsights } from "@/lib/api/hooks";
+import { useInsights, useDashboardStats } from "@/lib/api/hooks";
 import { useQueryClient } from "@tanstack/react-query";
 import { InsightsFilters, useFiltersFromURL } from "./_components/insights-filters";
 import { InsightsTable } from "./_components/insights-table";
@@ -72,6 +72,49 @@ function StatCard({
         </p>
       </div>
     </Card>
+  );
+}
+
+// ============================================================
+// Needs Re-run Banner
+// ============================================================
+
+function NeedsRerunBanner() {
+  const { data } = useDashboardStats();
+
+  if (!data?.needsRerun) return null;
+
+  return (
+    <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+      <TriangleAlert className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+      <div>
+        <p className="text-sm font-medium text-amber-800">
+          יש חוקים חדשים או נתונים חדשים מאז הניתוח האחרון — כדאי לייצר תובנות מחדש
+        </p>
+        {data.newRulesSinceLastRun > 0 && (
+          <p className="text-xs text-amber-600 mt-1">
+            {data.newRulesSinceLastRun} חוקים חדשים מאז הניתוח האחרון
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function NeedsRerunGenerateButton({ onGenerate }: { onGenerate: () => void }) {
+  const { data } = useDashboardStats();
+  const needsRerun = data?.needsRerun ?? false;
+
+  return (
+    <Button
+      variant="primary"
+      size="md"
+      onClick={onGenerate}
+      className={needsRerun ? "animate-pulse" : ""}
+    >
+      <Sparkles className="h-4 w-4" />
+      צור תובנות
+    </Button>
   );
 }
 
@@ -214,10 +257,7 @@ function GenerateSection() {
   }
 
   return (
-    <Button variant="primary" size="md" onClick={handleGenerate}>
-      <Sparkles className="h-4 w-4" />
-      צור תובנות
-    </Button>
+    <NeedsRerunGenerateButton onGenerate={handleGenerate} />
   );
 }
 
@@ -239,6 +279,9 @@ function InsightsContent() {
           </div>
         </div>
       </div>
+
+      {/* Re-run banner */}
+      <NeedsRerunBanner />
 
       {/* Generate section — full width, separate from header */}
       <GenerateSection />

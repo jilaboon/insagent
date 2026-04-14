@@ -54,6 +54,8 @@ export interface DashboardStats {
     updatedCustomers: number | null;
   }>;
   topInsights: DashboardTopInsight[];
+  needsRerun: boolean;
+  newRulesSinceLastRun: number;
 }
 
 export interface ImportJob {
@@ -157,7 +159,7 @@ export interface CustomerDetail {
 // Query Keys
 // ============================================================
 
-export interface OfficeTipItem {
+export interface OfficeRuleItem {
   id: string;
   title: string;
   body: string;
@@ -169,11 +171,17 @@ export interface OfficeTipItem {
   updatedAt: string;
 }
 
-export interface TipsResponse {
-  items: OfficeTipItem[];
+/** @deprecated Use OfficeRuleItem instead */
+export type OfficeTipItem = OfficeRuleItem;
+
+export interface RulesResponse {
+  items: OfficeRuleItem[];
   total: number;
   activeCount: number;
 }
+
+/** @deprecated Use RulesResponse instead */
+export type TipsResponse = RulesResponse;
 
 export interface DataPatternItem {
   id: string;
@@ -205,7 +213,8 @@ export const queryKeys = {
   customerDetail: (id: string) => ["customer", id] as const,
   customerMessages: (customerId: string) =>
     ["messages", "customer", customerId] as const,
-  tips: () => ["tips"] as const,
+  rules: () => ["rules"] as const,
+  tips: () => ["rules"] as const,
   dataPatterns: () => ["data-patterns"] as const,
 } as const;
 
@@ -436,17 +445,20 @@ export function useCustomerMessages(customerId: string | null) {
 }
 
 // ============================================================
-// Tips
+// Rules (formerly Tips)
 // ============================================================
 
-export function useTips() {
+export function useRules() {
   return useQuery({
-    queryKey: queryKeys.tips(),
-    queryFn: () => fetchJSON<TipsResponse>("/api/tips"),
+    queryKey: queryKeys.rules(),
+    queryFn: () => fetchJSON<RulesResponse>("/api/rules"),
   });
 }
 
-export function useCreateTip() {
+/** @deprecated Use useRules instead */
+export const useTips = useRules;
+
+export function useCreateRule() {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -456,19 +468,22 @@ export function useCreateTip() {
       category?: string;
       triggerHint?: string;
     }) => {
-      return fetchJSON<OfficeTipItem>("/api/tips", {
+      return fetchJSON<OfficeRuleItem>("/api/rules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(params),
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tips"] });
+      queryClient.invalidateQueries({ queryKey: ["rules"] });
     },
   });
 }
 
-export function useUpdateTip() {
+/** @deprecated Use useCreateRule instead */
+export const useCreateTip = useCreateRule;
+
+export function useUpdateRule() {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -483,53 +498,62 @@ export function useUpdateTip() {
       triggerHint?: string;
       isActive?: boolean;
     }) => {
-      return fetchJSON<OfficeTipItem>(`/api/tips/${id}`, {
+      return fetchJSON<OfficeRuleItem>(`/api/rules/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tips"] });
+      queryClient.invalidateQueries({ queryKey: ["rules"] });
     },
   });
 }
 
-export function useDeleteTip() {
+/** @deprecated Use useUpdateRule instead */
+export const useUpdateTip = useUpdateRule;
+
+export function useDeleteRule() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (id: string) => {
-      return fetchJSON<{ success: boolean }>(`/api/tips/${id}`, {
+      return fetchJSON<{ success: boolean }>(`/api/rules/${id}`, {
         method: "DELETE",
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tips"] });
+      queryClient.invalidateQueries({ queryKey: ["rules"] });
     },
   });
 }
 
-export function useSeedTips() {
+/** @deprecated Use useDeleteRule instead */
+export const useDeleteTip = useDeleteRule;
+
+export function useSeedRules() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async () => {
-      return fetchJSON<{ message: string; count: number }>("/api/tips/seed", {
+      return fetchJSON<{ message: string; count: number }>("/api/rules/seed", {
         method: "POST",
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tips"] });
+      queryClient.invalidateQueries({ queryKey: ["rules"] });
     },
   });
 }
 
+/** @deprecated Use useSeedRules instead */
+export const useSeedTips = useSeedRules;
+
 // ============================================================
-// Suggest Tips (AI)
+// Suggest Rules (AI) — still uses /api/tips/suggest endpoint
 // ============================================================
 
-export interface SuggestedTipItem {
+export interface SuggestedRuleItem {
   title: string;
   body: string;
   category: string;
@@ -537,13 +561,44 @@ export interface SuggestedTipItem {
   reasoning: string;
 }
 
-export function useSuggestTips() {
+/** @deprecated Use SuggestedRuleItem instead */
+export type SuggestedTipItem = SuggestedRuleItem;
+
+export function useSuggestRules() {
   return useMutation({
     mutationFn: async () => {
-      return fetchJSON<{ suggestions: SuggestedTipItem[] }>(
+      return fetchJSON<{ suggestions: SuggestedRuleItem[] }>(
         "/api/tips/suggest",
         { method: "POST" }
       );
+    },
+  });
+}
+
+/** @deprecated Use useSuggestRules instead */
+export const useSuggestTips = useSuggestRules;
+
+// ============================================================
+// Generate Combined Message
+// ============================================================
+
+export function useGenerateCombinedMessage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: { insightIds: string[] }) => {
+      return fetchJSON<MessageDraftItem | { message: string; generated: number }>(
+        "/api/messages/generate",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(params),
+        }
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["insights"] });
+      queryClient.invalidateQueries({ queryKey: ["messages"] });
     },
   });
 }

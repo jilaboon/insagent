@@ -482,15 +482,32 @@ model MessageDraft {
 }
 
 // ============================================================
-// Office Tips — רפי's tip library
+// Office Rules — Dynamic rule engine
 // ============================================================
 
+model OfficeRule {
+  id              String   @id @default(uuid())
+  title           String   // short title in Hebrew
+  body            String   // full rule/message text in Hebrew
+  category        String?  // renewal / coverage / savings / general / service
+  triggerCondition String? // structured: "age >= 60", "policy_category = LIFE AND policy_age > 3"
+  triggerHint     String?  // human-readable: "לקוחות מעל גיל 60"
+  source          String   @default("MANUAL") // MANUAL / AI_DATA / AI_KNOWLEDGE
+  isActive        Boolean  @default(true)
+  createdBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("office_rules")
+}
+
+// Keep office_tips table alias for backward compatibility during migration
 model OfficeTip {
   id          String   @id @default(uuid())
-  title       String   // short title in Hebrew
-  body        String   // full tip text in Hebrew
-  category    String?  // renewal / coverage / savings / general / service
-  triggerHint String?  // when to use: "age > 60", "has motor", etc.
+  title       String
+  body        String
+  category    String?
+  triggerHint String?
   isActive    Boolean  @default(true)
   createdBy   String?
   createdAt   DateTime @default(now())
@@ -515,6 +532,18 @@ model KnowledgeArticle {
   updatedAt      DateTime @updatedAt
 
   @@map("knowledge_articles")
+}
+
+// ============================================================
+// System Settings — tracks global state
+// ============================================================
+
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
 }
 
 // ============================================================

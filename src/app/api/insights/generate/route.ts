@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { allRules } from "@/lib/insights/rules/all-rules";
-import { computeScore } from "@/lib/insights/scorer";
+import { matchRuleToCustomer } from "@/lib/insights/rule-matcher";
 import { requireAuth } from "@/lib/auth";
 import type { CustomerProfile, CategoryInfo } from "@/lib/insights/rules/types";
+import type { OfficeRule } from "@prisma/client";
 
 export const maxDuration = 300;
 
 /**
- * Batch insight generation — optimized for speed.
- * Loads customers in one query per batch, runs rules in memory,
- * bulk-inserts insights via raw SQL.
+ * Batch insight generation — now driven by DB rules instead of hardcoded rules.
+ * Loads all active OfficeRules once, then matches against customers in batches.
  *
  * Body: { offset, limit }
  */
@@ -20,14 +19,19 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { offset = 0, limit = 200 } = body as { // Match client batch size
+    const { offset = 0, limit = 200 } = body as {
       offset?: number;
       limit?: number;
     };
 
+    // Load ALL active rules from DB once
+    const activeRules = await prisma.officeRule.findMany({
+      where: { isActive: true },
+    });
+
     const totalCustomers = await prisma.customer.count();
 
-    // Batch-load customers with policies only (skip heavy nested relations)
+    // Batch-load customers with policies
     const customers = await prisma.customer.findMany({
       skip: offset,
       take: limit,
@@ -35,8 +39,7 @@ export async function POST(request: NextRequest) {
       include: {
         policies: {
           include: {
-            managementFees: true, // Only 1 rule uses this
-            // coverages and investmentTracks NOT needed by any rule
+            managementFees: true,
           },
         },
       },
@@ -53,7 +56,7 @@ export async function POST(request: NextRequest) {
       existingInsights.map((i) => `${i.customerId}|${i.linkedRuleId}`)
     );
 
-    // Run rules on all customers in memory
+    // Run rule matching on all customers in memory
     const insightsToCreate: Array<{
       customerId: string;
       category: string;
@@ -72,34 +75,46 @@ export async function POST(request: NextRequest) {
     }> = [];
 
     for (const customer of customers) {
-      // Build profile in memory (no extra DB call)
       const profile = buildProfileFromLoaded(customer);
 
-      for (const rule of allRules) {
+      for (const rule of activeRules) {
         // Skip if already exists
         if (existingSet.has(`${customer.id}|${rule.id}`)) continue;
 
         try {
-          const result = rule.evaluate(profile);
-          if (!result) continue;
+          const matches = matchRuleToCustomer(rule, profile);
+          if (!matches) continue;
 
-          const score = computeScore(result.scoringHints);
+          // Derive insight metadata from the rule
+          const insightCategory = mapRuleCategoryToInsight(rule);
+          const branch = deriveBranch(rule, profile);
+          const urgency = deriveUrgency(rule, profile);
+          const score = deriveScore(rule, profile);
 
           insightsToCreate.push({
             customerId: customer.id,
-            category: result.category,
-            title: result.title,
-            summary: result.summary,
-            explanation: result.explanation,
-            whyNow: result.whyNow,
-            urgencyLevel: result.urgencyLevel,
+            category: insightCategory,
+            title: rule.title,
+            summary: rule.body,
+            explanation: rule.body,
+            whyNow: rule.triggerHint || "כלל משרד",
+            urgencyLevel: urgency,
             dataFreshness: profile.activePolicies.length > 0 ? 2 : 0,
-            profileCompleteness: profile.activePolicies.length >= 3 ? 2 : profile.activePolicies.length >= 1 ? 1 : 0,
+            profileCompleteness:
+              profile.activePolicies.length >= 3
+                ? 2
+                : profile.activePolicies.length >= 1
+                  ? 1
+                  : 0,
             strengthScore: score,
-            branch: result.branch,
-            evidenceJson: JSON.stringify(result.evidence),
-            generatedBy: "DETERMINISTIC",
-            linkedRuleId: result.ruleId,
+            branch,
+            evidenceJson: JSON.stringify({
+              ruleId: rule.id,
+              ruleSource: rule.source,
+              triggerCondition: rule.triggerCondition,
+            }),
+            generatedBy: "RULE",
+            linkedRuleId: rule.id,
           });
         } catch {
           // Skip failed rules
@@ -110,7 +125,6 @@ export async function POST(request: NextRequest) {
     // Bulk insert all insights via raw SQL
     let insightsCreated = 0;
     if (insightsToCreate.length > 0) {
-      // Insert in sub-batches of 50 to avoid query size limits
       for (let i = 0; i < insightsToCreate.length; i += 50) {
         const batch = insightsToCreate.slice(i, i + 50);
         const values = batch
@@ -133,11 +147,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Update lastInsightRunAt in SystemSettings
+    const isDone = offset + customers.length >= totalCustomers;
+    if (isDone) {
+      await prisma.systemSetting.upsert({
+        where: { key: "lastInsightRunAt" },
+        update: { value: new Date().toISOString() },
+        create: { key: "lastInsightRunAt", value: new Date().toISOString() },
+      });
+    }
+
     return NextResponse.json({
       processed: customers.length,
       insightsCreated,
       totalCustomers,
-      done: offset + customers.length >= totalCustomers,
+      rulesEvaluated: activeRules.length,
+      done: isDone,
     });
   } catch (error) {
     console.error("Insight generation error:", error);
@@ -223,6 +248,84 @@ function buildProfileFromLoaded(customer: any): CustomerProfile {
     hasElementaryBranch,
     maxManagementFeePercent,
   };
+}
+
+// ============================================================
+// Rule metadata derivation helpers
+// ============================================================
+
+function mapRuleCategoryToInsight(rule: OfficeRule): string {
+  const cat = rule.category?.trim();
+  switch (cat) {
+    case "חידוש":
+      return "EXPIRING_POLICY";
+    case "כיסוי":
+      return "COVERAGE_GAP";
+    case "חיסכון":
+      return "MANAGEMENT_FEE_HIGH";
+    case "שירות":
+      return "AGE_MILESTONE";
+    case "כללי":
+      return "CROSS_SELL_OPPORTUNITY";
+    default:
+      return "CROSS_SELL_OPPORTUNITY";
+  }
+}
+
+function deriveBranch(rule: OfficeRule, profile: CustomerProfile): string {
+  const condition = rule.triggerCondition || "";
+  // Property-related rules are ELEMENTARY branch
+  if (
+    condition.includes("policy_category = PROPERTY") ||
+    condition.includes("vehicle_age") ||
+    condition.includes("policy_subtype = רכב") ||
+    condition.includes("policy_subtype = דירה")
+  ) {
+    return "ELEMENTARY";
+  }
+  // If customer only has elementary, use ELEMENTARY
+  if (profile.hasElementaryBranch && !profile.hasLifeBranch) {
+    return "ELEMENTARY";
+  }
+  return "LIFE";
+}
+
+function deriveUrgency(rule: OfficeRule, profile: CustomerProfile): number {
+  const condition = rule.triggerCondition || "";
+  // Expiring policies are high urgency
+  if (condition.includes("has_expiring_policy")) return 2;
+  // Age milestones for 65+ are high
+  if (condition.includes("age >= 60")) {
+    const age = profile.customer.age;
+    if (age && age >= 65) return 2;
+    return 1;
+  }
+  // High management fees are medium-high
+  if (condition.includes("management_fee >")) return 1;
+  // Policy age reviews are medium
+  if (condition.includes("policy_age_years")) return 1;
+  // Default: low
+  return 0;
+}
+
+function deriveScore(rule: OfficeRule, profile: CustomerProfile): number {
+  let score = 50; // base score
+
+  // Boost for data richness
+  if (profile.activePolicies.length >= 3) score += 10;
+  if (profile.totalAccumulatedSavings > 100000) score += 10;
+
+  // Boost for urgency-related rules
+  const condition = rule.triggerCondition || "";
+  if (condition.includes("has_expiring_policy")) score += 20;
+  if (condition.includes("management_fee >")) score += 15;
+  if (condition.includes("age >= 60")) score += 15;
+  if (condition.includes("policy_age_years")) score += 10;
+
+  // Boost for MANUAL source (Rafi's personal tips)
+  if (rule.source === "MANUAL") score += 5;
+
+  return Math.max(1, Math.min(100, score));
 }
 
 // ============================================================

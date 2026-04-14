@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,9 +16,10 @@ import { ScoreBadge } from "@/components/shared/score-badge";
 import { MessageComposer } from "@/components/shared/message-composer";
 import { SkeletonCard, Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { useCustomerDetail } from "@/lib/api/hooks";
+import { useCustomerDetail, useGenerateCombinedMessage } from "@/lib/api/hooks";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { policyCategoryLabels, insightCategoryLabels } from "@/lib/constants";
+import type { MessageDraftItem } from "@/lib/types/message";
 import {
   User,
   MapPin,
@@ -27,6 +29,9 @@ import {
   FileText,
   UserX,
   MessageSquare,
+  Sparkles,
+  X,
+  Loader2,
 } from "lucide-react";
 
 export default function CustomerProfilePage() {
@@ -45,6 +50,52 @@ export default function CustomerProfilePage() {
         description="הלקוח המבוקש לא נמצא במערכת. ייתכן שהנתונים טרם יובאו."
       />
     );
+  }
+
+  const [selectedInsightIds, setSelectedInsightIds] = useState<Set<string>>(new Set());
+  const [combinedMessage, setCombinedMessage] = useState<MessageDraftItem | null>(null);
+  const generateCombined = useGenerateCombinedMessage();
+
+  function toggleInsightSelection(id: string) {
+    setSelectedInsightIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelectedInsightIds(new Set());
+    setCombinedMessage(null);
+  }
+
+  async function handleGenerateCombined() {
+    const ids = Array.from(selectedInsightIds);
+    try {
+      const result = await generateCombined.mutateAsync({ insightIds: ids });
+      const raw = result as Record<string, unknown>;
+      const draft: MessageDraftItem = {
+        id: (raw.messageId || raw.id || "") as string,
+        customerId: customer?.id ?? "",
+        customerName: customer ? `${customer.firstName} ${customer.lastName}` : "",
+        insightId: null,
+        insightTitle: null,
+        body: (raw.body || "") as string,
+        tone: null,
+        purpose: null,
+        status: "DRAFT",
+        generatedBy: "AI",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      setCombinedMessage(draft);
+    } catch {
+      // Error handled by mutation
+    }
   }
 
   // Calculate profile completeness based on available data
@@ -143,11 +194,23 @@ export default function CustomerProfilePage() {
             {customer.insights.length > 0 ? (
               <div className="space-y-3">
                 {customer.insights.map((insight) => (
-                  <InsightCard
-                    key={insight.id}
-                    insight={insight}
-                    customerName={`${customer.firstName} ${customer.lastName}`}
-                  />
+                  <div key={insight.id} className="flex items-start gap-3">
+                    {/* Checkbox for multi-select */}
+                    <label className="mt-4 flex shrink-0 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedInsightIds.has(insight.id)}
+                        onChange={() => toggleInsightSelection(insight.id)}
+                        className="h-4 w-4 rounded border-surface-300 text-primary-600 focus:ring-primary-500"
+                      />
+                    </label>
+                    <div className="flex-1 min-w-0">
+                      <InsightCard
+                        insight={insight}
+                        customerName={`${customer.firstName} ${customer.lastName}`}
+                      />
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -155,7 +218,53 @@ export default function CustomerProfilePage() {
                 אין תובנות עדיין — יש להריץ ניתוח
               </p>
             )}
+
+            {/* Combined message result */}
+            {combinedMessage && (
+              <div className="mt-4 border-t border-surface-100 pt-4">
+                <MessageComposer
+                  insightId={combinedMessage.insightId ?? ""}
+                  customerName={`${customer.firstName} ${customer.lastName}`}
+                  existingMessage={combinedMessage}
+                />
+              </div>
+            )}
           </Card>
+
+          {/* Floating action bar for combined message */}
+          {selectedInsightIds.size >= 2 && (
+            <div className="sticky bottom-4 z-20">
+              <div className="flex items-center justify-between rounded-xl border border-primary-200 bg-white px-5 py-3 shadow-lg">
+                <span className="text-sm font-medium text-surface-700">
+                  {selectedInsightIds.size} תובנות נבחרו
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearSelection}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    בטל בחירה
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleGenerateCombined}
+                    disabled={generateCombined.isPending}
+                    className="bg-gradient-to-l from-indigo-600 to-primary-600 hover:from-indigo-700 hover:to-primary-700"
+                  >
+                    {generateCombined.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5" />
+                    )}
+                    {generateCombined.isPending ? "יוצר הודעה..." : "צור הודעה משולבת"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Message Drafts */}
           {customer.messageDrafts.length > 0 && (

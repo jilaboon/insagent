@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateMessage, generateMessagesForInsights } from "@/lib/messages/generator";
+import { generateMessage, generateMessagesForInsights, generateCombinedMessage } from "@/lib/messages/generator";
 import { requireAuth } from "@/lib/auth";
 
 export const maxDuration = 60;
@@ -9,9 +9,10 @@ export async function POST(request: NextRequest) {
   if (authResponse) return authResponse;
   try {
     const body = await request.json();
-    const { insightId, insightIds, agentName } = body;
+    const { insightId, insightIds, agentName, combined } = body;
 
-    if (insightId) {
+    // Single insight message
+    if (insightId && !insightIds) {
       const result = await generateMessage(insightId, agentName);
       if (!result) {
         return NextResponse.json({ error: "לא ניתן ליצור הודעה" }, { status: 400 });
@@ -19,7 +20,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(result);
     }
 
+    // Multiple insights
     if (insightIds && Array.isArray(insightIds)) {
+      // Combined mode: merge all insights into one message
+      if (combined) {
+        const result = await generateCombinedMessage(insightIds, agentName);
+        if (!result) {
+          return NextResponse.json({ error: "לא ניתן ליצור הודעה משולבת" }, { status: 400 });
+        }
+        return NextResponse.json(result);
+      }
+
+      // Separate mode: one message per insight
       const result = await generateMessagesForInsights(insightIds, agentName);
       return NextResponse.json({
         message: `נוצרו ${result.generated} הודעות`,

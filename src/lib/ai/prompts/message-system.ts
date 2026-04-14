@@ -59,6 +59,48 @@ export function buildTipsContext(
 ${tipsText}`;
 }
 
+export function buildCombinedMessagePrompt(params: {
+  customerFirstName: string;
+  customerGender: "male" | "female" | "unknown";
+  agentName: string;
+  insights: Array<{
+    title: string;
+    summary: string;
+    explanation: string;
+    relevantData: Record<string, unknown>;
+  }>;
+}): string {
+  const { customerFirstName, customerGender, agentName, insights } = params;
+
+  const genderInstruction = customerGender === "male"
+    ? "הלקוח גבר — פנה אליו בלשון זכר (בדוק, שלך, אתה, בוא)."
+    : customerGender === "female"
+      ? "הלקוחה אישה — פני אליה בלשון נקבה (בדקי, שלך, את, בואי)."
+      : "מין הלקוח לא ידוע — השתמש בלשון ניטרלית ללא פנייה מגדרית (כדאי לבדוק, אפשר, אשמח ש...).";
+
+  const insightsText = insights
+    .map(
+      (ins, i) =>
+        `תובנה ${i + 1}: ${ins.title}\nתקציר: ${ins.summary}\nהסבר: ${ins.explanation}\nנתונים: ${JSON.stringify(ins.relevantData, null, 2)}`
+    )
+    .join("\n\n");
+
+  return `כתוב הודעת WhatsApp אישית אחת שמשלבת את כל התובנות הבאות בצורה טבעית.
+
+שם הלקוח: ${customerFirstName}
+שם הסוכן: ${agentName}
+${genderInstruction}
+
+${insightsText}
+
+חשוב:
+- שלב את כל הנושאים בהודעה אחת טבעית — אל תכתוב רשימה
+- מקסימום 600 תווים (קצת יותר כי יש כמה נושאים)
+- הזכר נתונים ספציפיים מהתיק
+- סיים עם קריאה לפעולה אחת שמקיפה את כל הנושאים
+- החזר רק את טקסט ההודעה, ללא הסברים נוספים.`;
+}
+
 export function buildMessageUserPrompt(params: {
   customerFirstName: string;
   customerGender: "male" | "female" | "unknown";

@@ -96,6 +96,30 @@ export default function DashboardPage() {
         />
       </div>
 
+      {/* Needs rerun banner */}
+      {data.needsRerun && (
+        <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+            <span className="text-sm font-medium text-amber-800">
+              נדרש עדכון תובנות
+            </span>
+            {data.newRulesSinceLastRun > 0 && (
+              <Badge variant="warning">
+                {data.newRulesSinceLastRun} חוקים חדשים
+              </Badge>
+            )}
+          </div>
+          <Link
+            href="/insights"
+            className="flex items-center gap-1 text-xs font-medium text-amber-700 hover:text-amber-800"
+          >
+            עבור לתובנות
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      )}
+
       {/* Main content — two columns */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Top Insights */}
