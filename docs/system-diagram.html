@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InsAgent - תהליך העבודה</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --teal: #097E6E;
+    --teal-light: #0A9D89;
+    --teal-dark: #066559;
+    --teal-bg: #E8F5F2;
+    --teal-bg-subtle: #F0FAF8;
+    --amber: #F99B07;
+    --amber-light: #FDB940;
+    --amber-bg: #FFF8EB;
+    --gray-50: #FAFAF9;
+    --gray-100: #F5F5F4;
+    --gray-200: #E7E5E4;
+    --gray-300: #D6D3D1;
+    --gray-400: #A8A29E;
+    --gray-500: #78716C;
+    --gray-600: #57534E;
+    --gray-700: #44403C;
+    --gray-800: #292524;
+    --gray-900: #1C1917;
+    --green: #16A34A;
+    --green-bg: #F0FDF4;
+    --red: #DC2626;
+    --red-bg: #FEF2F2;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Heebo', sans-serif;
+    background: #fff;
+    color: var(--gray-800);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ===== PAGE STRUCTURE ===== */
+  .page {
+    width: 100%;
+    max-width: 1440px;
+    margin: 0 auto;
+    min-height: 100vh;
+    padding: 48px 64px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .page::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(to left, var(--teal), var(--teal-light), var(--amber));
+  }
+
+  /* ===== HEADER ===== */
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 48px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, var(--teal), var(--teal-light));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 2px 8px rgba(9, 126, 110, 0.25);
+  }
+
+  .logo-text {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--teal);
+    letter-spacing: -0.5px;
+  }
+
+  .page-number {
+    font-size: 13px;
+    color: var(--gray-400);
+    font-weight: 400;
+  }
+
+  /* ===== TITLES ===== */
+  .page-title {
+    text-align: center;
+    margin-bottom: 56px;
+  }
+
+  .page-title h1 {
+    font-size: 38px;
+    font-weight: 800;
+    color: var(--gray-900);
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+
+  .page-title h2 {
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--gray-500);
+  }
+
+  /* ===== FLOW STAGES (PAGE 1) ===== */
+  .flow-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .flow-stages {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0;
+    align-items: start;
+    position: relative;
+  }
+
+  .flow-stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    padding: 0 8px;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeUp 0.6s ease forwards;
+  }
+
+  .flow-stage:nth-child(1) { animation-delay: 0.1s; }
+  .flow-stage:nth-child(2) { animation-delay: 0.2s; }
+  .flow-stage:nth-child(3) { animation-delay: 0.3s; }
+  .flow-stage:nth-child(4) { animation-delay: 0.4s; }
+  .flow-stage:nth-child(5) { animation-delay: 0.5s; }
+  .flow-stage:nth-child(6) { animation-delay: 0.6s; }
+
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .stage-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--teal);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+    position: relative;
+    z-index: 2;
+    box-shadow: 0 2px 8px rgba(9, 126, 110, 0.3);
+  }
+
+  /* Connector line between stage numbers */
+  .flow-stage:not(:last-child) .stage-number::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: -100%;
+    width: calc(100% + 100%);
+    height: 2px;
+    background: linear-gradient(to left, var(--teal), var(--gray-300));
+    z-index: -1;
+    transform: translateX(-50%);
+  }
+
+  /* Arrow connector between stages */
+  .flow-stage:not(:first-child)::before {
+    content: '';
+    position: absolute;
+    top: 15px;
+    right: calc(50% + 24px);
+    width: calc(100% - 48px);
+    height: 2px;
+    background: var(--teal);
+    opacity: 0.3;
+  }
+
+  .flow-stage:not(:first-child)::after {
+    content: '';
+    position: absolute;
+    top: 11px;
+    right: calc(50% + 20px);
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-right: 8px solid var(--teal);
+    opacity: 0.4;
+  }
+
+  .stage-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .stage-icon.import { background: var(--teal-bg); }
+  .stage-icon.merge { background: #EDE9FE; }
+  .stage-icon.analyze { background: var(--amber-bg); }
+  .stage-icon.insights { background: var(--green-bg); }
+  .stage-icon.messages { background: #EFF6FF; }
+  .stage-icon.approve { background: var(--teal-bg); }
+
+  .stage-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--gray-800);
+    margin-bottom: 10px;
+  }
+
+  .stage-desc {
+    font-size: 12.5px;
+    color: var(--gray-600);
+    line-height: 1.7;
+    margin-bottom: 8px;
+  }
+
+  .stage-note {
+    font-size: 11px;
+    color: var(--gray-400);
+    background: var(--gray-100);
+    padding: 4px 10px;
+    border-radius: 6px;
+    display: inline-block;
+  }
+
+  /* Sub-boxes for analysis stage */
+  .sub-boxes {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    justify-content: center;
+  }
+
+  .sub-box {
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+
+  .sub-box.rules {
+    background: var(--teal-bg);
+    color: var(--teal);
+  }
+
+  .sub-box.ai {
+    background: var(--amber-bg);
+    color: #B45309;
+  }
+
+  /* Score badges */
+  .score-badges {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    justify-content: center;
+  }
+
+  .score-badge {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .score-badge.high { background: var(--green); }
+  .score-badge.mid { background: var(--amber); }
+  .score-badge.low { background: var(--gray-400); }
+
+  /* WhatsApp bubble */
+  .wa-bubble {
+    background: #DCF8C6;
+    border-radius: 10px 10px 2px 10px;
+    padding: 8px 12px;
+    font-size: 10.5px;
+    color: #1B4332;
+    margin-top: 10px;
+    text-align: right;
+    line-height: 1.5;
+    max-width: 180px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    position: relative;
+  }
+
+  .wa-bubble::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: -6px;
+    width: 0;
+    height: 0;
+    border-top: 6px solid #DCF8C6;
+    border-right: 6px solid transparent;
+  }
+
+  /* ===== PAGE 2: PILLARS ===== */
+  .pillars-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .pillars-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    gap: 0;
+    align-items: stretch;
+    width: 100%;
+    max-width: 1100px;
+    margin-bottom: 48px;
+  }
+
+  .pillar {
+    background: #fff;
+    border: 1.5px solid var(--gray-200);
+    border-radius: 20px;
+    padding: 36px 28px;
+    text-align: center;
+    position: relative;
+    transition: all 0.3s ease;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeUp 0.6s ease forwards;
+  }
+
+  .pillar:nth-child(1) { animation-delay: 0.15s; }
+  .pillar:nth-child(3) { animation-delay: 0.3s; }
+  .pillar:nth-child(5) { animation-delay: 0.45s; }
+
+  .pillar:hover {
+    border-color: var(--teal);
+    box-shadow: 0 8px 32px rgba(9, 126, 110, 0.1);
+    transform: translateY(-4px);
+  }
+
+  .pillar-connector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    color: var(--gray-300);
+    font-size: 24px;
+  }
+
+  .pillar-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    margin: 0 auto 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+  }
+
+  .pillar:nth-child(1) .pillar-icon {
+    background: var(--teal-bg);
+  }
+
+  .pillar:nth-child(3) .pillar-icon {
+    background: var(--amber-bg);
+  }
+
+  .pillar:nth-child(5) .pillar-icon {
+    background: #EDE9FE;
+  }
+
+  .pillar-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--gray-800);
+    margin-bottom: 20px;
+  }
+
+  .pillar-items {
+    list-style: none;
+    text-align: right;
+  }
+
+  .pillar-items li {
+    font-size: 14px;
+    color: var(--gray-600);
+    padding: 8px 0;
+    border-bottom: 1px solid var(--gray-100);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .pillar-items li:last-child {
+    border-bottom: none;
+  }
+
+  .pillar-items li::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--teal);
+    flex-shrink: 0;
+    opacity: 0.5;
+  }
+
+  .pillar:nth-child(3) .pillar-items li::before { background: var(--amber); }
+  .pillar:nth-child(5) .pillar-items li::before { background: #7C3AED; }
+
+  /* Center result */
+  .center-result {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    opacity: 0;
+    animation: fadeUp 0.6s ease 0.7s forwards;
+  }
+
+  .merge-arrows {
+    display: flex;
+    gap: 80px;
+    color: var(--gray-300);
+    font-size: 28px;
+  }
+
+  .result-box {
+    background: linear-gradient(135deg, var(--teal), var(--teal-light));
+    color: #fff;
+    padding: 20px 48px;
+    border-radius: 16px;
+    font-size: 20px;
+    font-weight: 700;
+    box-shadow: 0 8px 32px rgba(9, 126, 110, 0.25);
+    position: relative;
+  }
+
+  .result-box::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, var(--teal), var(--amber));
+    z-index: -1;
+    opacity: 0.3;
+  }
+
+  /* ===== PAGE 3: SECURITY CARDS ===== */
+  .security-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .security-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 28px;
+    max-width: 960px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .security-card {
+    background: #fff;
+    border: 1.5px solid var(--gray-200);
+    border-radius: 20px;
+    padding: 36px 32px;
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    transition: all 0.3s ease;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeUp 0.6s ease forwards;
+  }
+
+  .security-card:nth-child(1) { animation-delay: 0.15s; }
+  .security-card:nth-child(2) { animation-delay: 0.25s; }
+  .security-card:nth-child(3) { animation-delay: 0.35s; }
+  .security-card:nth-child(4) { animation-delay: 0.45s; }
+
+  .security-card:hover {
+    border-color: var(--teal);
+    box-shadow: 0 8px 32px rgba(9, 126, 110, 0.08);
+    transform: translateY(-2px);
+  }
+
+  .security-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+  }
+
+  .security-card:nth-child(1) .security-icon { background: var(--teal-bg); }
+  .security-card:nth-child(2) .security-icon { background: #EDE9FE; }
+  .security-card:nth-child(3) .security-icon { background: var(--amber-bg); }
+  .security-card:nth-child(4) .security-icon { background: var(--green-bg); }
+
+  .security-content h3 {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--gray-800);
+    margin-bottom: 8px;
+  }
+
+  .security-content p {
+    font-size: 15px;
+    color: var(--gray-500);
+    line-height: 1.7;
+  }
+
+  /* ===== FOOTER ===== */
+  .page-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid var(--gray-200);
+  }
+
+  .footer-text {
+    font-size: 12px;
+    color: var(--gray-400);
+  }
+
+  .footer-brand {
+    font-size: 12px;
+    color: var(--teal);
+    font-weight: 600;
+  }
+
+  /* ===== CSS ICONS ===== */
+  .css-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Upload icon */
+  .icon-upload {
+    width: 28px;
+    height: 24px;
+    position: relative;
+  }
+
+  .icon-upload::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 2px;
+    right: 2px;
+    height: 16px;
+    border: 2.5px solid var(--teal);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+  }
+
+  .icon-upload::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2.5px;
+    height: 16px;
+    background: var(--teal);
+  }
+
+  /* Merge icon */
+  .icon-merge {
+    width: 28px;
+    height: 28px;
+    position: relative;
+  }
+
+  .icon-merge::before,
+  .icon-merge::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2.5px solid #7C3AED;
+  }
+
+  .icon-merge::before { top: 0; right: 2px; }
+  .icon-merge::after { top: 0; left: 2px; }
+
+  /* ===== PRINT STYLES ===== */
+  @media print {
+    body {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .page {
+      page-break-after: always;
+      min-height: auto;
+      height: 100vh;
+      padding: 36px 48px;
+    }
+
+    .page:last-child {
+      page-break-after: auto;
+    }
+
+    .pillar:hover,
+    .security-card:hover {
+      transform: none;
+      box-shadow: none;
+    }
+
+    .flow-stage,
+    .pillar,
+    .security-card,
+    .center-result {
+      opacity: 1;
+      transform: none;
+      animation: none;
+    }
+  }
+
+  @page {
+    size: landscape;
+    margin: 0;
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 1200px) {
+    .flow-stages {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+    }
+
+    .flow-stage::before,
+    .flow-stage::after {
+      display: none;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .page {
+      padding: 24px;
+    }
+
+    .flow-stages {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .pillars-grid {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+
+    .pillar-connector {
+      display: none;
+    }
+
+    .security-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- PAGE 1: System Overview Flow                                  -->
+<!-- ============================================================ -->
+<div class="page" id="page1">
+  <header class="page-header">
+    <div class="logo">
+      <div class="logo-icon">&#x1F9E0;</div>
+      <span class="logo-text">InsAgent</span>
+    </div>
+    <span class="page-number">1 / 3</span>
+  </header>
+
+  <div class="page-title">
+    <h1>InsAgent &mdash; תהליך העבודה</h1>
+    <h2>מנתונים גולמיים להודעות אישיות</h2>
+  </div>
+
+  <div class="flow-container">
+    <div class="flow-stages">
+
+      <!-- Stage 1 -->
+      <div class="flow-stage">
+        <div class="stage-number">1</div>
+        <div class="stage-icon import">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <rect x="6" y="4" width="20" height="24" rx="3" stroke="#097E6E" stroke-width="2.2" fill="none"/>
+            <line x1="11" y1="12" x2="21" y2="12" stroke="#097E6E" stroke-width="1.8" stroke-linecap="round"/>
+            <line x1="11" y1="17" x2="21" y2="17" stroke="#097E6E" stroke-width="1.8" stroke-linecap="round"/>
+            <line x1="11" y1="22" x2="17" y2="22" stroke="#097E6E" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M19 2 L19 8 L25 8" stroke="#097E6E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </svg>
+        </div>
+        <div class="stage-title">יבוא נתונים</div>
+        <div class="stage-desc">
+          קבצי BAFI<br>(חיים + אלמנטרי)<br>
+          ניתוח אוטומטי של 183+ שדות
+        </div>
+        <div class="stage-note">~19,000 שורות &larr; 8,663 לקוחות</div>
+      </div>
+
+      <!-- Stage 2 -->
+      <div class="flow-stage">
+        <div class="stage-number">2</div>
+        <div class="stage-icon merge">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <circle cx="10" cy="8" r="4" stroke="#7C3AED" stroke-width="2.2" fill="none"/>
+            <circle cx="22" cy="8" r="4" stroke="#7C3AED" stroke-width="2.2" fill="none"/>
+            <circle cx="16" cy="24" r="4" stroke="#7C3AED" stroke-width="2.2" fill="none"/>
+            <path d="M10 12 L16 20" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"/>
+            <path d="M22 12 L16 20" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="stage-title">מיזוג ונרמול</div>
+        <div class="stage-desc">
+          איחוד לקוחות לפי ת.ז.<br>
+          זיהוי כפילויות אוטומטי<br>
+          מיפוי רב-ענפי (חיים + אלמנטרי)
+        </div>
+      </div>
+
+      <!-- Stage 3 -->
+      <div class="flow-stage">
+        <div class="stage-number">3</div>
+        <div class="stage-icon analyze">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="14" r="10" stroke="#B45309" stroke-width="2.2" fill="none"/>
+            <path d="M12 14 C12 10, 20 10, 20 14 C20 18, 12 18, 12 14" stroke="#B45309" stroke-width="1.5" fill="none"/>
+            <path d="M11 9 Q16 6 21 9" stroke="#B45309" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+            <line x1="16" y1="24" x2="16" y2="29" stroke="#B45309" stroke-width="2.2" stroke-linecap="round"/>
+            <line x1="12" y1="28" x2="20" y2="28" stroke="#B45309" stroke-width="2.2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="stage-title">ניתוח חכם</div>
+        <div class="stage-desc">
+          18 חוקים עסקיים<br>
+          דירוג 1-100 לכל תובנה
+        </div>
+        <div class="sub-boxes">
+          <span class="sub-box rules">מנוע חוקים</span>
+          <span class="sub-box ai">AI מתקדם</span>
+        </div>
+      </div>
+
+      <!-- Stage 4 -->
+      <div class="flow-stage">
+        <div class="stage-number">4</div>
+        <div class="stage-icon insights">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <polygon points="16,2 20,12 30,12 22,19 25,30 16,23 7,30 10,19 2,12 12,12" stroke="#16A34A" stroke-width="2" fill="none" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="stage-title">תובנות מדורגות</div>
+        <div class="stage-desc">
+          482+ תובנות<br>
+          סינון לפי ענף, קטגוריה,<br> ציון, דחיפות
+        </div>
+        <div class="score-badges">
+          <div class="score-badge high">86</div>
+          <div class="score-badge mid">62</div>
+          <div class="score-badge low">35</div>
+        </div>
+      </div>
+
+      <!-- Stage 5 -->
+      <div class="flow-stage">
+        <div class="stage-number">5</div>
+        <div class="stage-icon messages" style="background: #EFF6FF;">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <rect x="3" y="4" width="26" height="20" rx="6" stroke="#2563EB" stroke-width="2.2" fill="none"/>
+            <line x1="10" y1="12" x2="22" y2="12" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round"/>
+            <line x1="10" y1="17" x2="18" y2="17" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M22 24 L26 30 L26 24" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="stage-title">הודעות אישיות</div>
+        <div class="stage-desc">
+          WhatsApp מותאם אישית<br>
+          זכר / נקבה / ניטרלי<br>
+          בדיקת עברית כפולה
+        </div>
+        <div class="wa-bubble">
+          שלום רפי, שמתי לב שפוליסת
+          הרכב שלך מתחדשת בקרוב... &#x1F4AC;
+        </div>
+      </div>
+
+      <!-- Stage 6 -->
+      <div class="flow-stage">
+        <div class="stage-number">6</div>
+        <div class="stage-icon approve">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="16" r="12" stroke="#097E6E" stroke-width="2.2" fill="none"/>
+            <path d="M10 16 L14 20 L22 12" stroke="#097E6E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </svg>
+        </div>
+        <div class="stage-title">אישור ושליחה</div>
+        <div class="stage-desc">
+          בקרה אנושית מלאה<br>
+          אשר / ערוך / דלג<br>
+          משוב ולמידה
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer class="page-footer">
+    <span class="footer-brand">InsAgent</span>
+    <span class="footer-text">מערכת AI למודיעין ביטוחי | רפי בכר - ביטוח</span>
+  </footer>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE 2: Intelligence Sources                                  -->
+<!-- ============================================================ -->
+<div class="page" id="page2">
+  <header class="page-header">
+    <div class="logo">
+      <div class="logo-icon">&#x1F9E0;</div>
+      <span class="logo-text">InsAgent</span>
+    </div>
+    <span class="page-number">2 / 3</span>
+  </header>
+
+  <div class="page-title">
+    <h1>מקורות המודיעין</h1>
+    <h2>שלושה מקורות ידע משולבים</h2>
+  </div>
+
+  <div class="pillars-container">
+    <div class="pillars-grid">
+
+      <!-- Pillar 1: Customer Data -->
+      <div class="pillar">
+        <div class="pillar-icon">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="10" r="6" stroke="#097E6E" stroke-width="2.2" fill="none"/>
+            <path d="M6 28 C6 22 10 18 16 18 C22 18 26 22 26 28" stroke="#097E6E" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="pillar-title">נתוני הלקוחות</div>
+        <ul class="pillar-items">
+          <li>8,663 לקוחות</li>
+          <li>18,948 פוליסות</li>
+          <li>7 ענפי ביטוח</li>
+          <li>דפוסים סטטיסטיים</li>
+        </ul>
+      </div>
+
+      <div class="pillar-connector">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <line x1="4" y1="12" x2="20" y2="12" stroke="#D6D3D1" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <!-- Pillar 2: Office Brain -->
+      <div class="pillar">
+        <div class="pillar-icon">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <path d="M16 4 L16 12 M12 8 L20 8" stroke="#B45309" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="16" cy="20" r="8" stroke="#B45309" stroke-width="2.2" fill="none"/>
+            <path d="M12 20 L16 24 L20 16" stroke="#B45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </svg>
+        </div>
+        <div class="pillar-title">המוח של המשרד</div>
+        <ul class="pillar-items">
+          <li>ספריית הטיפים של רפי</li>
+          <li>13+ טיפים מקצועיים</li>
+          <li>חוקים עסקיים מותאמים</li>
+          <li>ניסיון של שנים</li>
+        </ul>
+      </div>
+
+      <div class="pillar-connector">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <line x1="4" y1="12" x2="20" y2="12" stroke="#D6D3D1" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <!-- Pillar 3: Professional Knowledge -->
+      <div class="pillar">
+        <div class="pillar-icon">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <rect x="6" y="6" width="20" height="22" rx="2" stroke="#7C3AED" stroke-width="2.2" fill="none"/>
+            <line x1="6" y1="12" x2="26" y2="12" stroke="#7C3AED" stroke-width="2"/>
+            <line x1="11" y1="6" x2="11" y2="2" stroke="#7C3AED" stroke-width="2.2" stroke-linecap="round"/>
+            <line x1="21" y1="6" x2="21" y2="2" stroke="#7C3AED" stroke-width="2.2" stroke-linecap="round"/>
+            <circle cx="16" cy="20" r="3" stroke="#7C3AED" stroke-width="1.8" fill="none"/>
+          </svg>
+        </div>
+        <div class="pillar-title">ידע מקצועי</div>
+        <ul class="pillar-items">
+          <li>עדכוני רגולציה</li>
+          <li>רשות שוק ההון</li>
+          <li>מגמות שוק</li>
+          <li>חידושי מוצרים</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- Center Result -->
+    <div class="center-result">
+      <div class="merge-arrows">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+          <path d="M20 4 L20 36" stroke="#097E6E" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M12 28 L20 36 L28 28" stroke="#097E6E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+      </div>
+      <div class="result-box">
+        &#x2728; תובנות מדויקות ופרקטיות
+      </div>
+    </div>
+  </div>
+
+  <footer class="page-footer">
+    <span class="footer-brand">InsAgent</span>
+    <span class="footer-text">מערכת AI למודיעין ביטוחי | רפי בכר - ביטוח</span>
+  </footer>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE 3: Security & Control                                    -->
+<!-- ============================================================ -->
+<div class="page" id="page3">
+  <header class="page-header">
+    <div class="logo">
+      <div class="logo-icon">&#x1F9E0;</div>
+      <span class="logo-text">InsAgent</span>
+    </div>
+    <span class="page-number">3 / 3</span>
+  </header>
+
+  <div class="page-title">
+    <h1>אבטחה ובקרה</h1>
+    <h2>שליטה מלאה, אמון מוחלט</h2>
+  </div>
+
+  <div class="security-container">
+    <div class="security-grid">
+
+      <!-- Card 1 -->
+      <div class="security-card">
+        <div class="security-icon">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="10" stroke="#097E6E" stroke-width="2.2" fill="none"/>
+            <path d="M9 14 L12 17 L19 10" stroke="#097E6E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </svg>
+        </div>
+        <div class="security-content">
+          <h3>בקרה אנושית</h3>
+          <p>שום הודעה לא נשלחת בלי אישור מפורש. כל תובנה עוברת סקירה ידנית לפני שמגיעה ללקוח.</p>
+        </div>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="security-card">
+        <div class="security-icon">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <rect x="4" y="12" width="20" height="12" rx="3" stroke="#7C3AED" stroke-width="2.2" fill="none"/>
+            <path d="M9 12 V8 C9 5 14 3 19 5 L19 12" stroke="#7C3AED" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+            <circle cx="14" cy="18" r="2" fill="#7C3AED"/>
+          </svg>
+        </div>
+        <div class="security-content">
+          <h3>הפרדת נתונים</h3>
+          <p>מידע אישי לא נחשף ל-AI &mdash; רק סיכומים סטטיסטיים ודפוסים מצרפיים.</p>
+        </div>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="security-card">
+        <div class="security-icon">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <path d="M14 3 L24 8 L24 15 C24 21 14 26 14 26 C14 26 4 21 4 15 L4 8 Z" stroke="#B45309" stroke-width="2.2" fill="none" stroke-linejoin="round"/>
+            <path d="M10 14 L13 17 L18 11" stroke="#B45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </svg>
+        </div>
+        <div class="security-content">
+          <h3>אימות כניסה</h3>
+          <p>גישה מאובטחת למורשים בלבד. הזדהות מלאה נדרשת לכל פעולה במערכת.</p>
+        </div>
+      </div>
+
+      <!-- Card 4 -->
+      <div class="security-card">
+        <div class="security-icon">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="10" stroke="#16A34A" stroke-width="2.2" fill="none"/>
+            <circle cx="14" cy="14" r="4" stroke="#16A34A" stroke-width="2" fill="none"/>
+            <line x1="14" y1="4" x2="14" y2="8" stroke="#16A34A" stroke-width="2" stroke-linecap="round"/>
+            <line x1="14" y1="20" x2="14" y2="24" stroke="#16A34A" stroke-width="2" stroke-linecap="round"/>
+            <line x1="4" y1="14" x2="8" y2="14" stroke="#16A34A" stroke-width="2" stroke-linecap="round"/>
+            <line x1="20" y1="14" x2="24" y2="14" stroke="#16A34A" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="security-content">
+          <h3>שקיפות מלאה</h3>
+          <p>כל תובנה מסבירה למה ומאיפה. אין "קופסה שחורה" &mdash; הכל גלוי ומובן.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer class="page-footer">
+    <span class="footer-brand">InsAgent</span>
+    <span class="footer-text">מערכת AI למודיעין ביטוחי | רפי בכר - ביטוח</span>
+  </footer>
+</div>
+
+</body>
+</html>
