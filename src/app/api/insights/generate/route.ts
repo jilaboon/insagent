@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { offset = 0, limit = 10000 } = body as {
+    const { offset = 0, limit = 500 } = body as {
       offset?: number;
       limit?: number;
     };
@@ -37,10 +37,10 @@ export async function POST(request: NextRequest) {
       where: { isActive: true },
     });
 
-    // On first batch (offset=0), clear all existing insights for a clean run
+    // On first batch (offset=0), clear existing insights via fast raw SQL
     if (offset === 0) {
-      await prisma.messageDraft.deleteMany({ where: { insightId: { not: undefined } } });
-      await prisma.insight.deleteMany({});
+      await prisma.$executeRawUnsafe('DELETE FROM message_drafts WHERE "insightId" IS NOT NULL');
+      await prisma.$executeRawUnsafe('DELETE FROM insights');
     }
 
     // All data in ONE raw SQL query — customers + policies joined
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       FROM customers c
       LEFT JOIN policies p ON p."customerId" = c.id
       ORDER BY c."createdAt" ASC
-      OFFSET ${offset} LIMIT ${limit * 5}
+      WHERE c.id IN (SELECT id FROM customers ORDER BY "createdAt" ASC OFFSET ${offset} LIMIT ${limit})
     `);
 
     // Group rows by customer

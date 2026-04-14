@@ -136,7 +136,7 @@ function GenerateSection() {
     setProgress({ processed: 0, total: 0, insights: 0 });
 
     let offset = 0;
-    const batchSize = 10000; // All customers in one request — raw SQL is fast
+    const batchSize = 500; // 500 per batch — fits in Vercel Pro timeout
     let totalInsights = 0;
 
     try {
