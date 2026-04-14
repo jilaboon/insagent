@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requireRole } from "@/lib/auth";
 
 export async function GET() {
-  const { response: authResponse } = await requireAuth();
+  const { response: authResponse, role } = await requireAuth();
   if (authResponse) return authResponse;
+
+  const roleResponse = requireRole(role, ["OWNER", "MANAGER", "OPERATIONS", "ADMIN"]);
+  if (roleResponse) return roleResponse;
   const allJobs = await prisma.importJob.findMany({
     orderBy: { createdAt: "desc" },
     take: 100,

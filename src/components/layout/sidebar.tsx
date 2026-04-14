@@ -13,6 +13,7 @@ import {
   BookOpen,
   Upload,
   Shield,
+  ShieldCheck,
   Brain,
 } from "lucide-react";
 
@@ -26,6 +27,7 @@ const navigation = [
   { name: "מנוע חוקים", href: "/rules", icon: BookOpen },
   { name: "יבוא נתונים", href: "/import", icon: Upload },
   { name: "יומן פעילות", href: "/audit", icon: Shield },
+  { name: "אבטחה ופרטיות", href: "/security", icon: ShieldCheck },
 ];
 
 export function Sidebar() {

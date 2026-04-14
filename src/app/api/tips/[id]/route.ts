@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requireRole } from "@/lib/auth";
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { response: authResponse } = await requireAuth();
+  const { response: authResponse, role } = await requireAuth();
   if (authResponse) return authResponse;
+
+  const roleResponse = requireRole(role, ["OWNER", "MANAGER", "ADMIN"]);
+  if (roleResponse) return roleResponse;
 
   const { id } = await params;
   const body = await request.json();
@@ -32,8 +35,11 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { response: authResponse } = await requireAuth();
+  const { response: authResponse, role } = await requireAuth();
   if (authResponse) return authResponse;
+
+  const roleResponse = requireRole(role, ["OWNER", "MANAGER", "ADMIN"]);
+  if (roleResponse) return roleResponse;
 
   const { id } = await params;
 

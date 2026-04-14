@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth, requireRole } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
+import { validateBody, knowledgeCreateSchema } from "@/lib/validation";
 
 export async function GET() {
   const { response: authResponse } = await requireAuth();
@@ -21,14 +22,10 @@ export async function POST(request: NextRequest) {
   if (roleResponse) return roleResponse;
 
   const body = await request.json();
-  const { title, content, source } = body;
+  const validation = validateBody(knowledgeCreateSchema, body);
+  if (!validation.success) return validation.response;
 
-  if (!title || !content) {
-    return NextResponse.json(
-      { error: "title and content are required" },
-      { status: 400 }
-    );
-  }
+  const { title, content, source } = validation.data;
 
   const article = await prisma.knowledgeArticle.create({
     data: {

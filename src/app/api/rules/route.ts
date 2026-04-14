@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth, requireRole } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
+import { validateBody, ruleCreateSchema } from "@/lib/validation";
 
 export async function GET() {
   const { response: authResponse } = await requireAuth();
@@ -28,14 +29,10 @@ export async function POST(request: NextRequest) {
   if (roleResponse) return roleResponse;
 
   const body = await request.json();
-  const { title, body: ruleBody, category, triggerCondition, triggerHint, source } = body;
+  const validation = validateBody(ruleCreateSchema, body);
+  if (!validation.success) return validation.response;
 
-  if (!title || !ruleBody) {
-    return NextResponse.json(
-      { error: "שם הכלל ותוכן הם שדות חובה" },
-      { status: 400 }
-    );
-  }
+  const { title, body: ruleBody, category, triggerCondition, triggerHint, source } = validation.data;
 
   const rule = await prisma.officeRule.create({
     data: {

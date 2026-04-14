@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth, requireRole } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
+import { validateBody, ruleUpdateSchema } from "@/lib/validation";
 
 export async function PUT(
   request: NextRequest,
@@ -15,7 +16,10 @@ export async function PUT(
 
   const { id } = await params;
   const body = await request.json();
-  const { title, body: ruleBody, category, triggerCondition, triggerHint, isActive, source } = body;
+  const validation = validateBody(ruleUpdateSchema, body);
+  if (!validation.success) return validation.response;
+
+  const { title, body: ruleBody, category, triggerCondition, triggerHint, isActive, source } = validation.data;
 
   const updateData: Record<string, unknown> = {};
   if (title !== undefined) updateData.title = title;

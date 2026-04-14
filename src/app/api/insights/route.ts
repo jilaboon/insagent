@@ -105,10 +105,8 @@ export async function GET(request: NextRequest) {
     generatedBy: i.generatedBy,
     dataFreshness: i.dataFreshness,
     profileCompleteness: i.profileCompleteness,
-    evidenceJson: i.evidenceJson,
     messageStatus: i.messageDrafts.length > 0 ? i.messageDrafts[0].status : "none",
     messageId: i.messageDrafts.length > 0 ? i.messageDrafts[0].id : null,
-    messageBody: i.messageDrafts.length > 0 ? i.messageDrafts[0].body : null,
     createdAt: i.createdAt.toISOString(),
   }));
 
