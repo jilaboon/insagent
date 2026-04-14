@@ -133,18 +133,37 @@ function roundToRange(value: number): string {
 }
 
 /**
- * Mask Israeli ID: show first 3 digits + "****" + last digit.
- * e.g. "123456789" -> "123****9"
+ * Mask Israeli ID: show first 2 digits + "****" + last digit.
+ * e.g. "334567893" -> "33****3"
  */
 export function maskIsraeliId(israeliId: string): string {
-  if (!israeliId || israeliId.length < 5) return "****";
-  return `${israeliId.slice(0, 3)}****${israeliId.slice(-1)}`;
+  if (!israeliId || israeliId.length < 4) return "****";
+  return `${israeliId.slice(0, 2)}****${israeliId.slice(-1)}`;
 }
 
 /**
- * Mask vehicle plate: show first 2 + "***" + last 2.
+ * Mask vehicle plate: show "****" + last 3 digits only.
+ * e.g. "1234567" -> "****567"
  */
 export function maskVehiclePlate(plate: string): string {
   if (!plate || plate.length < 4) return "***";
-  return `${plate.slice(0, 2)}***${plate.slice(-2)}`;
+  return `****${plate.slice(-3)}`;
+}
+
+/**
+ * Mask phone number: show "****" + last 4 digits.
+ * e.g. "0501234567" -> "****4567"
+ */
+export function maskPhone(phone: string): string {
+  if (!phone || phone.length < 5) return "****";
+  return `****${phone.slice(-4)}`;
+}
+
+/**
+ * Mask policy number: show "****" + last 4 digits.
+ * e.g. "POL123456789" -> "****6789"
+ */
+export function maskPolicyNumber(policyNumber: string): string {
+  if (!policyNumber || policyNumber.length < 5) return "****";
+  return `****${policyNumber.slice(-4)}`;
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { maskIsraeliId, maskPhone, maskVehiclePlate, maskPolicyNumber } from "@/lib/ai/sanitize";
 
 export async function GET(
   _request: NextRequest,
@@ -141,26 +142,25 @@ export async function GET(
     id: customer.id,
     firstName: customer.firstName,
     lastName: customer.lastName,
-    israeliId: customer.israeliId,
+    israeliId: maskIsraeliId(customer.israeliId),
     address: customer.address,
-    phone: customer.phone,
-    email: customer.email,
+    phone: customer.phone ? maskPhone(customer.phone) : null,
+    email: customer.email, // agents need email for contact
     age: customer.age,
-    dateOfBirth: customer.dateOfBirth?.toISOString() ?? null,
     assignedManagerId: customer.assignedManagerId,
     lastImportDate,
     importFileCount,
     familyMembers: customer.familyMembers.map((fm) => ({
       id: fm.id,
       name: fm.name,
-      israeliId: fm.israeliId,
+      israeliId: fm.israeliId ? maskIsraeliId(fm.israeliId) : null,
       relationship: fm.relationship,
       source: fm.source,
     })),
     insuranceMap,
     policies: customer.policies.map((p) => ({
       id: p.id,
-      policyNumber: p.policyNumber,
+      policyNumber: maskPolicyNumber(p.policyNumber),
       insurer: p.insurer,
       category: p.category,
       subType: p.subType,
@@ -172,7 +172,7 @@ export async function GET(
       premiumAnnual: p.premiumAnnual,
       accumulatedSavings: p.accumulatedSavings,
       vehicleYear: p.vehicleYear,
-      vehiclePlate: p.vehiclePlate,
+      vehiclePlate: p.vehiclePlate ? maskVehiclePlate(p.vehiclePlate) : null,
       vehicleModel: p.vehicleModel,
       dataFreshness: p.dataFreshnessDate?.toISOString() ?? null,
       investmentTracks: p.investmentTracks.map((t) => ({

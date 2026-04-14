@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requireRole } from "@/lib/auth";
+import { checkRateLimit, AI_RATE_LIMITS, rateLimitKey } from "@/lib/rate-limit";
 import { generateText, Output } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
@@ -33,8 +34,22 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { response: authResponse } = await requireAuth();
+  const { response: authResponse, email, role } = await requireAuth();
   if (authResponse) return authResponse;
+
+  const roleResponse = requireRole(role, ["OWNER", "MANAGER", "ADMIN"]);
+  if (roleResponse) return roleResponse;
+
+  const rl = checkRateLimit(
+    rateLimitKey("patternSuggest", email),
+    AI_RATE_LIMITS.patternSuggest
+  );
+  if (rl.limited) {
+    return NextResponse.json(
+      { error: "חרגת ממגבלת הבקשות — נסה שוב בעוד דקה" },
+      { status: 429 }
+    );
+  }
 
   try {
     const { id } = await params;

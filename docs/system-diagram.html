@@ -1,1073 +1,774 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>InsAgent - תהליך העבודה</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --teal: #097E6E;
-    --teal-light: #0A9D89;
-    --teal-dark: #066559;
-    --teal-bg: #E8F5F2;
-    --teal-bg-subtle: #F0FAF8;
-    --amber: #F99B07;
-    --amber-light: #FDB940;
-    --amber-bg: #FFF8EB;
-    --gray-50: #FAFAF9;
-    --gray-100: #F5F5F4;
-    --gray-200: #E7E5E4;
-    --gray-300: #D6D3D1;
-    --gray-400: #A8A29E;
-    --gray-500: #78716C;
-    --gray-600: #57534E;
-    --gray-700: #44403C;
-    --gray-800: #292524;
-    --gray-900: #1C1917;
-    --green: #16A34A;
-    --green-bg: #F0FDF4;
-    --red: #DC2626;
-    --red-bg: #FEF2F2;
-  }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InsAgent System Diagram</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800&display=swap');
+
+    :root {
+      --bg: #f6f5f1;
+      --panel: rgba(255, 255, 255, 0.9);
+      --panel-strong: #ffffff;
+      --line: #ddd9cf;
+      --line-strong: #cfc8bb;
+      --text: #1f1d19;
+      --muted: #666156;
+      --primary: #0d7a69;
+      --primary-strong: #07584c;
+      --primary-soft: #e9faf5;
+      --accent: #af7a22;
+      --accent-soft: #fff5e6;
+      --sky-soft: #edf5fb;
+      --slate-soft: #f1f3f5;
+      --danger-soft: #fff1ef;
+      --shadow: 0 22px 44px rgba(31, 29, 25, 0.08);
+      --radius-xl: 30px;
+      --radius-lg: 22px;
+      --radius-md: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-
-  body {
-    font-family: 'Heebo', sans-serif;
-    background: #fff;
-    color: var(--gray-800);
-    -webkit-font-smoothing: antialiased;
-  }
-
-  /* ===== PAGE STRUCTURE ===== */
-  .page {
-    width: 100%;
-    max-width: 1440px;
-    margin: 0 auto;
-    min-height: 100vh;
-    padding: 48px 64px;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .page::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(to left, var(--teal), var(--teal-light), var(--amber));
-  }
-
-  /* ===== HEADER ===== */
-  .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 48px;
-  }
-
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .logo-icon {
-    width: 44px;
-    height: 44px;
-    background: linear-gradient(135deg, var(--teal), var(--teal-light));
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-    box-shadow: 0 2px 8px rgba(9, 126, 110, 0.25);
-  }
-
-  .logo-text {
-    font-size: 26px;
-    font-weight: 800;
-    color: var(--teal);
-    letter-spacing: -0.5px;
-  }
-
-  .page-number {
-    font-size: 13px;
-    color: var(--gray-400);
-    font-weight: 400;
-  }
-
-  /* ===== TITLES ===== */
-  .page-title {
-    text-align: center;
-    margin-bottom: 56px;
-  }
-
-  .page-title h1 {
-    font-size: 38px;
-    font-weight: 800;
-    color: var(--gray-900);
-    margin-bottom: 8px;
-    letter-spacing: -0.5px;
-  }
-
-  .page-title h2 {
-    font-size: 18px;
-    font-weight: 400;
-    color: var(--gray-500);
-  }
-
-  /* ===== FLOW STAGES (PAGE 1) ===== */
-  .flow-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-
-  .flow-stages {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 0;
-    align-items: start;
-    position: relative;
-  }
-
-  .flow-stage {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    position: relative;
-    padding: 0 8px;
-    opacity: 0;
-    transform: translateY(20px);
-    animation: fadeUp 0.6s ease forwards;
-  }
-
-  .flow-stage:nth-child(1) { animation-delay: 0.1s; }
-  .flow-stage:nth-child(2) { animation-delay: 0.2s; }
-  .flow-stage:nth-child(3) { animation-delay: 0.3s; }
-  .flow-stage:nth-child(4) { animation-delay: 0.4s; }
-  .flow-stage:nth-child(5) { animation-delay: 0.5s; }
-  .flow-stage:nth-child(6) { animation-delay: 0.6s; }
-
-  @keyframes fadeUp {
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .stage-number {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: var(--teal);
-    color: #fff;
-    font-size: 15px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 16px;
-    position: relative;
-    z-index: 2;
-    box-shadow: 0 2px 8px rgba(9, 126, 110, 0.3);
-  }
-
-  /* Connector line between stage numbers */
-  .flow-stage:not(:last-child) .stage-number::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: -100%;
-    width: calc(100% + 100%);
-    height: 2px;
-    background: linear-gradient(to left, var(--teal), var(--gray-300));
-    z-index: -1;
-    transform: translateX(-50%);
-  }
-
-  /* Arrow connector between stages */
-  .flow-stage:not(:first-child)::before {
-    content: '';
-    position: absolute;
-    top: 15px;
-    right: calc(50% + 24px);
-    width: calc(100% - 48px);
-    height: 2px;
-    background: var(--teal);
-    opacity: 0.3;
-  }
-
-  .flow-stage:not(:first-child)::after {
-    content: '';
-    position: absolute;
-    top: 11px;
-    right: calc(50% + 20px);
-    width: 0;
-    height: 0;
-    border-top: 5px solid transparent;
-    border-bottom: 5px solid transparent;
-    border-right: 8px solid var(--teal);
-    opacity: 0.4;
-  }
-
-  .stage-icon {
-    width: 72px;
-    height: 72px;
-    border-radius: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 32px;
-    margin-bottom: 16px;
-    position: relative;
-  }
-
-  .stage-icon.import { background: var(--teal-bg); }
-  .stage-icon.merge { background: #EDE9FE; }
-  .stage-icon.analyze { background: var(--amber-bg); }
-  .stage-icon.insights { background: var(--green-bg); }
-  .stage-icon.messages { background: #EFF6FF; }
-  .stage-icon.approve { background: var(--teal-bg); }
-
-  .stage-title {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--gray-800);
-    margin-bottom: 10px;
-  }
-
-  .stage-desc {
-    font-size: 12.5px;
-    color: var(--gray-600);
-    line-height: 1.7;
-    margin-bottom: 8px;
-  }
-
-  .stage-note {
-    font-size: 11px;
-    color: var(--gray-400);
-    background: var(--gray-100);
-    padding: 4px 10px;
-    border-radius: 6px;
-    display: inline-block;
-  }
-
-  /* Sub-boxes for analysis stage */
-  .sub-boxes {
-    display: flex;
-    gap: 6px;
-    margin-top: 8px;
-    justify-content: center;
-  }
-
-  .sub-box {
-    font-size: 10.5px;
-    font-weight: 600;
-    padding: 4px 10px;
-    border-radius: 6px;
-    white-space: nowrap;
-  }
-
-  .sub-box.rules {
-    background: var(--teal-bg);
-    color: var(--teal);
-  }
-
-  .sub-box.ai {
-    background: var(--amber-bg);
-    color: #B45309;
-  }
-
-  /* Score badges */
-  .score-badges {
-    display: flex;
-    gap: 6px;
-    margin-top: 8px;
-    justify-content: center;
-  }
-
-  .score-badge {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 700;
-    color: #fff;
-  }
-
-  .score-badge.high { background: var(--green); }
-  .score-badge.mid { background: var(--amber); }
-  .score-badge.low { background: var(--gray-400); }
-
-  /* WhatsApp bubble */
-  .wa-bubble {
-    background: #DCF8C6;
-    border-radius: 10px 10px 2px 10px;
-    padding: 8px 12px;
-    font-size: 10.5px;
-    color: #1B4332;
-    margin-top: 10px;
-    text-align: right;
-    line-height: 1.5;
-    max-width: 180px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    position: relative;
-  }
-
-  .wa-bubble::before {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    right: -6px;
-    width: 0;
-    height: 0;
-    border-top: 6px solid #DCF8C6;
-    border-right: 6px solid transparent;
-  }
-
-  /* ===== PAGE 2: PILLARS ===== */
-  .pillars-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .pillars-grid {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr auto 1fr;
-    gap: 0;
-    align-items: stretch;
-    width: 100%;
-    max-width: 1100px;
-    margin-bottom: 48px;
-  }
-
-  .pillar {
-    background: #fff;
-    border: 1.5px solid var(--gray-200);
-    border-radius: 20px;
-    padding: 36px 28px;
-    text-align: center;
-    position: relative;
-    transition: all 0.3s ease;
-    opacity: 0;
-    transform: translateY(20px);
-    animation: fadeUp 0.6s ease forwards;
-  }
-
-  .pillar:nth-child(1) { animation-delay: 0.15s; }
-  .pillar:nth-child(3) { animation-delay: 0.3s; }
-  .pillar:nth-child(5) { animation-delay: 0.45s; }
-
-  .pillar:hover {
-    border-color: var(--teal);
-    box-shadow: 0 8px 32px rgba(9, 126, 110, 0.1);
-    transform: translateY(-4px);
-  }
-
-  .pillar-connector {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 48px;
-    color: var(--gray-300);
-    font-size: 24px;
-  }
-
-  .pillar-icon {
-    width: 64px;
-    height: 64px;
-    border-radius: 16px;
-    margin: 0 auto 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-  }
-
-  .pillar:nth-child(1) .pillar-icon {
-    background: var(--teal-bg);
-  }
-
-  .pillar:nth-child(3) .pillar-icon {
-    background: var(--amber-bg);
-  }
-
-  .pillar:nth-child(5) .pillar-icon {
-    background: #EDE9FE;
-  }
-
-  .pillar-title {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--gray-800);
-    margin-bottom: 20px;
-  }
-
-  .pillar-items {
-    list-style: none;
-    text-align: right;
-  }
-
-  .pillar-items li {
-    font-size: 14px;
-    color: var(--gray-600);
-    padding: 8px 0;
-    border-bottom: 1px solid var(--gray-100);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .pillar-items li:last-child {
-    border-bottom: none;
-  }
-
-  .pillar-items li::before {
-    content: '';
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--teal);
-    flex-shrink: 0;
-    opacity: 0.5;
-  }
-
-  .pillar:nth-child(3) .pillar-items li::before { background: var(--amber); }
-  .pillar:nth-child(5) .pillar-items li::before { background: #7C3AED; }
-
-  /* Center result */
-  .center-result {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    opacity: 0;
-    animation: fadeUp 0.6s ease 0.7s forwards;
-  }
-
-  .merge-arrows {
-    display: flex;
-    gap: 80px;
-    color: var(--gray-300);
-    font-size: 28px;
-  }
-
-  .result-box {
-    background: linear-gradient(135deg, var(--teal), var(--teal-light));
-    color: #fff;
-    padding: 20px 48px;
-    border-radius: 16px;
-    font-size: 20px;
-    font-weight: 700;
-    box-shadow: 0 8px 32px rgba(9, 126, 110, 0.25);
-    position: relative;
-  }
-
-  .result-box::before {
-    content: '';
-    position: absolute;
-    inset: -2px;
-    border-radius: 18px;
-    background: linear-gradient(135deg, var(--teal), var(--amber));
-    z-index: -1;
-    opacity: 0.3;
-  }
-
-  /* ===== PAGE 3: SECURITY CARDS ===== */
-  .security-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-
-  .security-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 28px;
-    max-width: 960px;
-    margin: 0 auto;
-    width: 100%;
-  }
-
-  .security-card {
-    background: #fff;
-    border: 1.5px solid var(--gray-200);
-    border-radius: 20px;
-    padding: 36px 32px;
-    display: flex;
-    gap: 20px;
-    align-items: flex-start;
-    transition: all 0.3s ease;
-    opacity: 0;
-    transform: translateY(20px);
-    animation: fadeUp 0.6s ease forwards;
-  }
-
-  .security-card:nth-child(1) { animation-delay: 0.15s; }
-  .security-card:nth-child(2) { animation-delay: 0.25s; }
-  .security-card:nth-child(3) { animation-delay: 0.35s; }
-  .security-card:nth-child(4) { animation-delay: 0.45s; }
-
-  .security-card:hover {
-    border-color: var(--teal);
-    box-shadow: 0 8px 32px rgba(9, 126, 110, 0.08);
-    transform: translateY(-2px);
-  }
-
-  .security-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    flex-shrink: 0;
-  }
-
-  .security-card:nth-child(1) .security-icon { background: var(--teal-bg); }
-  .security-card:nth-child(2) .security-icon { background: #EDE9FE; }
-  .security-card:nth-child(3) .security-icon { background: var(--amber-bg); }
-  .security-card:nth-child(4) .security-icon { background: var(--green-bg); }
-
-  .security-content h3 {
-    font-size: 19px;
-    font-weight: 700;
-    color: var(--gray-800);
-    margin-bottom: 8px;
-  }
-
-  .security-content p {
-    font-size: 15px;
-    color: var(--gray-500);
-    line-height: 1.7;
-  }
-
-  /* ===== FOOTER ===== */
-  .page-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 48px;
-    padding-top: 20px;
-    border-top: 1px solid var(--gray-200);
-  }
-
-  .footer-text {
-    font-size: 12px;
-    color: var(--gray-400);
-  }
-
-  .footer-brand {
-    font-size: 12px;
-    color: var(--teal);
-    font-weight: 600;
-  }
-
-  /* ===== CSS ICONS ===== */
-  .css-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* Upload icon */
-  .icon-upload {
-    width: 28px;
-    height: 24px;
-    position: relative;
-  }
-
-  .icon-upload::before {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 2px;
-    right: 2px;
-    height: 16px;
-    border: 2.5px solid var(--teal);
-    border-top: none;
-    border-radius: 0 0 4px 4px;
-  }
-
-  .icon-upload::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 2.5px;
-    height: 16px;
-    background: var(--teal);
-  }
-
-  /* Merge icon */
-  .icon-merge {
-    width: 28px;
-    height: 28px;
-    position: relative;
-  }
-
-  .icon-merge::before,
-  .icon-merge::after {
-    content: '';
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    border: 2.5px solid #7C3AED;
-  }
-
-  .icon-merge::before { top: 0; right: 2px; }
-  .icon-merge::after { top: 0; left: 2px; }
-
-  /* ===== PRINT STYLES ===== */
-  @media print {
     body {
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
+      font-family: 'Heebo', sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 100% 0%, rgba(13, 122, 105, 0.08), transparent 28%),
+        radial-gradient(circle at 0% 8%, rgba(175, 122, 34, 0.06), transparent 22%),
+        linear-gradient(180deg, #fbfaf7 0%, var(--bg) 100%);
+      line-height: 1.45;
     }
 
     .page {
-      page-break-after: always;
-      min-height: auto;
-      height: 100vh;
-      padding: 36px 48px;
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 48px 24px 72px;
     }
 
-    .page:last-child {
-      page-break-after: auto;
+    .hero,
+    .section,
+    .side-card {
+      background: var(--panel);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(221, 217, 207, 0.95);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
     }
 
-    .pillar:hover,
-    .security-card:hover {
-      transform: none;
-      box-shadow: none;
+    .hero {
+      padding: 34px 36px;
+      margin-bottom: 24px;
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+      align-items: stretch;
     }
 
-    .flow-stage,
-    .pillar,
-    .security-card,
-    .center-result {
-      opacity: 1;
-      transform: none;
-      animation: none;
-    }
-  }
-
-  @page {
-    size: landscape;
-    margin: 0;
-  }
-
-  /* ===== RESPONSIVE ===== */
-  @media (max-width: 1200px) {
-    .flow-stages {
-      grid-template-columns: repeat(3, 1fr);
-      gap: 32px;
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: 14px;
+      font-weight: 800;
+      margin-bottom: 18px;
     }
 
-    .flow-stage::before,
-    .flow-stage::after {
-      display: none;
-    }
-  }
-
-  @media (max-width: 768px) {
-    .page {
-      padding: 24px;
+    h1 {
+      font-size: 46px;
+      line-height: 1.04;
+      letter-spacing: -0.9px;
+      margin-bottom: 14px;
     }
 
-    .flow-stages {
-      grid-template-columns: repeat(2, 1fr);
+    .hero p {
+      color: var(--muted);
+      font-size: 17px;
+      max-width: 54rem;
     }
 
-    .pillars-grid {
-      grid-template-columns: 1fr;
-      gap: 20px;
+    .hero strong {
+      color: var(--text);
     }
 
-    .pillar-connector {
-      display: none;
+    .hero-grid {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .metric {
+      background: var(--panel-strong);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .metric-value {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .section {
+      padding: 28px 30px 30px;
+      margin-bottom: 22px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .section-head h2 {
+      font-size: 22px;
+      margin-bottom: 6px;
+    }
+
+    .section-head p {
+      color: var(--muted);
+      font-size: 15px;
+      max-width: 42rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 7px 12px;
+      background: #f7f5ef;
+      border: 1px solid #ece7da;
+      color: #4b473f;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      direction: ltr;
+    }
+
+    .flow-step {
+      position: relative;
+      background: var(--panel-strong);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 20px 18px;
+      min-height: 184px;
+      text-align: center;
+    }
+
+    .flow-step.primary {
+      background: linear-gradient(180deg, var(--primary-soft), #fff);
+      border-color: #bfe6dc;
+    }
+
+    .flow-step.accent {
+      background: linear-gradient(180deg, var(--accent-soft), #fff);
+      border-color: #f2d4a1;
+    }
+
+    .flow-step:not(:last-child)::after {
+      content: "←";
+      position: absolute;
+      left: -12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #beb6a8;
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    .step-num {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #f2efe8;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+
+    .flow-step.primary .step-num {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .flow-step.accent .step-num {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .step-title {
+      direction: rtl;
+      font-size: 16px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .step-text {
+      direction: rtl;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .step-tags {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 14px;
+      direction: rtl;
+    }
+
+    .tag {
+      font-size: 11px;
+      padding: 6px 9px;
+      border-radius: 999px;
+      border: 1px solid #e9e4d8;
+      background: #fbfaf7;
+      color: #5c564c;
+    }
+
+    .system-layout {
+      display: grid;
+      grid-template-columns: 0.9fr 1.25fr 0.95fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .stack {
+      display: grid;
+      gap: 14px;
+    }
+
+    .card {
+      background: var(--panel-strong);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 18px 18px 16px;
+    }
+
+    .card.primary {
+      background: linear-gradient(180deg, var(--primary-soft), #fff);
+      border-color: #bfe6dc;
+    }
+
+    .card.accent {
+      background: linear-gradient(180deg, var(--accent-soft), #fff);
+      border-color: #f2d4a1;
+    }
+
+    .card.sky {
+      background: linear-gradient(180deg, var(--sky-soft), #fff);
+      border-color: #cddfed;
+    }
+
+    .card.slate {
+      background: linear-gradient(180deg, var(--slate-soft), #fff);
+      border-color: #d7dce0;
+    }
+
+    .card.danger {
+      background: linear-gradient(180deg, var(--danger-soft), #fff);
+      border-color: #eccfca;
+    }
+
+    .card h3 {
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    .card p {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    .bullet-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .bullet {
+      display: flex;
+      align-items: start;
+      gap: 10px;
+      color: #504b42;
+      font-size: 13px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      margin-top: 6px;
+      flex: 0 0 auto;
+      background: var(--primary);
+    }
+
+    .center-rail {
+      position: relative;
+      display: grid;
+      gap: 12px;
+      align-content: center;
+      min-height: 100%;
+    }
+
+    .rail-step {
+      position: relative;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px 16px;
+    }
+
+    .rail-step::before {
+      content: "←";
+      position: absolute;
+      left: -13px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+      border: 1px solid var(--line);
+      color: var(--primary);
+      font-weight: 800;
+    }
+
+    .rail-title {
+      font-size: 14px;
+      font-weight: 800;
+      margin-bottom: 3px;
+    }
+
+    .rail-text {
+      color: var(--muted);
+      font-size: 12px;
     }
 
     .security-grid {
-      grid-template-columns: 1fr;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 20px;
     }
-  }
-</style>
+
+    .security-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .security-item {
+      display: flex;
+      align-items: start;
+      gap: 12px;
+      padding: 14px 16px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+    }
+
+    .security-item strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 3px;
+    }
+
+    .security-item span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .side-card {
+      padding: 22px;
+      background: linear-gradient(180deg, rgba(241, 243, 245, 0.72), rgba(255,255,255,0.92));
+    }
+
+    .side-card h3 {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+
+    .side-card p {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 14px;
+    }
+
+    .legend {
+      display: grid;
+      gap: 10px;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .legend-box {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      flex: 0 0 auto;
+    }
+
+    .legend-box.primary { background: var(--primary); }
+    .legend-box.soft { background: var(--primary-soft); border: 1px solid #bfe6dc; }
+    .legend-box.accent { background: var(--accent-soft); border: 1px solid #f2d4a1; }
+    .legend-box.slate { background: var(--slate-soft); border: 1px solid #d7dce0; }
+
+    .footer-note {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    @media (max-width: 1120px) {
+      .hero,
+      .system-layout,
+      .security-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .flow {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .flow-step:not(:last-child)::after,
+      .rail-step::before {
+        display: none;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .page {
+        padding: 22px 14px 40px;
+      }
+
+      h1 {
+        font-size: 34px;
+      }
+
+      .hero,
+      .section {
+        padding: 22px 18px;
+      }
+
+      .flow {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
-
-<!-- ============================================================ -->
-<!-- PAGE 1: System Overview Flow                                  -->
-<!-- ============================================================ -->
-<div class="page" id="page1">
-  <header class="page-header">
-    <div class="logo">
-      <div class="logo-icon">&#x1F9E0;</div>
-      <span class="logo-text">InsAgent</span>
-    </div>
-    <span class="page-number">1 / 3</span>
-  </header>
-
-  <div class="page-title">
-    <h1>InsAgent &mdash; תהליך העבודה</h1>
-    <h2>מנתונים גולמיים להודעות אישיות</h2>
-  </div>
-
-  <div class="flow-container">
-    <div class="flow-stages">
-
-      <!-- Stage 1 -->
-      <div class="flow-stage">
-        <div class="stage-number">1</div>
-        <div class="stage-icon import">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <rect x="6" y="4" width="20" height="24" rx="3" stroke="#097E6E" stroke-width="2.2" fill="none"/>
-            <line x1="11" y1="12" x2="21" y2="12" stroke="#097E6E" stroke-width="1.8" stroke-linecap="round"/>
-            <line x1="11" y1="17" x2="21" y2="17" stroke="#097E6E" stroke-width="1.8" stroke-linecap="round"/>
-            <line x1="11" y1="22" x2="17" y2="22" stroke="#097E6E" stroke-width="1.8" stroke-linecap="round"/>
-            <path d="M19 2 L19 8 L25 8" stroke="#097E6E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-          </svg>
-        </div>
-        <div class="stage-title">יבוא נתונים</div>
-        <div class="stage-desc">
-          קבצי BAFI<br>(חיים + אלמנטרי)<br>
-          ניתוח אוטומטי של 183+ שדות
-        </div>
-        <div class="stage-note">~19,000 שורות &larr; 8,663 לקוחות</div>
+  <main class="page">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">InsAgent / System Architecture</div>
+        <h1>שכבת האינטליגנציה של המשרד: מנתונים גולמיים, להמלצות מבוקרות, לפעולה מסודרת.</h1>
+        <p>
+          InsAgent בנויה כ<strong>מערכת תפעולית מאובטחת למשרד ביטוח</strong>, שיושבת מעל קבצי המשרד, חוקי המשרד והידע המקצועי.
+          היא לא מחליפה CRM, אלא <strong>הופכת את הנתונים לפעולה ברורה, עם בקרה אנושית, הרשאות, תיעוד ואפשרות להרחבת AI באופן מבוקר</strong>.
+        </p>
       </div>
 
-      <!-- Stage 2 -->
-      <div class="flow-stage">
-        <div class="stage-number">2</div>
-        <div class="stage-icon merge">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <circle cx="10" cy="8" r="4" stroke="#7C3AED" stroke-width="2.2" fill="none"/>
-            <circle cx="22" cy="8" r="4" stroke="#7C3AED" stroke-width="2.2" fill="none"/>
-            <circle cx="16" cy="24" r="4" stroke="#7C3AED" stroke-width="2.2" fill="none"/>
-            <path d="M10 12 L16 20" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"/>
-            <path d="M22 12 L16 20" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"/>
-          </svg>
+      <div class="hero-grid">
+        <div class="metric">
+          <div class="metric-label">פלטפורמה</div>
+          <div class="metric-value">Next.js על Vercel + Supabase + Prisma</div>
         </div>
-        <div class="stage-title">מיזוג ונרמול</div>
-        <div class="stage-desc">
-          איחוד לקוחות לפי ת.ז.<br>
-          זיהוי כפילויות אוטומטי<br>
-          מיפוי רב-ענפי (חיים + אלמנטרי)
+        <div class="metric">
+          <div class="metric-label">עקרון ליבה</div>
+          <div class="metric-value">המערכת ממליצה. האדם מאשר.</div>
         </div>
-      </div>
-
-      <!-- Stage 3 -->
-      <div class="flow-stage">
-        <div class="stage-number">3</div>
-        <div class="stage-icon analyze">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <circle cx="16" cy="14" r="10" stroke="#B45309" stroke-width="2.2" fill="none"/>
-            <path d="M12 14 C12 10, 20 10, 20 14 C20 18, 12 18, 12 14" stroke="#B45309" stroke-width="1.5" fill="none"/>
-            <path d="M11 9 Q16 6 21 9" stroke="#B45309" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-            <line x1="16" y1="24" x2="16" y2="29" stroke="#B45309" stroke-width="2.2" stroke-linecap="round"/>
-            <line x1="12" y1="28" x2="20" y2="28" stroke="#B45309" stroke-width="2.2" stroke-linecap="round"/>
-          </svg>
+        <div class="metric">
+          <div class="metric-label">בסיס הנתונים</div>
+          <div class="metric-value">לקוחות, פוליסות, תובנות, הודעות, כללים, Audit</div>
         </div>
-        <div class="stage-title">ניתוח חכם</div>
-        <div class="stage-desc">
-          18 חוקים עסקיים<br>
-          דירוג 1-100 לכל תובנה
-        </div>
-        <div class="sub-boxes">
-          <span class="sub-box rules">מנוע חוקים</span>
-          <span class="sub-box ai">AI מתקדם</span>
+        <div class="metric">
+          <div class="metric-label">שימוש ב-AI</div>
+          <div class="metric-value">רק בנקודות מוגדרות, עם צמצום מידע לפני שליחה</div>
         </div>
       </div>
+    </section>
 
-      <!-- Stage 4 -->
-      <div class="flow-stage">
-        <div class="stage-number">4</div>
-        <div class="stage-icon insights">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <polygon points="16,2 20,12 30,12 22,19 25,30 16,23 7,30 10,19 2,12 12,12" stroke="#16A34A" stroke-width="2" fill="none" stroke-linejoin="round"/>
-          </svg>
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2>מסלול העבודה שהלקוח רואה</h2>
+          <p>זהו הזרם העסקי הפשוט והברור שהמערכת מייצרת עבור המשרד, מהקליטה הראשונית ועד טיפול בפועל.</p>
         </div>
-        <div class="stage-title">תובנות מדורגות</div>
-        <div class="stage-desc">
-          482+ תובנות<br>
-          סינון לפי ענף, קטגוריה,<br> ציון, דחיפות
-        </div>
-        <div class="score-badges">
-          <div class="score-badge high">86</div>
-          <div class="score-badge mid">62</div>
-          <div class="score-badge low">35</div>
-        </div>
+        <div class="pill">המערכת מסבירה בכל שלב מה קרה, למה זה חשוב, ומה הצעד הבא</div>
       </div>
 
-      <!-- Stage 5 -->
-      <div class="flow-stage">
-        <div class="stage-number">5</div>
-        <div class="stage-icon messages" style="background: #EFF6FF;">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <rect x="3" y="4" width="26" height="20" rx="6" stroke="#2563EB" stroke-width="2.2" fill="none"/>
-            <line x1="10" y1="12" x2="22" y2="12" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round"/>
-            <line x1="10" y1="17" x2="18" y2="17" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round"/>
-            <path d="M22 24 L26 30 L26 24" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+      <div class="flow">
+        <div class="flow-step">
+          <div class="step-num">1</div>
+          <div class="step-title">כניסה מאובטחת</div>
+          <div class="step-text">המשתמש נכנס דרך Supabase Auth. המערכת בודקת סשן תקף לפני גישה למסכים ול־API.</div>
+          <div class="step-tags">
+            <span class="tag">Login</span>
+            <span class="tag">Session</span>
+            <span class="tag">Protected Routes</span>
+          </div>
         </div>
-        <div class="stage-title">הודעות אישיות</div>
-        <div class="stage-desc">
-          WhatsApp מותאם אישית<br>
-          זכר / נקבה / ניטרלי<br>
-          בדיקת עברית כפולה
+
+        <div class="flow-step primary">
+          <div class="step-num">2</div>
+          <div class="step-title">קליטת נתונים</div>
+          <div class="step-text">קבצים מיובאים, מזוהים, עוברים ולידציה וממופים לפרופיל לקוח אחיד עם היסטוריית יבוא.</div>
+          <div class="step-tags">
+            <span class="tag">CSV / BAFI</span>
+            <span class="tag">Validation</span>
+            <span class="tag">Import Jobs</span>
+          </div>
         </div>
-        <div class="wa-bubble">
-          שלום רפי, שמתי לב שפוליסת
-          הרכב שלך מתחדשת בקרוב... &#x1F4AC;
+
+        <div class="flow-step primary">
+          <div class="step-num">3</div>
+          <div class="step-title">בניית תמונת לקוח</div>
+          <div class="step-text">המערכת מאחדת לקוח, פוליסות, מסלולי השקעה, דמי ניהול, מצב עדכניות ומקורות המידע.</div>
+          <div class="step-tags">
+            <span class="tag">Customer 360</span>
+            <span class="tag">Policies</span>
+            <span class="tag">Freshness</span>
+          </div>
+        </div>
+
+        <div class="flow-step accent">
+          <div class="step-num">4</div>
+          <div class="step-title">זיהוי תובנות</div>
+          <div class="step-text">חוקי משרד ותובנות מחושבות מזהים חידושים, פערי כיסוי, ריכוזים, סיכון, שירות, והזדמנויות.</div>
+          <div class="step-tags">
+            <span class="tag">Deterministic</span>
+            <span class="tag">Rules</span>
+            <span class="tag">Scoring</span>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="step-num">5</div>
+          <div class="step-title">בדיקה ופעולה</div>
+          <div class="step-text">המשרד בודק תובנות, מייצר הודעות או פעולות, מתעד החלטות, ומנהל משימות עם Audit.</div>
+          <div class="step-tags">
+            <span class="tag">Review</span>
+            <span class="tag">Message Drafts</span>
+            <span class="tag">Audit Trail</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2>מפת המערכת</h2>
+          <p>התרשים הבא מראה איך שכבות המערכת מחוברות: משתמשים, שכבת אבטחה, אפליקציה, מנועי החלטה, נתונים ובקרות.</p>
         </div>
       </div>
 
-      <!-- Stage 6 -->
-      <div class="flow-stage">
-        <div class="stage-number">6</div>
-        <div class="stage-icon approve">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <circle cx="16" cy="16" r="12" stroke="#097E6E" stroke-width="2.2" fill="none"/>
-            <path d="M10 16 L14 20 L22 12" stroke="#097E6E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-          </svg>
+      <div class="system-layout">
+        <div class="stack">
+          <div class="card primary">
+            <h3>שכבת גישה ואפליקציה</h3>
+            <p>ממשק עברי מלא, RTL, דשבורד, לקוחות, תובנות, כללים, יבוא, משימות והודעות.</p>
+            <div class="bullet-list">
+              <div class="bullet"><span class="dot"></span><span>Next.js App Router על Vercel</span></div>
+              <div class="bullet"><span class="dot"></span><span>Supabase Auth למסכים ול־API</span></div>
+              <div class="bullet"><span class="dot"></span><span>React Query לטעינה מהירה ועדכון נתונים</span></div>
+            </div>
+          </div>
+
+          <div class="card sky">
+            <h3>משתמשים פנימיים</h3>
+            <p>בעלים, מנהלים, סוכנים, ותפעול. כל אחד רואה את סביבת העבודה של המשרד דרך אותה מערכת אחידה.</p>
+            <div class="bullet-list">
+              <div class="bullet"><span class="dot"></span><span>כניסה מאובטחת</span></div>
+              <div class="bullet"><span class="dot"></span><span>סביבת עבודה פנימית בלבד</span></div>
+              <div class="bullet"><span class="dot"></span><span>מסכים מותאמים לתהליך עבודה</span></div>
+            </div>
+          </div>
         </div>
-        <div class="stage-title">אישור ושליחה</div>
-        <div class="stage-desc">
-          בקרה אנושית מלאה<br>
-          אשר / ערוך / דלג<br>
-          משוב ולמידה
+
+        <div class="center-rail">
+          <div class="rail-step">
+            <div class="rail-title">1. Authentication & Session Guard</div>
+            <div class="rail-text">בדיקת משתמש מחובר לפני גישה למסכים ולקריאות API.</div>
+          </div>
+          <div class="rail-step">
+            <div class="rail-title">2. Secure API Layer</div>
+            <div class="rail-text">Route Handlers שמבצעים קריאה, ולידציה, Audit ובמקרים מסוימים גם Rate Limit.</div>
+          </div>
+          <div class="rail-step">
+            <div class="rail-title">3. Business Logic Layer</div>
+            <div class="rail-text">מנוע יבוא, מנוע התאמת כללים, מנוע תובנות, מנועי ניסוח הודעות ושירותי סניטיזציה.</div>
+          </div>
+          <div class="rail-step">
+            <div class="rail-title">4. Data & Intelligence Layer</div>
+            <div class="rail-text">לקוחות, פוליסות, תובנות, טיוטות הודעה, כללי משרד, Tip Library, יבוא, Audit ו־Provenance.</div>
+          </div>
+        </div>
+
+        <div class="stack">
+          <div class="card accent">
+            <h3>מנועי החלטה</h3>
+            <p>הלב של המערכת: חיבור בין נתוני לקוח, כללי משרד, ניקוד תובנות ויצירת כיוון פעולה.</p>
+            <div class="bullet-list">
+              <div class="bullet"><span class="dot"></span><span>Import Pipeline</span></div>
+              <div class="bullet"><span class="dot"></span><span>Rule Matcher / Insight Engine</span></div>
+              <div class="bullet"><span class="dot"></span><span>Message Generator</span></div>
+            </div>
+          </div>
+
+          <div class="card slate">
+            <h3>בסיס הנתונים</h3>
+            <p>Supabase PostgreSQL דרך Prisma, עם מודלים מרכזיים שמייצגים את פעילות המשרד.</p>
+            <div class="bullet-list">
+              <div class="bullet"><span class="dot"></span><span>Customers / Policies / Import Jobs</span></div>
+              <div class="bullet"><span class="dot"></span><span>Insights / Message Drafts / Office Rules</span></div>
+              <div class="bullet"><span class="dot"></span><span>Audit Entries / Field Provenance</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2>שכבת אמון, בקרה ואבטחה</h2>
+          <p>הלקוח צריך להבין לא רק מה המערכת עושה, אלא גם למה אפשר לסמוך עליה ואיך שומרים על שליטה.</p>
+        </div>
+        <div class="pill">המערכת לא “שולחת לבד”, אלא פועלת בתוך מסגרת מבוקרת</div>
+      </div>
+
+      <div class="security-grid">
+        <div class="security-list">
+          <div class="security-item">
+            <div class="legend-box primary"></div>
+            <div>
+              <strong>כניסה וסשן</strong>
+              <span>הגישה למערכת ול־API עוברת דרך Supabase Auth וסשן תקף.</span>
+            </div>
+          </div>
+
+          <div class="security-item">
+            <div class="legend-box soft"></div>
+            <div>
+              <strong>Validation לפני כתיבה</strong>
+              <span>בקריאות רגישות מתבצעת ולידציה של payload לפני עבודה עם הנתונים.</span>
+            </div>
+          </div>
+
+          <div class="security-item">
+            <div class="legend-box accent"></div>
+            <div>
+              <strong>Audit Trail</strong>
+              <span>פעולות קריטיות כמו יבוא ויצירת הודעות נרשמות לצורכי בקרה ותיעוד.</span>
+            </div>
+          </div>
+
+          <div class="security-item">
+            <div class="legend-box slate"></div>
+            <div>
+              <strong>צמצום מידע לפני AI</strong>
+              <span>לפני שליחה למודלים חיצוניים המערכת מנקה מזהים אישיים ופרטים רגישים שאינם נדרשים למשימה.</span>
+            </div>
+          </div>
+        </div>
+
+        <aside class="side-card">
+          <h3>גבול ברור בין “נתונים” ל“AI”</h3>
+          <p>
+            רוב המערכת מבוססת על נתוני משרד, חוקים ותהליכים. יכולות AI יושבות מעל זה
+            <strong>רק בנקודות מוגדרות</strong>, לדוגמה ניסוח הודעה או הרחבת תובנה.
+          </p>
+          <div class="legend">
+            <div class="legend-row"><span class="legend-box primary"></span><span>ליבת המערכת: נתונים, כללים, תיעוד, תורים, מסכים</span></div>
+            <div class="legend-row"><span class="legend-box accent"></span><span>AI: ניסוח, הצעות, הרחבה מבוקרת של Insight</span></div>
+            <div class="legend-row"><span class="legend-box slate"></span><span>Trust Layer: אימות, בקרה, Audit וצמצום מידע</span></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2>מה הלקוח מקבל בפועל</h2>
+          <p>לא “מערכת AI כללית”, אלא סביבת עבודה למשרד ביטוח שהופכת מידע מפוזר לתמונה אחת, עם המלצות והמשך טיפול.</p>
         </div>
       </div>
 
-    </div>
-  </div>
-
-  <footer class="page-footer">
-    <span class="footer-brand">InsAgent</span>
-    <span class="footer-text">מערכת AI למודיעין ביטוחי | רפי בכר - ביטוח</span>
-  </footer>
-</div>
-
-<!-- ============================================================ -->
-<!-- PAGE 2: Intelligence Sources                                  -->
-<!-- ============================================================ -->
-<div class="page" id="page2">
-  <header class="page-header">
-    <div class="logo">
-      <div class="logo-icon">&#x1F9E0;</div>
-      <span class="logo-text">InsAgent</span>
-    </div>
-    <span class="page-number">2 / 3</span>
-  </header>
-
-  <div class="page-title">
-    <h1>מקורות המודיעין</h1>
-    <h2>שלושה מקורות ידע משולבים</h2>
-  </div>
-
-  <div class="pillars-container">
-    <div class="pillars-grid">
-
-      <!-- Pillar 1: Customer Data -->
-      <div class="pillar">
-        <div class="pillar-icon">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <circle cx="16" cy="10" r="6" stroke="#097E6E" stroke-width="2.2" fill="none"/>
-            <path d="M6 28 C6 22 10 18 16 18 C22 18 26 22 26 28" stroke="#097E6E" stroke-width="2.2" fill="none" stroke-linecap="round"/>
-          </svg>
+      <div class="system-layout">
+        <div class="stack">
+          <div class="card primary">
+            <h3>למנהל המשרד</h3>
+            <p>רואה איפה יש עומס, איפה יש הזדמנויות, ואילו תובנות דורשות החלטה.</p>
+          </div>
+          <div class="card">
+            <h3>לסוכן</h3>
+            <p>מקבל תמונת לקוח ברורה, הסבר למה כדאי לפעול, וטיוטות עבודה מוכנות לבדיקה.</p>
+          </div>
         </div>
-        <div class="pillar-title">נתוני הלקוחות</div>
-        <ul class="pillar-items">
-          <li>8,663 לקוחות</li>
-          <li>18,948 פוליסות</li>
-          <li>7 ענפי ביטוח</li>
-          <li>דפוסים סטטיסטיים</li>
-        </ul>
-      </div>
 
-      <div class="pillar-connector">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <line x1="4" y1="12" x2="20" y2="12" stroke="#D6D3D1" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </div>
-
-      <!-- Pillar 2: Office Brain -->
-      <div class="pillar">
-        <div class="pillar-icon">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <path d="M16 4 L16 12 M12 8 L20 8" stroke="#B45309" stroke-width="2.5" stroke-linecap="round"/>
-            <circle cx="16" cy="20" r="8" stroke="#B45309" stroke-width="2.2" fill="none"/>
-            <path d="M12 20 L16 24 L20 16" stroke="#B45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-          </svg>
+        <div class="stack">
+          <div class="card accent">
+            <h3>למשרד כולו</h3>
+            <p>שפה אחת, תהליך אחד, ותיעוד אחד. פחות עבודה ידנית, פחות ידע “בראש”, יותר סדר, שקיפות ופעולה עקבית.</p>
+          </div>
         </div>
-        <div class="pillar-title">המוח של המשרד</div>
-        <ul class="pillar-items">
-          <li>ספריית הטיפים של רפי</li>
-          <li>13+ טיפים מקצועיים</li>
-          <li>חוקים עסקיים מותאמים</li>
-          <li>ניסיון של שנים</li>
-        </ul>
-      </div>
 
-      <div class="pillar-connector">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <line x1="4" y1="12" x2="20" y2="12" stroke="#D6D3D1" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </div>
-
-      <!-- Pillar 3: Professional Knowledge -->
-      <div class="pillar">
-        <div class="pillar-icon">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <rect x="6" y="6" width="20" height="22" rx="2" stroke="#7C3AED" stroke-width="2.2" fill="none"/>
-            <line x1="6" y1="12" x2="26" y2="12" stroke="#7C3AED" stroke-width="2"/>
-            <line x1="11" y1="6" x2="11" y2="2" stroke="#7C3AED" stroke-width="2.2" stroke-linecap="round"/>
-            <line x1="21" y1="6" x2="21" y2="2" stroke="#7C3AED" stroke-width="2.2" stroke-linecap="round"/>
-            <circle cx="16" cy="20" r="3" stroke="#7C3AED" stroke-width="1.8" fill="none"/>
-          </svg>
-        </div>
-        <div class="pillar-title">ידע מקצועי</div>
-        <ul class="pillar-items">
-          <li>עדכוני רגולציה</li>
-          <li>רשות שוק ההון</li>
-          <li>מגמות שוק</li>
-          <li>חידושי מוצרים</li>
-        </ul>
-      </div>
-
-    </div>
-
-    <!-- Center Result -->
-    <div class="center-result">
-      <div class="merge-arrows">
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-          <path d="M20 4 L20 36" stroke="#097E6E" stroke-width="2.5" stroke-linecap="round"/>
-          <path d="M12 28 L20 36 L28 28" stroke="#097E6E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-        </svg>
-      </div>
-      <div class="result-box">
-        &#x2728; תובנות מדויקות ופרקטיות
-      </div>
-    </div>
-  </div>
-
-  <footer class="page-footer">
-    <span class="footer-brand">InsAgent</span>
-    <span class="footer-text">מערכת AI למודיעין ביטוחי | רפי בכר - ביטוח</span>
-  </footer>
-</div>
-
-<!-- ============================================================ -->
-<!-- PAGE 3: Security & Control                                    -->
-<!-- ============================================================ -->
-<div class="page" id="page3">
-  <header class="page-header">
-    <div class="logo">
-      <div class="logo-icon">&#x1F9E0;</div>
-      <span class="logo-text">InsAgent</span>
-    </div>
-    <span class="page-number">3 / 3</span>
-  </header>
-
-  <div class="page-title">
-    <h1>אבטחה ובקרה</h1>
-    <h2>שליטה מלאה, אמון מוחלט</h2>
-  </div>
-
-  <div class="security-container">
-    <div class="security-grid">
-
-      <!-- Card 1 -->
-      <div class="security-card">
-        <div class="security-icon">
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-            <circle cx="14" cy="14" r="10" stroke="#097E6E" stroke-width="2.2" fill="none"/>
-            <path d="M9 14 L12 17 L19 10" stroke="#097E6E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-          </svg>
-        </div>
-        <div class="security-content">
-          <h3>בקרה אנושית</h3>
-          <p>שום הודעה לא נשלחת בלי אישור מפורש. כל תובנה עוברת סקירה ידנית לפני שמגיעה ללקוח.</p>
+        <div class="stack">
+          <div class="card sky">
+            <h3>לשלב הבא</h3>
+            <p>הבסיס כבר מוכן להרחבות כמו ניתוח מסמכים, AI עמוק יותר, שיפור הרשאות, ו־automation מבוקר.</p>
+          </div>
+          <div class="card danger">
+            <h3>עקרון בלתי מתפשר</h3>
+            <p>AI תומך בהחלטה. הוא לא מחליף את שיקול הדעת של המשרד.</p>
+          </div>
         </div>
       </div>
+    </section>
 
-      <!-- Card 2 -->
-      <div class="security-card">
-        <div class="security-icon">
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-            <rect x="4" y="12" width="20" height="12" rx="3" stroke="#7C3AED" stroke-width="2.2" fill="none"/>
-            <path d="M9 12 V8 C9 5 14 3 19 5 L19 12" stroke="#7C3AED" stroke-width="2.2" fill="none" stroke-linecap="round"/>
-            <circle cx="14" cy="18" r="2" fill="#7C3AED"/>
-          </svg>
-        </div>
-        <div class="security-content">
-          <h3>הפרדת נתונים</h3>
-          <p>מידע אישי לא נחשף ל-AI &mdash; רק סיכומים סטטיסטיים ודפוסים מצרפיים.</p>
-        </div>
-      </div>
-
-      <!-- Card 3 -->
-      <div class="security-card">
-        <div class="security-icon">
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-            <path d="M14 3 L24 8 L24 15 C24 21 14 26 14 26 C14 26 4 21 4 15 L4 8 Z" stroke="#B45309" stroke-width="2.2" fill="none" stroke-linejoin="round"/>
-            <path d="M10 14 L13 17 L18 11" stroke="#B45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-          </svg>
-        </div>
-        <div class="security-content">
-          <h3>אימות כניסה</h3>
-          <p>גישה מאובטחת למורשים בלבד. הזדהות מלאה נדרשת לכל פעולה במערכת.</p>
-        </div>
-      </div>
-
-      <!-- Card 4 -->
-      <div class="security-card">
-        <div class="security-icon">
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-            <circle cx="14" cy="14" r="10" stroke="#16A34A" stroke-width="2.2" fill="none"/>
-            <circle cx="14" cy="14" r="4" stroke="#16A34A" stroke-width="2" fill="none"/>
-            <line x1="14" y1="4" x2="14" y2="8" stroke="#16A34A" stroke-width="2" stroke-linecap="round"/>
-            <line x1="14" y1="20" x2="14" y2="24" stroke="#16A34A" stroke-width="2" stroke-linecap="round"/>
-            <line x1="4" y1="14" x2="8" y2="14" stroke="#16A34A" stroke-width="2" stroke-linecap="round"/>
-            <line x1="20" y1="14" x2="24" y2="14" stroke="#16A34A" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-        </div>
-        <div class="security-content">
-          <h3>שקיפות מלאה</h3>
-          <p>כל תובנה מסבירה למה ומאיפה. אין "קופסה שחורה" &mdash; הכל גלוי ומובן.</p>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-  <footer class="page-footer">
-    <span class="footer-brand">InsAgent</span>
-    <span class="footer-text">מערכת AI למודיעין ביטוחי | רפי בכר - ביטוח</span>
-  </footer>
-</div>
-
+    <p class="footer-note">
+      InsAgent היא מערכת Intelligence Layer למשרד ביטוח: מאובטחת, מוסברת, ניתנת לבקרה, ומוכנה להתרחבות.
+    </p>
+  </main>
 </body>
 </html>

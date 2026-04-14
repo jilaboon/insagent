@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requireRole } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
 
 export async function GET() {
   const { response: authResponse } = await requireAuth();
@@ -13,8 +14,11 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const { response: authResponse } = await requireAuth();
+  const { response: authResponse, email, role } = await requireAuth();
   if (authResponse) return authResponse;
+
+  const roleResponse = requireRole(role, ["OWNER", "MANAGER", "ADMIN"]);
+  if (roleResponse) return roleResponse;
 
   const body = await request.json();
   const { title, content, source } = body;
@@ -32,6 +36,14 @@ export async function POST(request: NextRequest) {
       content,
       source: source || null,
     },
+  });
+
+  await logAudit({
+    actorEmail: email,
+    action: "knowledge_created",
+    entityType: "knowledge",
+    entityId: article.id,
+    details: { title: article.title },
   });
 
   return NextResponse.json(article, { status: 201 });

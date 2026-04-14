@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { runImportPipelineFromRows } from "@/lib/import/pipeline";
 import { detectFileType } from "@/lib/import/pipeline";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requireRole } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { importUploadSchema, validateBody } from "@/lib/validation";
 
 export const maxDuration = 300;
-
-const TEMP_OPERATOR_ID = "system";
 
 /**
  * Accepts all pre-parsed CSV rows in one request.
@@ -18,16 +16,20 @@ const TEMP_OPERATOR_ID = "system";
  * Body: { fileName, headers, rows[], jobId? }
  */
 export async function POST(request: NextRequest) {
-  const { response: authResponse, email } = await requireAuth();
+  const { response: authResponse, email, role } = await requireAuth();
   if (authResponse) return authResponse;
+
+  const roleResponse = requireRole(role, ["OWNER", "MANAGER", "OPERATIONS", "ADMIN"]);
+  if (roleResponse) return roleResponse;
+
   try {
-    await prisma.user.upsert({
-      where: { id: TEMP_OPERATOR_ID },
+    // Find or create the internal User record for the authenticated user
+    const operator = await prisma.user.upsert({
+      where: { email },
       create: {
-        id: TEMP_OPERATOR_ID,
-        email: "system@insagent.local",
-        name: "מערכת",
-        role: "ADMIN",
+        email,
+        name: email.split("@")[0],
+        role: role ?? "AGENT",
       },
       update: {},
     });
@@ -45,7 +47,7 @@ export async function POST(request: NextRequest) {
           fileName: fileName || "unknown.csv",
           fileType: detectFileType(headers),
           status: "PROCESSING",
-          operatorId: TEMP_OPERATOR_ID,
+          operatorId: operator.id,
           totalRows: rows.length,
         },
       });

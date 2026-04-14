@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { maskIsraeliId } from "@/lib/ai/sanitize";
 
 export async function GET(request: NextRequest) {
   const { response: authResponse } = await requireAuth();
@@ -46,15 +47,13 @@ export async function GET(request: NextRequest) {
     prisma.customer.count({ where }),
   ]);
 
+  // Data masking: list response only includes safe fields
+  // No phone, email, address, dateOfBirth in list view
   const items = customers.map((c) => ({
     id: c.id,
     firstName: c.firstName,
     lastName: c.lastName,
-    israeliId: c.israeliId,
-    address: c.address,
-    phone: c.phone,
-    email: c.email,
-    lastImportDate: c.lastImportDate?.toISOString() ?? null,
+    israeliId: maskIsraeliId(c.israeliId),
     policyCount: c._count.policies,
     activePolicyCount: c.policies.filter((p) => p.status === "ACTIVE").length,
     insightCount: c._count.insights,

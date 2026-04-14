@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requireRole } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
+import { checkRateLimit, AI_RATE_LIMITS, rateLimitKey } from "@/lib/rate-limit";
 import { generateText, Output } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
@@ -36,8 +38,22 @@ export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { response: authResponse } = await requireAuth();
+  const { response: authResponse, email, role } = await requireAuth();
   if (authResponse) return authResponse;
+
+  const roleResponse = requireRole(role, ["OWNER", "MANAGER", "ADMIN"]);
+  if (roleResponse) return roleResponse;
+
+  const rl = checkRateLimit(
+    rateLimitKey("knowledgeExtract", email),
+    AI_RATE_LIMITS.knowledgeExtract
+  );
+  if (rl.limited) {
+    return NextResponse.json(
+      { error: "חרגת ממגבלת הבקשות — נסה שוב בעוד דקה" },
+      { status: 429 }
+    );
+  }
 
   const { id } = await params;
 
@@ -111,6 +127,14 @@ export async function POST(
     await prisma.knowledgeArticle.update({
       where: { id },
       data: { tipsExtracted: tips.length },
+    });
+
+    await logAudit({
+      actorEmail: email,
+      action: "knowledge_extracted",
+      entityType: "knowledge",
+      entityId: id,
+      details: { tipsCount: tips.length },
     });
 
     return NextResponse.json({ tips });

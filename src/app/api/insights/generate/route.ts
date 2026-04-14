@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { matchRuleToCustomer } from "@/lib/insights/rule-matcher";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requireRole } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
+import { checkRateLimit, AI_RATE_LIMITS, rateLimitKey } from "@/lib/rate-limit";
 import type { CustomerProfile, CategoryInfo } from "@/lib/insights/rules/types";
 import type { OfficeRule } from "@prisma/client";
 
@@ -14,8 +16,22 @@ export const maxDuration = 300;
  * Body: { offset, limit }
  */
 export async function POST(request: NextRequest) {
-  const { response: authResponse } = await requireAuth();
+  const { response: authResponse, email, role } = await requireAuth();
   if (authResponse) return authResponse;
+
+  const roleResponse = requireRole(role, ["OWNER", "MANAGER", "ADMIN"]);
+  if (roleResponse) return roleResponse;
+
+  const rl = checkRateLimit(
+    rateLimitKey("insightGenerate", email),
+    AI_RATE_LIMITS.insightGenerate
+  );
+  if (rl.limited) {
+    return NextResponse.json(
+      { error: "חרגת ממגבלת הבקשות — נסה שוב בעוד דקה" },
+      { status: 429 }
+    );
+  }
 
   try {
     const body = await request.json();
@@ -156,6 +172,18 @@ export async function POST(request: NextRequest) {
         create: { key: "lastInsightRunAt", value: new Date().toISOString() },
       });
     }
+
+    await logAudit({
+      actorEmail: email,
+      action: "insights_generated",
+      entityType: "insight",
+      details: {
+        processed: customers.length,
+        insightsCreated,
+        totalCustomers,
+        rulesEvaluated: activeRules.length,
+      },
+    });
 
     return NextResponse.json({
       processed: customers.length,

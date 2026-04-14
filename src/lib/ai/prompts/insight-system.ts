@@ -30,6 +30,29 @@ export const INSIGHT_SYSTEM_PROMPT = `אתה יועץ ביטוח ישראלי מ
 - estimatedFinancialImpact: low / medium / high
 - evidence: אובייקט עם הנתונים שהובילו לתובנה`;
 
+/**
+ * Classify a premium value into a Hebrew range label for AI data minimization.
+ */
+function premiumRange(value: number): string {
+  if (value < 100) return "פרמיה נמוכה";
+  if (value < 500) return "פרמיה בינונית";
+  return "פרמיה גבוהה";
+}
+
+/**
+ * Convert a date string to policy age in years for AI data minimization.
+ */
+function policyAgeYears(dateStr: string | null): string {
+  if (!dateStr) return "לא ידוע";
+  const start = new Date(dateStr);
+  const now = new Date();
+  const years = Math.floor(
+    (now.getTime() - start.getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+  );
+  if (years < 1) return "פחות משנה";
+  return `${years} שנים`;
+}
+
 export function buildInsightUserPrompt(params: {
   customerName: string;
   age: number | null;
@@ -49,10 +72,11 @@ export function buildInsightUserPrompt(params: {
   }>;
   existingInsights: string[];
 }): string {
-  const { customerName, age, maritalStatus, policies, existingInsights } = params;
+  const { age, maritalStatus, policies, existingInsights } = params;
 
+  // AI data minimization: use "הלקוח" instead of actual name
   let prompt = `## פרופיל לקוח
-שם: ${customerName}
+שם: הלקוח
 גיל: ${age || "לא ידוע"}
 מצב משפחתי: ${maritalStatus || "לא ידוע"}
 
@@ -61,11 +85,12 @@ export function buildInsightUserPrompt(params: {
 
   for (const p of policies) {
     prompt += `- ${p.category} | ${p.subType || ""} | ${p.insurer} | סטטוס: ${p.status}`;
-    if (p.premiumMonthly) prompt += ` | פרמיה חודשית: ₪${p.premiumMonthly}`;
-    if (p.premiumAnnual) prompt += ` | פרמיה שנתית: ₪${p.premiumAnnual}`;
-    if (p.accumulatedSavings) prompt += ` | חיסכון: ₪${Math.round(p.accumulatedSavings).toLocaleString()}`;
-    if (p.startDate) prompt += ` | התחלה: ${p.startDate}`;
-    if (p.endDate) prompt += ` | סיום: ${p.endDate}`;
+    // Data minimization: premium ranges instead of exact values
+    if (p.premiumMonthly) prompt += ` | ${premiumRange(p.premiumMonthly)}`;
+    if (p.premiumAnnual) prompt += ` | ${premiumRange(p.premiumAnnual / 12)} (שנתית)`;
+    if (p.accumulatedSavings) prompt += ` | חיסכון: ${p.accumulatedSavings > 100000 ? "מעל 100K" : "עד 100K"}`;
+    // Data minimization: policy age in years instead of exact dates
+    if (p.startDate) prompt += ` | ותק פוליסה: ${policyAgeYears(p.startDate)}`;
     if (p.vehicleYear) prompt += ` | שנת רכב: ${p.vehicleYear}`;
     if (p.managementFees.length > 0) {
       for (const fee of p.managementFees) {

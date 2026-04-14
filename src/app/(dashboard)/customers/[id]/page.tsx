@@ -38,6 +38,11 @@ export default function CustomerProfilePage() {
   const params = useParams<{ id: string }>();
   const { data: customer, isLoading, error } = useCustomerDetail(params.id);
 
+  // All hooks must be called unconditionally before any early returns
+  const [selectedInsightIds, setSelectedInsightIds] = useState<Set<string>>(new Set());
+  const [combinedMessage, setCombinedMessage] = useState<MessageDraftItem | null>(null);
+  const generateCombined = useGenerateCombinedMessage();
+
   if (isLoading) {
     return <CustomerProfileSkeleton />;
   }
@@ -51,10 +56,6 @@ export default function CustomerProfilePage() {
       />
     );
   }
-
-  const [selectedInsightIds, setSelectedInsightIds] = useState<Set<string>>(new Set());
-  const [combinedMessage, setCombinedMessage] = useState<MessageDraftItem | null>(null);
-  const generateCombined = useGenerateCombinedMessage();
 
   function toggleInsightSelection(id: string) {
     setSelectedInsightIds((prev) => {

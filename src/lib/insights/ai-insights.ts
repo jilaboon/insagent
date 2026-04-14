@@ -40,11 +40,9 @@ export async function generateAIInsights(
   profile: CustomerProfile,
   existingInsightTitles: string[]
 ): Promise<Array<AIInsightResult & { strengthScore: number }>> {
-  // AI Data Minimization: send only first name (no last name, no ת.ז., no phone/email/address)
-  const customerName = profile.customer.firstName;
-
+  // AI Data Minimization: don't send customer name to AI — use "הלקוח" inside prompt
   const userPrompt = buildInsightUserPrompt({
-    customerName,
+    customerName: "הלקוח",
     age: profile.customer.age,
     maritalStatus: profile.customer.maritalStatus,
     // Strip policy numbers, vehicle plates, and property addresses — only send analytical data
