@@ -44,7 +44,7 @@ export default function SecurityPage() {
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                הגישה מוגנת באימות דו-שלבי וחיבור מוצפן SSL
+                הגישה מוגנת בחיבור מוצפן SSL
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
@@ -80,7 +80,7 @@ export default function SecurityPage() {
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                {"מידע אישי מוצג במסיכה (ת.ז., טלפון, מספרי פוליסה)"}
+                {"מידע אישי מוסתר חלקית בממשק: ת.ז. מוצג כ-33****3, טלפון כ-****1975, מספרי פוליסה ולוחיות רכב מוסתרים"}
               </li>
             </ul>
           </div>
