@@ -156,6 +156,33 @@ body {
   50% { opacity: 0.6; }
 }
 
+@keyframes progress-shine {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+/* ============================================================
+   Progress bar animation
+   ============================================================ */
+
+.progress-bar-animated {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar-animated::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 100%
+  );
+  animation: progress-shine 1.5s ease-in-out infinite;
+}
+
 /* ============================================================
    Skeleton loader
    ============================================================ */

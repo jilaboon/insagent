@@ -5,6 +5,7 @@ type ProgressVariant = "primary" | "success" | "warning";
 interface ProgressBarProps {
   value: number;
   variant?: ProgressVariant;
+  animated?: boolean;
   className?: string;
 }
 
@@ -17,6 +18,7 @@ const variantStyles: Record<ProgressVariant, string> = {
 export function ProgressBar({
   value,
   variant = "primary",
+  animated = true,
   className,
 }: ProgressBarProps) {
   const clamped = Math.max(0, Math.min(100, value));
@@ -34,8 +36,9 @@ export function ProgressBar({
     >
       <div
         className={cn(
-          "h-full rounded-full transition-all duration-500 ease-out",
-          variantStyles[variant]
+          "h-full rounded-full transition-all duration-700 ease-out",
+          variantStyles[variant],
+          animated && "progress-bar-animated"
         )}
         style={{ width: `${clamped}%` }}
       />
