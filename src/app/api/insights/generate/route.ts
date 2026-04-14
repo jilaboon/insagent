@@ -37,6 +37,12 @@ export async function POST(request: NextRequest) {
       where: { isActive: true },
     });
 
+    // On first batch (offset=0), clear all existing insights for a clean run
+    if (offset === 0) {
+      await prisma.messageDraft.deleteMany({ where: { insightId: { not: undefined } } });
+      await prisma.insight.deleteMany({});
+    }
+
     // All data in ONE raw SQL query — customers + policies joined
     const rows: Array<{
       c_id: string; c_firstName: string; c_lastName: string;
@@ -84,17 +90,7 @@ export async function POST(request: NextRequest) {
       'SELECT COUNT(*)::int as cnt FROM customers'
     )) as Array<{ cnt: number }>)[0]?.cnt ?? 0;
 
-    // Get existing insights for dedup
-    const existingInsights: Array<{ customerId: string; linkedRuleId: string | null }> = customerIds.length > 0
-      ? await prisma.$queryRawUnsafe(
-          `SELECT "customerId", "linkedRuleId" FROM insights WHERE "customerId" = ANY($1) AND "linkedRuleId" IS NOT NULL`,
-          customerIds
-        )
-      : [];
-
-    const existingSet = new Set(
-      existingInsights.map((i) => `${i.customerId}|${i.linkedRuleId}`)
-    );
+    // No dedup needed — we clear all insights on offset=0
 
     // Run rule matching on all customers in memory
     const insightsToCreate: Array<{
@@ -120,7 +116,6 @@ export async function POST(request: NextRequest) {
 
       for (const rule of activeRules) {
         // Skip if already exists
-        if (existingSet.has(`${custId}|${rule.id}`)) continue;
 
         try {
           const matches = matchRuleToCustomer(rule, profile);
