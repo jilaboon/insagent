@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>InsAgent — זרימת המערכת</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --teal-50:#E6F3F1; --teal-100:#CCE7E3; --teal-500:#0FA08C; --teal-600:#097E6E; --teal-700:#076456; --teal-900:#04332C;
+      --amber-50:#FEF6E7; --amber-500:#F99B07; --amber-600:#D17F00;
+      --indigo-50:#EEF1FA; --indigo-500:#5468FF; --indigo-600:#3A4FE0;
+      --emerald-50:#ECFDF5; --emerald-500:#10B981; --emerald-600:#059669;
+      --rose-50:#FFF1F2; --rose-500:#F43F5E; --rose-600:#E11D48;
+      --surface-0:#FAFAF9; --surface-50:#F5F5F4; --surface-100:#E7E5E4; --surface-200:#D6D3D1;
+      --surface-300:#A8A29E; --surface-400:#78716C; --surface-500:#57534E; --surface-700:#292524; --surface-900:#0C0A09;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: 'Heebo', sans-serif;
+      background: var(--surface-0);
+      color: var(--surface-900);
+      direction: rtl;
+      padding: 48px 32px;
+      min-height: 100vh;
+    }
+    .container { max-width: 1400px; margin: 0 auto; }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 56px;
+    }
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 14px;
+      background: linear-gradient(135deg, var(--teal-50), var(--amber-50));
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--teal-700);
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-size: 38px;
+      font-weight: 800;
+      margin: 0 0 12px;
+      color: var(--surface-900);
+      letter-spacing: -0.02em;
+    }
+    .subtitle { font-size: 16px; color: var(--surface-500); font-weight: 400; max-width: 600px; margin: 0 auto; }
+
+    /* Flow */
+    .flow {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      margin-bottom: 64px;
+    }
+
+    .stage {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    .stage-number {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 24px;
+    }
+    .number-circle {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--teal-600), var(--teal-500));
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      font-weight: 700;
+      box-shadow: 0 8px 24px rgba(9, 126, 110, 0.25);
+      position: relative;
+      z-index: 2;
+    }
+
+    .stage-card {
+      background: white;
+      border: 1px solid var(--surface-100);
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+      position: relative;
+    }
+    .stage-card.highlight {
+      border-color: var(--teal-100);
+      background: linear-gradient(135deg, white, var(--teal-50));
+    }
+
+    .stage-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--surface-900);
+      margin: 0 0 4px;
+    }
+    .stage-emoji { font-size: 24px; }
+    .stage-tagline {
+      font-size: 14px;
+      color: var(--surface-500);
+      margin: 0 0 20px;
+      font-weight: 500;
+    }
+
+    .stage-content { margin-top: 16px; }
+
+    .source-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .source-card {
+      background: var(--surface-0);
+      border: 1px solid var(--surface-100);
+      border-radius: 12px;
+      padding: 14px;
+      text-align: center;
+    }
+    .source-icon { font-size: 24px; margin-bottom: 6px; }
+    .source-label { font-size: 13px; font-weight: 600; color: var(--surface-700); margin-bottom: 4px; }
+    .source-desc { font-size: 11px; color: var(--surface-500); line-height: 1.4; }
+
+    .example {
+      margin-top: 14px;
+      padding: 12px 16px;
+      background: var(--surface-50);
+      border-right: 3px solid var(--teal-500);
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--surface-700);
+    }
+    .example-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--teal-700);
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+    .example .arrow { color: var(--teal-600); font-weight: 700; }
+
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .category-chip {
+      background: white;
+      border: 1px solid var(--surface-100);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 11px;
+      text-align: center;
+      color: var(--surface-700);
+    }
+    .category-chip.urgent { border-color: var(--amber-500); background: var(--amber-50); }
+
+    .queue-visual {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+      align-items: center;
+    }
+    .queue-card {
+      flex: 1;
+      background: white;
+      border: 1px solid var(--surface-100);
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 11px;
+      text-align: center;
+    }
+    .queue-card.top {
+      background: linear-gradient(135deg, var(--teal-50), var(--amber-50));
+      border-color: var(--teal-200);
+      font-weight: 600;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .action-pill {
+      flex: 1;
+      padding: 10px;
+      border-radius: 10px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .pill-blue { background: var(--indigo-50); color: var(--indigo-600); }
+    .pill-green { background: var(--emerald-50); color: var(--emerald-600); }
+    .pill-red { background: var(--rose-50); color: var(--rose-600); }
+
+    .message-bubble {
+      background: linear-gradient(135deg, #DCFCE7, #BBF7D0);
+      border-radius: 16px;
+      border-bottom-right-radius: 4px;
+      padding: 14px 18px;
+      margin-top: 14px;
+      max-width: 480px;
+      font-size: 14px;
+      line-height: 1.55;
+      color: var(--surface-900);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+    /* Connector */
+    .connector {
+      grid-column: 1;
+      display: flex;
+      justify-content: center;
+      height: 24px;
+      align-items: center;
+    }
+    .connector-line {
+      width: 2px;
+      height: 100%;
+      background: var(--surface-200);
+    }
+
+    /* Footer summary */
+    .summary {
+      background: linear-gradient(135deg, var(--surface-900), var(--teal-900));
+      color: white;
+      border-radius: 24px;
+      padding: 40px;
+      text-align: center;
+      margin-top: 32px;
+    }
+    .summary h2 {
+      font-size: 28px;
+      font-weight: 700;
+      margin: 0 0 16px;
+    }
+    .summary-flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-top: 24px;
+    }
+    .flow-step {
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.15);
+      padding: 12px 20px;
+      border-radius: 100px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .flow-arrow {
+      color: var(--amber-500);
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    /* Print */
+    @media print {
+      body { padding: 24px; background: white; }
+      .stage-card { break-inside: avoid; }
+    }
+    @media (max-width: 900px) {
+      .source-grid, .category-grid { grid-template-columns: 1fr 1fr; }
+      .queue-visual { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <div class="header">
+      <div class="logo">🧠 InsAgent</div>
+      <h1>זרימת המערכת — איך הכל עובד</h1>
+      <p class="subtitle">מנתונים גולמיים של BAFI — להודעת WhatsApp אישית ללקוח. בחמישה שלבים.</p>
+    </div>
+
+    <div class="flow">
+
+      <!-- Stage 1: Rules -->
+      <div class="stage">
+        <div class="stage-number">
+          <div class="number-circle">1</div>
+        </div>
+        <div class="stage-card highlight">
+          <h2 class="stage-title">
+            <span class="stage-emoji">📚</span>
+            חוקים — הבסיס של הכל
+          </h2>
+          <p class="stage-tagline">המשרד מגדיר מה לחפש אצל הלקוחות וכיצד לתקשר איתם</p>
+
+          <div class="stage-content">
+            <div class="source-grid">
+              <div class="source-card">
+                <div class="source-icon">✍️</div>
+                <div class="source-label">רפי כותב ידנית</div>
+                <div class="source-desc">חוקים מהניסיון של המשרד</div>
+              </div>
+              <div class="source-card">
+                <div class="source-icon">📊</div>
+                <div class="source-label">AI מציע מדפוסי נתונים</div>
+                <div class="source-desc">״342 לקוחות עם רכב בלבד״</div>
+              </div>
+              <div class="source-card">
+                <div class="source-icon">📄</div>
+                <div class="source-label">AI מחלץ ממאמרים</div>
+                <div class="source-desc">עדכוני רגולציה ומגמות שוק</div>
+              </div>
+            </div>
+
+            <div class="example">
+              <div class="example-label">דוגמה לחוק</div>
+              <strong>טריגר:</strong> גיל ≥ 60 וגם יש פנסיה
+              <span class="arrow"> ← </span>
+              <strong>הודעה:</strong> ״הזמן לתכנון פרישה מקצועי״
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="connector"><div class="connector-line"></div></div>
+
+      <!-- Stage 2: Insights -->
+      <div class="stage">
+        <div class="stage-number">
+          <div class="number-circle">2</div>
+        </div>
+        <div class="stage-card">
+          <h2 class="stage-title">
+            <span class="stage-emoji">💡</span>
+            תובנות — מה המערכת מצאה
+          </h2>
+          <p class="stage-tagline">בלחיצה על ״צור תובנות״ — המערכת מריצה את כל החוקים על כל הלקוחות</p>
+
+          <div class="stage-content">
+            <div class="example">
+              <div class="example-label">דוגמה</div>
+              דוד כהן בן 66, יש לו פנסיה
+              <span class="arrow"> ← </span>
+              תובנה: ״תכנון פרישה — הלקוח הגיע לגיל 66״
+            </div>
+
+            <div style="margin-top: 16px; font-size: 13px; color: var(--surface-500);">
+              כל תובנה מסווגת לאחת מ-7 קטגוריות:
+            </div>
+            <div class="category-grid">
+              <div class="category-chip urgent">⏰ פוליסה מתחדשת</div>
+              <div class="category-chip">🎯 אבן דרך גילית</div>
+              <div class="category-chip">💎 לקוח משמעותי</div>
+              <div class="category-chip">🛡️ פער כיסוי</div>
+              <div class="category-chip">💰 אופטימיזציה</div>
+              <div class="category-chip">🤝 שירות</div>
+              <div class="category-chip">✨ הרחבת סל</div>
+              <div class="category-chip" style="background: var(--surface-50); color: var(--surface-400);">תוצאה: אלפי תובנות</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="connector"><div class="connector-line"></div></div>
+
+      <!-- Stage 3: Queue -->
+      <div class="stage">
+        <div class="stage-number">
+          <div class="number-circle">3</div>
+        </div>
+        <div class="stage-card highlight">
+          <h2 class="stage-title">
+            <span class="stage-emoji">📋</span>
+            התור — 20 הלקוחות הכי חשובים היום
+          </h2>
+          <p class="stage-tagline">המערכת בוחרת את הלקוחות שבאמת חשוב לפנות אליהם היום — לא יותר ולא פחות</p>
+
+          <div class="stage-content">
+            <div style="margin-bottom: 12px; font-size: 13px; color: var(--surface-700);">
+              <strong>איך נבחרים:</strong>
+            </div>
+            <ul style="margin: 0; padding-right: 20px; font-size: 13px; color: var(--surface-700); line-height: 1.8;">
+              <li>הלקוח עובר בדיקות זכאות (לא נדחה לאחרונה, לא יצרנו קשר ב-30 ימים אחרונים)</li>
+              <li>נבחר ״למה היום?״ ראשי לכל לקוח (התובנה החשובה ביותר)</li>
+              <li>20 הראשונים — מקומות שמורים לקטגוריות דחופות, השאר לפי ערך</li>
+            </ul>
+
+            <div class="queue-visual">
+              <div class="queue-card top">#1<br><span style="font-size:9px;">דוד כהן</span></div>
+              <div class="queue-card top">#2<br><span style="font-size:9px;">שרה לוי</span></div>
+              <div class="queue-card top">#3<br><span style="font-size:9px;">יואב גל</span></div>
+              <div class="queue-card">#4</div>
+              <div class="queue-card">#5</div>
+              <div class="queue-card" style="color:var(--surface-400);">...</div>
+              <div class="queue-card">#20</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="connector"><div class="connector-line"></div></div>
+
+      <!-- Stage 4: Selection -->
+      <div class="stage">
+        <div class="stage-number">
+          <div class="number-circle">4</div>
+        </div>
+        <div class="stage-card">
+          <h2 class="stage-title">
+            <span class="stage-emoji">✅</span>
+            רפי בוחר במה לטפל
+          </h2>
+          <p class="stage-tagline">פתיחת כרטיס לקוח — בחירת התובנות שנכנסות להודעה</p>
+
+          <div class="stage-content">
+            <div style="font-size: 13px; color: var(--surface-700);">
+              לכל לקוח יש תובנה ראשית + עד 2 תובנות תומכות. רפי מסמן באמצעות צ'קבוקס:
+            </div>
+            <div style="margin-top: 12px; padding: 12px; background: var(--surface-50); border-radius: 10px;">
+              <div style="font-size: 13px; margin-bottom: 6px;">☑ תכנון פרישה (תובנה ראשית)</div>
+              <div style="font-size: 13px; margin-bottom: 6px;">☑ דמי ניהול חריגים בקרן השתלמות</div>
+              <div style="font-size: 13px; color: var(--surface-400);">☐ ביטוח חיים ותיק (לא נכלל הפעם)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="connector"><div class="connector-line"></div></div>
+
+      <!-- Stage 5: Message -->
+      <div class="stage">
+        <div class="stage-number">
+          <div class="number-circle">5</div>
+        </div>
+        <div class="stage-card highlight">
+          <h2 class="stage-title">
+            <span class="stage-emoji">💬</span>
+            AI כותב הודעת WhatsApp
+          </h2>
+          <p class="stage-tagline">הודעה אישית בעברית, ממזגת את כל התובנות שנבחרו, מותאמת למין הלקוח</p>
+
+          <div class="stage-content">
+            <div class="message-bubble">
+              דוד, רציתי להעלות שני נושאים: בגיל 66 זה הזמן המושלם לתכנון פרישה מקצועי כדי למקסם את הפנסיה. בנוסף, ראיתי שדמי הניהול בקרן ההשתלמות שלך גבוהים — אפשר לחסוך הרבה כסף בהעברה. מתי נוח לך לשיחה קצרה? 📞
+            </div>
+
+            <div style="margin-top: 16px; font-size: 13px; color: var(--surface-500);">
+              <strong>מה שולחים ל-AI:</strong> שם פרטי, גיל, מין, קטגוריות פוליסות.
+              <strong>מה לא שולחים:</strong> ת.ז., טלפון, כתובת, מספרי פוליסה.
+            </div>
+
+            <div class="action-row">
+              <div class="action-pill pill-green">✓ אשר ושלח</div>
+              <div class="action-pill pill-blue">✏️ ערוך</div>
+              <div class="action-pill pill-red">דחה</div>
+            </div>
+
+            <div style="margin-top: 14px; font-size: 12px; color: var(--surface-500); text-align: center;">
+              ← אחרי האישור: הכרטיס נעלם, לקוח חדש תופס את מקומו בתור
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Summary -->
+    <div class="summary">
+      <h2>זרימת המערכת בקצרה</h2>
+      <div class="summary-flow">
+        <span class="flow-step">📚 חוקים</span>
+        <span class="flow-arrow">←</span>
+        <span class="flow-step">💡 תובנות</span>
+        <span class="flow-arrow">←</span>
+        <span class="flow-step">📋 תור יומי</span>
+        <span class="flow-arrow">←</span>
+        <span class="flow-step">✅ בחירה</span>
+        <span class="flow-arrow">←</span>
+        <span class="flow-step">💬 הודעה</span>
+      </div>
+      <p style="margin-top: 24px; font-size: 14px; opacity: 0.8;">
+        רפי שולט בחוקים. AI עוזר לאתר ולכתוב. רפי תמיד מאשר.
+      </p>
+    </div>
+
+  </div>
+</body>
+</html>
