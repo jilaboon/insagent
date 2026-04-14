@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Users, UserPlus, RefreshCw, FileText, Sparkles } from "lucide-react";
-import { useState } from "react";
+import Link from "next/link";
 
 interface ImportSummaryProps {
   totalCustomers: number;
@@ -21,27 +21,6 @@ export function ImportSummary({
   policies,
   className,
 }: ImportSummaryProps) {
-  const [generating, setGenerating] = useState(false);
-  const [generated, setGenerated] = useState(false);
-
-  async function handleGenerate() {
-    setGenerating(true);
-    try {
-      const res = await fetch("/api/insights/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ includeAI: false }),
-      });
-      if (res.ok) {
-        setGenerated(true);
-      }
-    } catch {
-      // Silently fail — user can retry
-    } finally {
-      setGenerating(false);
-    }
-  }
-
   const stats = [
     {
       label: "סה״כ לקוחות",
@@ -95,14 +74,12 @@ export function ImportSummary({
       </div>
 
       <div className="flex justify-start">
-        <Button
-          variant="primary"
-          onClick={handleGenerate}
-          disabled={generating || generated}
-        >
-          <Sparkles className="h-4 w-4" />
-          {generated ? "תובנות נוצרו" : generating ? "מייצר תובנות..." : "צור תובנות"}
-        </Button>
+        <Link href="/insights">
+          <Button variant="primary">
+            <Sparkles className="h-4 w-4" />
+            עבור למרכז תובנות
+          </Button>
+        </Link>
       </div>
     </div>
   );
