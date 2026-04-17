@@ -171,17 +171,11 @@ export interface OfficeRuleItem {
   updatedAt: string;
 }
 
-/** @deprecated Use OfficeRuleItem instead */
-export type OfficeTipItem = OfficeRuleItem;
-
 export interface RulesResponse {
   items: OfficeRuleItem[];
   total: number;
   activeCount: number;
 }
-
-/** @deprecated Use RulesResponse instead */
-export type TipsResponse = RulesResponse;
 
 export interface DataPatternItem {
   id: string;
@@ -455,9 +449,6 @@ export function useRules() {
   });
 }
 
-/** @deprecated Use useRules instead */
-export const useTips = useRules;
-
 export function useCreateRule() {
   const queryClient = useQueryClient();
 
@@ -479,9 +470,6 @@ export function useCreateRule() {
     },
   });
 }
-
-/** @deprecated Use useCreateRule instead */
-export const useCreateTip = useCreateRule;
 
 export function useUpdateRule() {
   const queryClient = useQueryClient();
@@ -510,9 +498,6 @@ export function useUpdateRule() {
   });
 }
 
-/** @deprecated Use useUpdateRule instead */
-export const useUpdateTip = useUpdateRule;
-
 export function useDeleteRule() {
   const queryClient = useQueryClient();
 
@@ -527,9 +512,6 @@ export function useDeleteRule() {
     },
   });
 }
-
-/** @deprecated Use useDeleteRule instead */
-export const useDeleteTip = useDeleteRule;
 
 export function useSeedRules() {
   const queryClient = useQueryClient();
@@ -546,9 +528,6 @@ export function useSeedRules() {
   });
 }
 
-/** @deprecated Use useSeedRules instead */
-export const useSeedTips = useSeedRules;
-
 // ============================================================
 // Suggest Rules (AI) — still uses /api/tips/suggest endpoint
 // ============================================================
@@ -561,9 +540,6 @@ export interface SuggestedRuleItem {
   reasoning: string;
 }
 
-/** @deprecated Use SuggestedRuleItem instead */
-export type SuggestedTipItem = SuggestedRuleItem;
-
 export function useSuggestRules() {
   return useMutation({
     mutationFn: async () => {
@@ -574,9 +550,6 @@ export function useSuggestRules() {
     },
   });
 }
-
-/** @deprecated Use useSuggestRules instead */
-export const useSuggestTips = useSuggestRules;
 
 // ============================================================
 // Generate Combined Message

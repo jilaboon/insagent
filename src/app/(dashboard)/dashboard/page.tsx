@@ -13,6 +13,7 @@ import {
   Loader2,
   FileText,
   Sparkles,
+  Users,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,17 +23,21 @@ import {
   useQueueToday,
   useQueueStats,
   useRebuildQueue,
+  useDashboardStats,
 } from "@/lib/api/hooks";
 import { timeAgo } from "@/lib/utils";
 
 export default function DashboardPage() {
   const today = useQueueToday();
   const stats = useQueueStats();
+  const dashboardStats = useDashboardStats();
   const rebuild = useRebuildQueue();
   const [toast, setToast] = useState<string | null>(null);
 
   const entries = today.data?.items ?? [];
   const lastRebuildAt = stats.data?.lastRebuildAt ?? null;
+  const totalCustomers = dashboardStats.data?.totalCustomers ?? 0;
+  const totalInsights = dashboardStats.data?.totalInsights ?? 0;
 
   async function handleRebuild() {
     try {
@@ -89,6 +94,8 @@ export default function DashboardPage() {
             <EmptyQueueState
               onRebuild={handleRebuild}
               isBuilding={rebuild.isPending}
+              totalCustomers={totalCustomers}
+              totalInsights={totalInsights}
             />
           ) : (
             entries.map((entry) => (
@@ -255,16 +262,65 @@ function QueueListSkeleton() {
 function EmptyQueueState({
   onRebuild,
   isBuilding,
+  totalCustomers,
+  totalInsights,
 }: {
   onRebuild: () => void;
   isBuilding: boolean;
+  totalCustomers: number;
+  totalInsights: number;
 }) {
+  // State 1: No customers yet — first-time user flow
+  if (totalCustomers === 0) {
+    return (
+      <Card padding="lg">
+        <EmptyState
+          icon={Users}
+          title="עדיין אין לקוחות במערכת"
+          description="כדי להתחיל, יבא קובץ BAFI. המערכת תנתח את הלקוחות ותכין לך רשימה ממוקדת של משימות."
+          action={
+            <Link
+              href="/import"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+            >
+              <Upload className="h-4 w-4" />
+              יבא קובץ BAFI
+            </Link>
+          }
+        />
+      </Card>
+    );
+  }
+
+  // State 2: Customers exist but no insights — need to run analysis
+  if (totalInsights === 0) {
+    return (
+      <Card padding="lg">
+        <EmptyState
+          icon={Lightbulb}
+          title="יש לקוחות, אבל עדיין לא נוצרו תובנות"
+          description={`${totalCustomers.toLocaleString("he-IL")} לקוחות במערכת. לחץ כאן כדי שה-AI יזהה הזדמנויות ויבנה את התור.`}
+          action={
+            <Link
+              href="/insights"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+            >
+              <Sparkles className="h-4 w-4" />
+              עבור לייצור תובנות
+            </Link>
+          }
+        />
+      </Card>
+    );
+  }
+
+  // State 3: Data + insights exist, queue hasn't been built yet
   return (
     <Card padding="lg">
       <EmptyState
         icon={Inbox}
-        title="אין משימות היום"
-        description="לחץ על 'רענן תור' כדי להתחיל — המערכת תנתח את כל הלקוחות ותכין לך רשימה ממוקדת של פעולות."
+        title="התור לא נבנה עדיין"
+        description={`${totalInsights.toLocaleString("he-IL")} תובנות מחכות להיבחר. לחץ כדי לבנות את רשימת המשימות של היום.`}
         action={
           <Button
             variant="primary"
@@ -277,7 +333,7 @@ function EmptyQueueState({
             ) : (
               <RefreshCw className="h-4 w-4" />
             )}
-            רענן תור
+            בנה את התור
           </Button>
         }
       />

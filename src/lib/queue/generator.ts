@@ -95,10 +95,14 @@ export async function buildQueue(
     },
   });
 
-  // Load candidates via raw SQL (same pattern as insight generator)
+  // Load candidates via raw SQL (same pattern as insight generator).
+  // Filter out customers with no real name — the import sets firstName to
+  // "לא ידוע" (unknown) when the source row had no name. Showing those in
+  // the queue kills trust (the agent can't identify who to call).
+  const nameFilter = `(c."firstName" IS NOT NULL AND c."firstName" != '' AND c."firstName" != 'לא ידוע')`;
   const customerWhereSql = assignedUserId
-    ? `WHERE c."assignedManagerId" = $1`
-    : "";
+    ? `WHERE c."assignedManagerId" = $1 AND ${nameFilter}`
+    : `WHERE ${nameFilter}`;
   const customerParams = assignedUserId ? [assignedUserId] : [];
 
   const customerRows = (await prisma.$queryRawUnsafe(
