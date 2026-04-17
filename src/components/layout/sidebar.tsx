@@ -17,6 +17,7 @@ import {
   Brain,
   Clock,
   Settings,
+  Palette,
 } from "lucide-react";
 
 const navigation = [
@@ -32,6 +33,7 @@ const navigation = [
   { name: "יבוא נתונים", href: "/import", icon: Upload },
   { name: "יומן פעילות", href: "/audit", icon: Shield },
   { name: "אבטחה ופרטיות", href: "/security", icon: ShieldCheck },
+  { name: "סטודיו עיצוב", href: "/studio", icon: Palette },
 ];
 
 export function Sidebar() {
