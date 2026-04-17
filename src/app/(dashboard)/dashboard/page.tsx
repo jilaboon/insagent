@@ -54,16 +54,22 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-surface-900">
-            העבודה של היום
+          <h1 className="text-3xl font-light tracking-tight text-surface-900 sm:text-4xl">
+            העבודה של{" "}
+            <span
+              className="bg-gradient-to-l from-indigo-500 via-violet-500 to-rose-400 bg-clip-text text-transparent"
+              style={{ WebkitTextFillColor: "transparent" }}
+            >
+              היום
+            </span>
           </h1>
-          <p className="mt-1 text-sm text-surface-500">
+          <p className="mt-1.5 text-sm text-surface-600">
             {today.isLoading ? (
               "טוען..."
             ) : (
               <>
                 <span className="number">{entries.length}</span> משימות מחכות לך
-                <span className="mx-2 text-surface-300">·</span>
+                <span className="mx-2 text-surface-400">·</span>
                 עודכן: {timeAgo(lastRebuildAt)}
               </>
             )}
@@ -129,8 +135,8 @@ export default function DashboardPage() {
                 href="/insights"
                 caption="עבור לחקירת תובנות"
               />
-              <div className="pt-2 border-t border-surface-100">
-                <p className="text-[11px] text-surface-500">עדכון אחרון</p>
+              <div className="pt-2 border-t border-white/60">
+                <p className="text-[11px] text-surface-600">עדכון אחרון</p>
                 <p className="mt-0.5 text-sm font-medium text-surface-800">
                   {timeAgo(lastRebuildAt)}
                 </p>
@@ -175,14 +181,14 @@ export default function DashboardPage() {
             <div className="flex flex-col gap-2">
               <Link
                 href="/import"
-                className="inline-flex items-center gap-2 rounded-lg border border-surface-200 bg-white px-3 py-2 text-xs font-medium text-surface-700 hover:bg-surface-50"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/65 bg-white/60 px-3 py-2 text-xs font-medium text-surface-700 backdrop-blur-md transition-colors hover:border-violet-300/60 hover:bg-white/75 hover:text-violet-700"
               >
                 <Upload className="h-3.5 w-3.5" />
                 יבוא קובץ BAFI
               </Link>
               <Link
                 href="/rules"
-                className="inline-flex items-center gap-2 rounded-lg border border-surface-200 bg-white px-3 py-2 text-xs font-medium text-surface-700 hover:bg-surface-50"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/65 bg-white/60 px-3 py-2 text-xs font-medium text-surface-700 backdrop-blur-md transition-colors hover:border-violet-300/60 hover:bg-white/75 hover:text-violet-700"
               >
                 <Lightbulb className="h-3.5 w-3.5" />
                 מנוע חוקים
@@ -217,19 +223,19 @@ function SideLink({
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 rounded-lg px-2 py-1.5 -mx-2 hover:bg-surface-50 transition-colors"
+      className="flex items-center gap-3 rounded-lg px-2 py-1.5 -mx-2 hover:bg-white/50 transition-colors"
     >
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-50">
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/60 bg-white/55 backdrop-blur-md">
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-surface-500">{label}</p>
+        <p className="text-xs text-surface-600">{label}</p>
         {caption && (
-          <p className="text-[11px] text-surface-400 truncate">{caption}</p>
+          <p className="text-[11px] text-surface-500 truncate">{caption}</p>
         )}
       </div>
       {value != null && (
-        <span className="text-sm font-bold text-surface-900 number">
+        <span className="text-sm font-semibold text-surface-900 number">
           {value.toLocaleString("he-IL")}
         </span>
       )}
@@ -243,14 +249,14 @@ function QueueListSkeleton() {
       {Array.from({ length: 4 }).map((_, i) => (
         <div
           key={i}
-          className="rounded-xl border border-surface-200 bg-white p-5"
+          className="rounded-[20px] border border-white/65 bg-white/55 p-5 backdrop-blur-xl"
         >
           <div className="flex items-start gap-4">
-            <div className="h-11 w-11 shrink-0 rounded-full bg-surface-100 animate-pulse" />
+            <div className="h-12 w-12 shrink-0 rounded-full bg-white/60 animate-pulse" />
             <div className="flex-1 space-y-2">
-              <div className="h-4 w-40 rounded bg-surface-100 animate-pulse" />
-              <div className="h-3 w-64 rounded bg-surface-100 animate-pulse" />
-              <div className="h-3 w-3/4 rounded bg-surface-100 animate-pulse" />
+              <div className="h-5 w-44 rounded bg-white/60 animate-pulse" />
+              <div className="h-3 w-64 rounded bg-white/50 animate-pulse" />
+              <div className="h-3 w-3/4 rounded bg-white/50 animate-pulse" />
             </div>
           </div>
         </div>

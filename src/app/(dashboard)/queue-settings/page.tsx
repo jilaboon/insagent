@@ -217,7 +217,7 @@ export default function QueueSettingsPage() {
               onChange={(e) =>
                 patch({ milestoneFreshnessDays: Number(e.target.value) })
               }
-              className="mt-2 w-full rounded-lg border border-surface-300 bg-white px-3 py-2 text-sm text-surface-900 text-right focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              className="mt-2 w-full rounded-lg border border-white/80 bg-white/80 px-3 py-2 text-sm text-surface-900 text-right backdrop-blur-sm focus:border-violet-400/60 focus:bg-white/90 focus:outline-none focus:ring-2 focus:ring-violet-400/25"
             >
               {FRESHNESS_OPTIONS.map((d) => (
                 <option key={d} value={d}>
@@ -556,7 +556,7 @@ function NumberField({
             if (max != null && clamped > max) clamped = max;
             onChange(clamped);
           }}
-          className="number flex-1 rounded-lg border border-surface-300 bg-white px-3 py-2 text-sm text-surface-900 text-right focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+          className="number flex-1 rounded-lg border border-white/80 bg-white/80 px-3 py-2 text-sm text-surface-900 text-right backdrop-blur-sm focus:border-violet-400/60 focus:bg-white/90 focus:outline-none focus:ring-2 focus:ring-violet-400/25"
         />
         {suffix && !currency && (
           <span className="inline-flex items-center rounded-lg border border-surface-200 bg-surface-50 px-3 text-sm font-medium text-surface-500">

@@ -77,6 +77,19 @@
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
+
+  /* ============================================================
+     Prism palette — glass / chromatic aurora
+     Cohabits with the base tokens above; opt-in via components.
+     ============================================================ */
+  --prism-indigo: #818CF8;
+  --prism-violet: #A78BFA;
+  --prism-cyan: #22D3EE;
+  --prism-rose: #F0ABFC;
+  --prism-ink: #0C0A1F;
+  --prism-glass-fill: rgba(255, 255, 255, 0.55);
+  --prism-glass-border: rgba(255, 255, 255, 0.65);
+  --prism-glass-hairline: rgba(255, 255, 255, 0.9);
 }
 
 /* ============================================================
@@ -93,6 +106,20 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Prism dashboard body backdrop — a barely-there gradient behind the
+   glass chrome. Only applied when the <body> carries .prism-body
+   (set by the dashboard layout). The login page keeps the plain
+   surface-0 background. */
+body.prism-body {
+  background:
+    linear-gradient(135deg,
+      #EEF2FF 0%,
+      #FBF7FF 45%,
+      #FFFFFF 65%,
+      #FFF1F9 100%);
+  background-attachment: fixed;
 }
 
 /* Hebrew text rendering */
@@ -196,6 +223,13 @@ body {
   animation: progress-shine 1.2s ease-in-out infinite;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .progress-bar-animated,
+  .progress-bar-animated::after {
+    animation: none !important;
+  }
+}
+
 /* ============================================================
    Skeleton loader
    ============================================================ */
@@ -225,4 +259,96 @@ body {
   direction: ltr;
   unicode-bidi: isolate;
   font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   Prism — ambient drift, shimmer, ring-fill, breathe
+   Shared keyframes consumed by AmbientField, glass primitives,
+   NeonRing, ChromaticBadge, and the dashboard chrome.
+   ============================================================ */
+
+@keyframes prism-float-a {
+  0%   { transform: translate3d(-8%, -4%, 0) scale(1);   }
+  50%  { transform: translate3d( 6%,  8%, 0) scale(1.15);}
+  100% { transform: translate3d(-8%, -4%, 0) scale(1);   }
+}
+
+@keyframes prism-float-b {
+  0%   { transform: translate3d( 10%,  6%, 0) scale(1.1);}
+  50%  { transform: translate3d(-10%, -6%, 0) scale(0.95);}
+  100% { transform: translate3d( 10%,  6%, 0) scale(1.1);}
+}
+
+@keyframes prism-float-c {
+  0%   { transform: translate3d( -4%, 12%, 0) scale(1);   }
+  50%  { transform: translate3d(  8%, -6%, 0) scale(1.2); }
+  100% { transform: translate3d( -4%, 12%, 0) scale(1);   }
+}
+
+@keyframes prism-float-d {
+  0%   { transform: translate3d(  6%, -8%, 0) scale(1.05);}
+  50%  { transform: translate3d( -6%,  6%, 0) scale(0.9); }
+  100% { transform: translate3d(  6%, -8%, 0) scale(1.05);}
+}
+
+@keyframes prism-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes prism-ring-fill {
+  from { stroke-dashoffset: var(--prism-ring-circumference, 282.7); }
+  to   { stroke-dashoffset: var(--prism-ring-offset, 0);            }
+}
+
+@keyframes prism-breathe {
+  0%, 100% { opacity: 0; }
+  50%      { opacity: 1; }
+}
+
+@keyframes prism-breathe-soft {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1;    }
+}
+
+/* Glass hairline utility — cohabits with primitives */
+.prism-hairline::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(240,171,252,0) 5%,
+    rgba(240,171,252,0.55) 25%,
+    rgba(167,139,250,0.9) 50%,
+    rgba(34,211,238,0.55)  75%,
+    rgba(34,211,238,0)  95%,
+    transparent 100%);
+  background-size: 200% 100%;
+  animation: prism-shimmer 9s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prism-hairline::before {
+    animation: none !important;
+  }
+}
+
+/* Reduced-motion safety net for any element using Prism animations
+   directly (blobs, flares, rings, breathe glows, shimmers). */
+@media (prefers-reduced-motion: reduce) {
+  [class*="prism-float"],
+  [data-prism-motion],
+  [data-prism-motion="blob"],
+  [data-prism-motion="flare"],
+  [data-prism-motion="ring"],
+  [data-prism-motion="breathe"],
+  [data-prism-motion="shimmer"] {
+    animation: none !important;
+  }
 }

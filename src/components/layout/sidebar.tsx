@@ -40,14 +40,45 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed top-0 right-0 z-30 flex h-full w-64 flex-col border-l border-surface-200 bg-white">
+    <aside
+      className={cn(
+        // Glass slab on the right (RTL — sidebar is on the right side)
+        "fixed top-0 right-0 z-30 flex h-full w-64 flex-col",
+        "border-l border-white/70",
+        "bg-white/70 backdrop-blur-2xl backdrop-saturate-150"
+      )}
+      style={{
+        boxShadow:
+          "-1px 0 0 0 rgba(255,255,255,0.7) inset, " +
+          "-12px 0 40px -20px rgba(80,70,180,0.22)",
+      }}
+    >
       {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-surface-200 px-6">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-600 text-white">
+      <div className="flex h-16 items-center gap-3 border-b border-white/60 px-6">
+        <div
+          className="relative flex h-9 w-9 items-center justify-center rounded-xl text-white"
+          style={{
+            background:
+              "linear-gradient(135deg, #818CF8 0%, #A78BFA 55%, #F0ABFC 100%)",
+            boxShadow:
+              "0 1px 0 rgba(255,255,255,0.5) inset, 0 6px 16px -6px rgba(167,139,250,0.7)",
+          }}
+        >
           <Brain className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-sm font-bold text-surface-900">InsAgent</h1>
+          <h1
+            className="text-sm font-bold"
+            style={{
+              backgroundImage:
+                "linear-gradient(100deg, #4338CA 0%, #7C3AED 50%, #C026D3 100%)",
+              WebkitBackgroundClip: "text",
+              backgroundClip: "text",
+              color: "transparent",
+            }}
+          >
+            InsAgent
+          </h1>
           <p className="text-[11px] text-surface-500">המוח החכם של המשרד</p>
         </div>
       </div>
@@ -64,16 +95,25 @@ export function Sidebar() {
                 <Link
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
                     isActive
-                      ? "bg-primary-50 text-primary-700"
-                      : "text-surface-600 hover:bg-surface-50 hover:text-surface-900"
+                      ? cn(
+                          "text-violet-700",
+                          // violet glass chip + subtle glow
+                          "border border-[rgba(167,139,250,0.35)]",
+                          "bg-[rgba(167,139,250,0.14)] backdrop-blur-sm",
+                          "shadow-[0_1px_0_rgba(255,255,255,0.7)_inset,0_6px_16px_-8px_rgba(167,139,250,0.55)]"
+                        )
+                      : cn(
+                          "border border-transparent text-surface-600",
+                          "hover:bg-[rgba(167,139,250,0.08)] hover:text-violet-700"
+                        )
                   )}
                 >
                   <item.icon
                     className={cn(
                       "h-[18px] w-[18px] shrink-0",
-                      isActive ? "text-primary-600" : "text-surface-400"
+                      isActive ? "text-violet-600" : "text-surface-400"
                     )}
                   />
                   {item.name}
@@ -85,7 +125,7 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-surface-200 px-4 py-3">
+      <div className="border-t border-white/60 px-4 py-3">
         <p className="text-[11px] text-surface-400">בל סוכנות לביטוח בע״מ</p>
       </div>
     </aside>

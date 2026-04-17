@@ -83,19 +83,19 @@ export default function CustomersPage() {
       {/* Search bar */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1">
-          <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-400" />
+          <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-500" />
           <input
             type="text"
             placeholder="חיפוש לפי שם, ת.ז. ..."
             value={search}
             onChange={(e) => handleSearch(e.target.value)}
-            className="h-10 w-full rounded-lg border border-surface-300 bg-white pr-10 pl-4 text-sm text-surface-900 placeholder:text-surface-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+            className="h-10 w-full rounded-lg border border-white/80 bg-white/80 pr-10 pl-4 text-sm text-surface-900 placeholder:text-surface-500 backdrop-blur-md transition-colors focus:border-violet-400/60 focus:bg-white/90 focus:outline-none focus:ring-2 focus:ring-violet-400/25"
           />
         </div>
       </div>
 
       {/* Results count */}
-      <p className="text-sm text-surface-500">
+      <p className="text-sm text-surface-600">
         {isLoading ? (
           <Loader2 className="inline h-3 w-3 animate-spin" />
         ) : (
@@ -114,10 +114,10 @@ export default function CustomersPage() {
           {Array.from({ length: 8 }).map((_, i) => (
             <Card key={i} padding="sm">
               <div className="flex items-center gap-6">
-                <div className="h-11 w-11 animate-pulse rounded-full bg-surface-100" />
+                <div className="h-11 w-11 animate-pulse rounded-full bg-white/60" />
                 <div className="space-y-2 flex-1">
-                  <div className="h-4 w-32 animate-pulse rounded bg-surface-100" />
-                  <div className="h-3 w-24 animate-pulse rounded bg-surface-100" />
+                  <div className="h-4 w-32 animate-pulse rounded bg-white/60" />
+                  <div className="h-3 w-24 animate-pulse rounded bg-white/50" />
                 </div>
               </div>
             </Card>
@@ -140,9 +140,18 @@ export default function CustomersPage() {
                 <div className="flex items-center justify-between">
                   {/* Customer info */}
                   <div className="flex items-center gap-5">
-                    {/* Avatar */}
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-700">
-                      <span className="text-sm font-bold">
+                    {/* Avatar — Prism gradient disc */}
+                    <div
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/40 text-white"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, #818CF8 0%, #A78BFA 55%, #F0ABFC 100%)",
+                        boxShadow:
+                          "0 1px 0 rgba(255,255,255,0.55) inset, " +
+                          "0 4px 12px -4px rgba(167,139,250,0.45)",
+                      }}
+                    >
+                      <span className="text-sm font-medium">
                         {(customer.firstName || "?")[0]}
                         {(customer.lastName || "?")[0]}
                       </span>
@@ -153,7 +162,7 @@ export default function CustomersPage() {
                       <h3 className="text-sm font-semibold text-surface-900">
                         {customer.firstName} {customer.lastName}
                       </h3>
-                      <p className="text-xs text-surface-500 number">
+                      <p className="text-xs text-surface-600 number">
                         ת.ז. {customer.israeliId}
                       </p>
                     </div>
@@ -163,7 +172,7 @@ export default function CustomersPage() {
                   <div className="flex items-center gap-6">
                     {/* Policies */}
                     <div className="text-left hidden sm:block">
-                      <p className="text-xs text-surface-500">פוליסות</p>
+                      <p className="text-xs text-surface-600">פוליסות</p>
                       <p className="text-sm font-semibold text-surface-800 number">
                         {customer.policyCount}
                       </p>
@@ -198,7 +207,7 @@ export default function CustomersPage() {
       {/* Pagination */}
       {data && data.totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-xs text-surface-500">
+          <p className="text-xs text-surface-600">
             עמוד{" "}
             <span className="number font-medium text-surface-700">{data.page}</span>{" "}
             מתוך{" "}

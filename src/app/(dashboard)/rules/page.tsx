@@ -445,7 +445,7 @@ function RuleForm({
         value={form.title}
         onChange={(e) => onChange({ ...form, title: e.target.value })}
         placeholder="כותרת החוק"
-        className="w-full rounded-lg border border-surface-300 bg-white px-3 py-2 text-sm text-surface-900 text-right placeholder:text-surface-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+        className="w-full rounded-lg border border-white/80 bg-white/80 px-3 py-2 text-sm text-surface-900 text-right placeholder:text-surface-500 backdrop-blur-sm focus:border-violet-400/60 focus:bg-white/90 focus:outline-none focus:ring-2 focus:ring-violet-400/25"
       />
       <Textarea
         value={form.body}
@@ -457,7 +457,7 @@ function RuleForm({
         <select
           value={form.category}
           onChange={(e) => onChange({ ...form, category: e.target.value })}
-          className="rounded-lg border border-surface-300 bg-white px-3 py-2 text-sm text-surface-900 text-right focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+          className="rounded-lg border border-white/80 bg-white/80 px-3 py-2 text-sm text-surface-900 text-right backdrop-blur-sm focus:border-violet-400/60 focus:bg-white/90 focus:outline-none focus:ring-2 focus:ring-violet-400/25"
         >
           <option value="">קטגוריה (אופציונלי)</option>
           {CATEGORIES.map((c) => (
@@ -471,7 +471,7 @@ function RuleForm({
           value={form.triggerHint}
           onChange={(e) => onChange({ ...form, triggerHint: e.target.value })}
           placeholder="מתי להשתמש? לדוגמה: גיל מעל 60"
-          className="flex-1 rounded-lg border border-surface-300 bg-white px-3 py-2 text-sm text-surface-900 text-right placeholder:text-surface-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+          className="flex-1 rounded-lg border border-white/80 bg-white/80 px-3 py-2 text-sm text-surface-900 text-right placeholder:text-surface-500 backdrop-blur-sm focus:border-violet-400/60 focus:bg-white/90 focus:outline-none focus:ring-2 focus:ring-violet-400/25"
         />
       </div>
       <div className="flex items-center gap-2">

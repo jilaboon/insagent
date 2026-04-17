@@ -9,10 +9,23 @@ interface ProgressBarProps {
   className?: string;
 }
 
+/**
+ * ProgressBar — Prism treatment.
+ *
+ * API unchanged. Track is a glass pill; fill is a chromatic gradient per
+ * variant:
+ *   - primary: indigo → violet → rose
+ *   - success: cyan → emerald-ish
+ *   - warning: amber → rose
+ *
+ * The existing `progress-bar-animated` shine (globals.css) still runs
+ * and is automatically paused by `prefers-reduced-motion` because the
+ * keyframes themselves are reduced-motion-safe via media query below.
+ */
 const variantStyles: Record<ProgressVariant, string> = {
-  primary: "bg-primary-600",
-  success: "bg-emerald-500",
-  warning: "bg-amber-500",
+  primary: "bg-gradient-to-l from-indigo-500 via-violet-500 to-rose-400",
+  success: "bg-gradient-to-l from-cyan-400 via-teal-400 to-emerald-400",
+  warning: "bg-gradient-to-l from-amber-400 via-orange-400 to-rose-400",
 };
 
 export function ProgressBar({
@@ -26,7 +39,9 @@ export function ProgressBar({
   return (
     <div
       className={cn(
-        "h-2 w-full overflow-hidden rounded-full bg-surface-200",
+        // Glass track
+        "h-2 w-full overflow-hidden rounded-full border border-white/60 bg-white/50 backdrop-blur-md",
+        "shadow-[inset_0_1px_1px_rgba(130,120,200,0.08)]",
         className
       )}
       role="progressbar"
@@ -40,7 +55,15 @@ export function ProgressBar({
           variantStyles[variant],
           animated && "progress-bar-animated"
         )}
-        style={{ width: `${clamped}%` }}
+        style={{
+          width: `${clamped}%`,
+          boxShadow:
+            variant === "primary"
+              ? "0 0 8px -2px rgba(167,139,250,0.55)"
+              : variant === "success"
+                ? "0 0 8px -2px rgba(34,211,238,0.5)"
+                : "0 0 8px -2px rgba(244,114,182,0.5)",
+        }}
       />
     </div>
   );

@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScoreBadge } from "@/components/shared/score-badge";
+import { NeonRing } from "@/components/prism/neon-ring";
+import { ChromaticBadge } from "@/components/prism/chromatic-badge";
 import { MessageComposer } from "@/components/shared/message-composer";
 import { ActionModal, type ActionKind } from "@/components/queue/action-modal";
 import {
@@ -48,6 +50,29 @@ interface CustomerCardProps {
 
 type ActionableStatus = Exclude<QueueStatus, "PENDING">;
 
+type PrismColor = "indigo" | "violet" | "cyan" | "rose";
+
+// Maps queue reason categories to Prism palette colors.
+// AGE_MILESTONE→violet, HIGH_VALUE→rose, COST_OPTIMIZATION→cyan,
+// COVERAGE_GAP→indigo, URGENT_EXPIRY→rose, SERVICE→indigo, CROSS_SELL→violet.
+function mapReasonToColor(reason: string): PrismColor {
+  switch (reason) {
+    case "AGE_MILESTONE":
+    case "CROSS_SELL":
+      return "violet";
+    case "HIGH_VALUE":
+    case "URGENT_EXPIRY":
+      return "rose";
+    case "COST_OPTIMIZATION":
+      return "cyan";
+    case "COVERAGE_GAP":
+    case "SERVICE":
+      return "indigo";
+    default:
+      return "violet";
+  }
+}
+
 export function CustomerCard({
   entry,
   compact = false,
@@ -66,6 +91,11 @@ export function CustomerCard({
   const fullName =
     customer.fullName || `${customer.firstName} ${customer.lastName}`.trim();
   const supportingCount = supportingInsights?.length ?? 0;
+  const reasonColor = mapReasonToColor(entry.reasonCategory);
+  const reasonEmoji = reasonCategoryIcons[entry.reasonCategory] || "⭐";
+  const reasonLabel =
+    reasonCategoryLabels[entry.reasonCategory] || entry.reasonCategory;
+  const primaryScore = primaryInsight?.strengthScore ?? null;
 
   async function handleAction(
     status: ActionableStatus,
@@ -94,21 +124,62 @@ export function CustomerCard({
     <>
       <div
         className={cn(
-          "group rounded-xl border border-surface-200 bg-white shadow-xs transition-all duration-300",
-          "hover:border-primary-200 hover:shadow-sm",
+          // Glass-friendly card — lets the Card/ambient field show through.
+          // Sits on a translucent white sheet with a violet hairline shadow.
+          "group relative rounded-[20px] border border-white/65 bg-white/55 backdrop-blur-xl backdrop-saturate-150",
+          "transition-all duration-300 ease-out",
+          "hover:-translate-y-0.5 hover:border-white/80 hover:bg-white/65",
+          expanded && "border-white/85 bg-white/70",
           fading && "opacity-0 scale-[0.98] pointer-events-none",
-          expanded && "border-primary-200 shadow-sm"
+          "animate-[slideUp_0.45s_cubic-bezier(0.22,1,0.36,1)_both]"
         )}
+        style={{
+          animationDelay: `${Math.min(entry.rank * 60, 480)}ms`,
+          boxShadow:
+            "0 1px 0 0 rgba(255,255,255,0.9) inset, " +
+            "0 -1px 0 0 rgba(130,120,200,0.08) inset, " +
+            "0 10px 30px -14px rgba(80,70,180,0.18), " +
+            "0 2px 8px -2px rgba(80,70,180,0.08)",
+        }}
       >
+        {/* Soft chromatic glow behind the card, tinted by the reason color.
+            Intensifies on hover. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-60 transition-opacity duration-500 group-hover:opacity-100"
+          style={{
+            background:
+              reasonColor === "violet"
+                ? "radial-gradient(60% 90% at 100% 0%, rgba(167,139,250,0.22), transparent 60%)"
+                : reasonColor === "rose"
+                  ? "radial-gradient(60% 90% at 100% 0%, rgba(240,171,252,0.22), transparent 60%)"
+                  : reasonColor === "cyan"
+                    ? "radial-gradient(60% 90% at 100% 0%, rgba(34,211,238,0.22), transparent 60%)"
+                    : "radial-gradient(60% 90% at 100% 0%, rgba(129,140,248,0.22), transparent 60%)",
+          }}
+        />
+
         {/* Main row */}
-        <div className={cn("flex items-start gap-4", compact ? "p-4" : "p-5")}>
-          {/* Rank */}
+        <div
+          className={cn(
+            "relative flex items-start gap-4",
+            compact ? "p-4" : "p-5"
+          )}
+        >
+          {/* Rank — gradient disc with subtle glow */}
           <div
             className={cn(
-              "shrink-0 flex items-center justify-center rounded-full font-bold text-white number",
-              "bg-gradient-to-br from-primary-500 to-primary-700 shadow-xs",
-              compact ? "h-9 w-9 text-xs" : "h-11 w-11 text-sm"
+              "shrink-0 flex items-center justify-center rounded-full font-light text-white number border border-white/40",
+              compact ? "h-10 w-10 text-xs" : "h-12 w-12 text-sm"
             )}
+            style={{
+              background:
+                "linear-gradient(135deg, #818CF8 0%, #A78BFA 55%, #F0ABFC 100%)",
+              boxShadow:
+                "0 1px 0 rgba(255,255,255,0.55) inset, " +
+                "0 6px 18px -6px rgba(167,139,250,0.55), " +
+                "0 2px 6px -1px rgba(129,140,248,0.35)",
+            }}
           >
             {entry.rank}
           </div>
@@ -119,14 +190,14 @@ export function CustomerCard({
               <Link
                 href={`/customers/${customer.id}`}
                 className={cn(
-                  "font-semibold text-surface-900 hover:text-primary-700 transition-colors",
-                  compact ? "text-sm" : "text-base"
+                  "font-light tracking-tight text-surface-900 hover:text-violet-700 transition-colors",
+                  compact ? "text-base" : "text-lg"
                 )}
               >
                 {fullName}
               </Link>
               {customer.age != null && (
-                <span className="text-xs text-surface-500 number">
+                <span className="text-xs text-surface-600 number">
                   בן {customer.age}
                 </span>
               )}
@@ -138,38 +209,32 @@ export function CustomerCard({
               )}
             </div>
 
-            {/* Why today */}
-            <div className="mt-2 flex items-start gap-2">
-              <span className="text-base leading-5 shrink-0">
-                {reasonCategoryIcons[entry.reasonCategory] || "⭐"}
+            {/* Why today — Prism ChromaticBadge replaces the old inline icon+badge */}
+            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-violet-700/70">
+                למה היום?
               </span>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-primary-600">
-                    למה היום?
-                  </span>
-                  <Badge variant="primary">
-                    {reasonCategoryLabels[entry.reasonCategory] ||
-                      entry.reasonCategory}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-sm font-medium text-surface-800 leading-snug">
-                  {whyTodayReason}
-                </p>
-              </div>
+              <ChromaticBadge
+                icon={reasonEmoji}
+                label={reasonLabel}
+                color={reasonColor}
+              />
             </div>
+            <p className="mt-2 text-sm font-normal text-surface-800 leading-snug">
+              {whyTodayReason}
+            </p>
 
-            {/* Primary insight + supporting */}
+            {/* Primary insight + supporting count */}
             {primaryInsight && (
               <div className="mt-3 flex items-center gap-2 text-xs text-surface-600">
                 <span className="line-clamp-1 flex-1">
-                  <span className="font-medium text-surface-700">
+                  <span className="font-medium text-surface-800">
                     {primaryInsight.title}
                   </span>
                   {insightCategoryLabels[
                     primaryInsight.category as keyof typeof insightCategoryLabels
                   ] && (
-                    <span className="text-surface-400">
+                    <span className="text-surface-500">
                       {" · "}
                       {
                         insightCategoryLabels[
@@ -180,7 +245,7 @@ export function CustomerCard({
                   )}
                 </span>
                 {supportingCount > 0 && (
-                  <span className="shrink-0 rounded-md bg-surface-100 px-2 py-0.5 text-[11px] text-surface-600 number">
+                  <span className="shrink-0 rounded-full border border-white/60 bg-white/50 px-2 py-0.5 text-[11px] text-surface-600 number backdrop-blur-md">
                     +{supportingCount} תובנות נוספות
                   </span>
                 )}
@@ -188,108 +253,125 @@ export function CustomerCard({
             )}
           </div>
 
-          {/* Actions */}
-          <div className="flex shrink-0 items-center gap-2">
-            {showPromote && (
-              <button
-                onClick={() => onPromote?.(entry)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100"
-              >
-                <ArrowUpCircle className="h-3.5 w-3.5" />
-                העלה להיום
-              </button>
+          {/* Right column — primary score ring + actions */}
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            {primaryScore != null && !compact && (
+              <NeonRing value={primaryScore} size={56} />
             )}
-            {!expanded && !compact && (
-              <button
-                onClick={() => setExpanded(true)}
-                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-l from-primary-600 to-primary-500 px-4 py-2 text-sm font-medium text-white shadow-xs transition-all hover:from-primary-700 hover:to-primary-600 hover:shadow-sm"
-              >
-                <Sparkles className="h-4 w-4" />
-                צור הודעה
-              </button>
+            {primaryScore != null && compact && (
+              <NeonRing value={primaryScore} size={44} />
             )}
-            <button
-              onClick={() => setExpanded((v) => !v)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-surface-200 text-surface-500 hover:bg-surface-50 hover:text-surface-800"
-              aria-label={expanded ? "סגור" : "הרחב"}
-            >
-              {expanded ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
+
+            <div className="flex items-center gap-2">
+              {showPromote && (
+                <button
+                  onClick={() => onPromote?.(entry)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300/50 bg-amber-50/60 px-3 py-1.5 text-xs font-medium text-amber-700 backdrop-blur-md hover:bg-amber-100/70 hover:border-amber-400/60"
+                >
+                  <ArrowUpCircle className="h-3.5 w-3.5" />
+                  העלה להיום
+                </button>
               )}
-            </button>
-            <div className="relative">
+              {!expanded && !compact && (
+                <button
+                  onClick={() => setExpanded(true)}
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-lg border border-white/40 px-4 py-2 text-sm font-medium text-white transition-all",
+                    "bg-gradient-to-l from-indigo-500 via-violet-500 to-rose-400",
+                    "shadow-[0_1px_0_rgba(255,255,255,0.5)_inset,0_8px_24px_-10px_rgba(167,139,250,0.65),0_2px_8px_-2px_rgba(129,140,248,0.35)]",
+                    "hover:shadow-[0_1px_0_rgba(255,255,255,0.6)_inset,0_12px_30px_-10px_rgba(167,139,250,0.85),0_4px_12px_-2px_rgba(240,171,252,0.45)]",
+                    "hover:brightness-[1.05] active:brightness-[0.98]"
+                  )}
+                >
+                  <Sparkles className="h-4 w-4" />
+                  צור הודעה
+                </button>
+              )}
               <button
-                onClick={() => setMenuOpen((v) => !v)}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-surface-200 text-surface-500 hover:bg-surface-50 hover:text-surface-800"
-                aria-label="אפשרויות"
+                onClick={() => setExpanded((v) => !v)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/60 bg-white/50 text-surface-600 backdrop-blur-md hover:bg-white/70 hover:text-violet-700"
+                aria-label={expanded ? "סגור" : "הרחב"}
               >
-                <MoreHorizontal className="h-4 w-4" />
+                {expanded ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
               </button>
-              {menuOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setMenuOpen(false)}
-                  />
-                  <div className="absolute left-0 top-full z-20 mt-1 w-48 rounded-lg border border-surface-200 bg-white py-1 shadow-md">
-                    <MenuItem
-                      icon={<Clock className="h-3.5 w-3.5" />}
-                      onClick={() => openModal("POSTPONED")}
+              <div className="relative">
+                <button
+                  onClick={() => setMenuOpen((v) => !v)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/60 bg-white/50 text-surface-600 backdrop-blur-md hover:bg-white/70 hover:text-violet-700"
+                  aria-label="אפשרויות"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
+                {menuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setMenuOpen(false)}
+                    />
+                    <div
+                      className="absolute left-0 top-full z-20 mt-1 w-48 rounded-lg border border-white/70 bg-white/85 py-1 backdrop-blur-xl shadow-[0_8px_24px_-8px_rgba(80,70,180,0.22)]"
                     >
-                      דחה למועד אחר
-                    </MenuItem>
-                    <MenuItem
-                      icon={<X className="h-3.5 w-3.5" />}
-                      onClick={() => openModal("DISMISSED")}
-                    >
-                      לא רלוונטי
-                    </MenuItem>
-                    <MenuItem
-                      icon={<Ban className="h-3.5 w-3.5" />}
-                      onClick={() => openModal("BLOCKED")}
-                    >
-                      חסום
-                    </MenuItem>
-                    <div className="my-1 border-t border-surface-100" />
-                    <MenuItem
-                      icon={<ExternalLink className="h-3.5 w-3.5" />}
-                      onClick={() => {
-                        setMenuOpen(false);
-                        handleAction("EXTERNAL");
-                      }}
-                    >
-                      טופל מחוץ למערכת
-                    </MenuItem>
-                  </div>
-                </>
-              )}
+                      <MenuItem
+                        icon={<Clock className="h-3.5 w-3.5" />}
+                        onClick={() => openModal("POSTPONED")}
+                      >
+                        דחה למועד אחר
+                      </MenuItem>
+                      <MenuItem
+                        icon={<X className="h-3.5 w-3.5" />}
+                        onClick={() => openModal("DISMISSED")}
+                      >
+                        לא רלוונטי
+                      </MenuItem>
+                      <MenuItem
+                        icon={<Ban className="h-3.5 w-3.5" />}
+                        onClick={() => openModal("BLOCKED")}
+                      >
+                        חסום
+                      </MenuItem>
+                      <div className="my-1 border-t border-surface-100" />
+                      <MenuItem
+                        icon={<ExternalLink className="h-3.5 w-3.5" />}
+                        onClick={() => {
+                          setMenuOpen(false);
+                          handleAction("EXTERNAL");
+                        }}
+                      >
+                        טופל מחוץ למערכת
+                      </MenuItem>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Expanded content */}
         {expanded && (
-          <div className="border-t border-surface-100 bg-surface-50/40 px-5 py-5 space-y-5 animate-[fadeIn_0.2s_ease-out_forwards]">
+          <div className="relative border-t border-white/60 bg-white/30 backdrop-blur-md px-5 py-5 space-y-5 animate-[fadeIn_0.2s_ease-out_forwards]">
             {/* Customer contact strip */}
             {(customer.phone || customer.email) && (
               <div className="flex flex-wrap items-center gap-3 text-xs text-surface-600">
                 {customer.phone && (
                   <a
                     href={`tel:${customer.phone}`}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-surface-200 bg-white px-2.5 py-1 hover:bg-surface-50"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-white/60 bg-white/70 px-2.5 py-1 backdrop-blur-md hover:bg-white/85"
                   >
-                    <Phone className="h-3 w-3 text-surface-400" />
+                    <Phone className="h-3 w-3 text-surface-500" />
                     <span className="number">{customer.phone}</span>
                   </a>
                 )}
                 {customer.email && (
                   <a
                     href={`mailto:${customer.email}`}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-surface-200 bg-white px-2.5 py-1 hover:bg-surface-50"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-white/60 bg-white/70 px-2.5 py-1 backdrop-blur-md hover:bg-white/85"
                   >
-                    <Mail className="h-3 w-3 text-surface-400" />
+                    <Mail className="h-3 w-3 text-surface-500" />
                     <span className="truncate max-w-[220px]">
                       {customer.email}
                     </span>
@@ -297,7 +379,7 @@ export function CustomerCard({
                 )}
                 <Link
                   href={`/customers/${customer.id}`}
-                  className="mr-auto text-xs font-medium text-primary-600 hover:text-primary-700"
+                  className="mr-auto text-xs font-medium text-violet-700 hover:text-violet-800"
                 >
                   פתח כרטיס מלא ←
                 </Link>
@@ -312,13 +394,13 @@ export function CustomerCard({
             />
 
             {/* Bottom actions */}
-            <div className="flex flex-wrap items-center gap-2 border-t border-surface-200 pt-4">
+            <div className="flex flex-wrap items-center gap-2 border-t border-white/60 pt-4">
               <Button
                 variant="primary"
                 size="md"
                 onClick={() => handleAction("COMPLETED")}
                 disabled={action.isPending}
-                className="bg-emerald-600 hover:bg-emerald-700"
+                className="!bg-gradient-to-l !from-emerald-500 !via-teal-500 !to-cyan-500 !shadow-[0_1px_0_rgba(255,255,255,0.5)_inset,0_8px_24px_-10px_rgba(52,211,153,0.55),0_2px_8px_-2px_rgba(34,211,238,0.35)] hover:brightness-[1.05]"
               >
                 <Check className="h-4 w-4" />
                 בוצע
@@ -335,7 +417,7 @@ export function CustomerCard({
                 variant="ghost"
                 size="md"
                 onClick={() => openModal("DISMISSED")}
-                className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                className="text-rose-600 hover:bg-rose-500/10 hover:text-rose-700"
               >
                 <X className="h-4 w-4" />
                 לא רלוונטי
@@ -344,7 +426,7 @@ export function CustomerCard({
                 variant="ghost"
                 size="md"
                 onClick={() => openModal("BLOCKED")}
-                className="text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                className="text-amber-600 hover:bg-amber-500/10 hover:text-amber-700"
               >
                 <Ban className="h-4 w-4" />
                 חסום
@@ -389,55 +471,11 @@ function MenuItem({
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center gap-2 px-3 py-2 text-right text-xs text-surface-700 hover:bg-surface-50"
+      className="flex w-full items-center gap-2 px-3 py-2 text-right text-xs text-surface-700 hover:bg-white/70"
     >
-      <span className="text-surface-400">{icon}</span>
+      <span className="text-surface-500">{icon}</span>
       {children}
     </button>
-  );
-}
-
-function InsightRow({
-  insight,
-  primary,
-}: {
-  insight: {
-    id: string;
-    title: string;
-    summary: string;
-    category: string;
-    strengthScore: number | null;
-  };
-  primary?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex items-start gap-3 rounded-lg border px-3 py-2.5",
-        primary
-          ? "border-primary-200 bg-primary-50/40"
-          : "border-surface-200 bg-white"
-      )}
-    >
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          {primary && <Badge variant="primary">ראשי</Badge>}
-          <span className="text-sm font-medium text-surface-900 truncate">
-            {insight.title}
-          </span>
-        </div>
-        {insight.summary && (
-          <p className="mt-1 text-xs text-surface-500 line-clamp-2">
-            {insight.summary}
-          </p>
-        )}
-      </div>
-      {insight.strengthScore != null && (
-        <div className="shrink-0">
-          <ScoreBadge score={insight.strengthScore} />
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -519,7 +557,7 @@ function InsightSelectAndMessage({
       {/* Insight selector */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-surface-500">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-surface-600">
             בחר תובנות להודעה ({selectedCount})
           </h4>
           {allInsights.length > 1 && (
@@ -528,11 +566,11 @@ function InsightSelectAndMessage({
                 onClick={() =>
                   setSelectedIds(new Set(allInsights.map((i) => i.id)))
                 }
-                className="text-xs text-primary-600 hover:text-primary-700"
+                className="text-xs text-violet-700 hover:text-violet-800"
               >
                 בחר הכל
               </button>
-              <span className="text-surface-300">|</span>
+              <span className="text-surface-400">|</span>
               <button
                 onClick={() => setSelectedIds(new Set())}
                 className="text-xs text-surface-500 hover:text-surface-700"
@@ -550,17 +588,17 @@ function InsightSelectAndMessage({
               <label
                 key={ins.id}
                 className={cn(
-                  "flex items-start gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors",
+                  "flex items-start gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors backdrop-blur-md",
                   isChecked
-                    ? "border-primary-300 bg-primary-50/40"
-                    : "border-surface-200 bg-white hover:bg-surface-50"
+                    ? "border-violet-300/60 bg-violet-500/8"
+                    : "border-white/60 bg-white/55 hover:bg-white/70"
                 )}
               >
                 <input
                   type="checkbox"
                   checked={isChecked}
                   onChange={() => toggle(ins.id)}
-                  className="mt-1 h-4 w-4 shrink-0 accent-primary-600"
+                  className="mt-1 h-4 w-4 shrink-0 accent-violet-600"
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -570,7 +608,7 @@ function InsightSelectAndMessage({
                     </span>
                   </div>
                   {ins.summary && (
-                    <p className="mt-1 text-xs text-surface-500 line-clamp-2">
+                    <p className="mt-1 text-xs text-surface-600 line-clamp-2">
                       {ins.summary}
                     </p>
                   )}
@@ -587,13 +625,13 @@ function InsightSelectAndMessage({
       </div>
 
       {/* Message generator */}
-      <div className="rounded-lg border border-surface-200 bg-white p-4">
-        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-surface-500">
+      <div className="rounded-lg border border-white/60 bg-white/55 p-4 backdrop-blur-md">
+        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-surface-600">
           הודעה ללקוח
         </h4>
 
         {selectedCount === 0 ? (
-          <p className="text-xs text-surface-500">
+          <p className="text-xs text-surface-600">
             בחר לפחות תובנה אחת כדי לייצר הודעה
           </p>
         ) : isSingle && !generatedMessage ? (
@@ -611,13 +649,19 @@ function InsightSelectAndMessage({
           />
         ) : (
           <div className="space-y-3">
-            <p className="text-xs text-surface-500">
+            <p className="text-xs text-surface-600">
               {selectedCount} תובנות נבחרו — ה-AI ישלב אותן להודעה אחת טבעית
             </p>
             <button
               onClick={handleGenerate}
               disabled={generate.isPending}
-              className="group relative inline-flex items-center gap-2 rounded-lg bg-gradient-to-l from-primary-600 to-primary-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:from-primary-700 hover:to-primary-600 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              className={cn(
+                "group relative inline-flex items-center gap-2 rounded-lg border border-white/40 px-4 py-2 text-sm font-medium text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed",
+                "bg-gradient-to-l from-indigo-500 via-violet-500 to-rose-400",
+                "shadow-[0_1px_0_rgba(255,255,255,0.5)_inset,0_8px_24px_-10px_rgba(167,139,250,0.65),0_2px_8px_-2px_rgba(129,140,248,0.35)]",
+                "hover:shadow-[0_1px_0_rgba(255,255,255,0.6)_inset,0_12px_30px_-10px_rgba(167,139,250,0.85),0_4px_12px_-2px_rgba(240,171,252,0.45)]",
+                "hover:brightness-[1.05]"
+              )}
             >
               <Sparkles className="h-4 w-4" />
               {generate.isPending ? "יוצר הודעה משולבת..." : "צור הודעה משולבת"}

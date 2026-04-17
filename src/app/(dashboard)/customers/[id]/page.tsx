@@ -379,41 +379,75 @@ function InsuranceMapCard({
   };
 }) {
   if (!data.exists) {
+    // Gap state — muted, dashed. Lets the ambient field show through.
     return (
-      <div className="flex flex-col items-center rounded-lg border border-dashed border-surface-200 bg-surface-50/50 p-4 text-center">
-        <ShieldOff className="mb-2 h-5 w-5 text-surface-300" />
-        <p className="text-xs font-medium text-surface-400">{label}</p>
-        <p className="mt-1 text-[10px] text-surface-400">
+      <div className="flex flex-col items-center rounded-[14px] border border-dashed border-white/70 bg-white/25 p-4 text-center backdrop-blur-sm">
+        <ShieldOff className="mb-2 h-5 w-5 text-surface-400" />
+        <p className="text-xs font-medium text-surface-500">{label}</p>
+        <p className="mt-1 text-[10px] text-surface-500">
           לא זוהה בנתונים שנקלטו
         </p>
       </div>
     );
   }
 
+  // Covered state — chromatic glow + neon shield, the iconic grid element.
   return (
-    <div className="flex flex-col rounded-lg border border-surface-200 bg-white p-4 text-center">
-      <Shield className="mx-auto mb-2 h-5 w-5 text-primary-500" />
-      <p className="text-xs font-semibold text-surface-800">{label}</p>
-      {data.policyCount != null && data.policyCount > 0 && (
-        <p className="mt-1 text-[10px] text-surface-500 number">
-          {data.policyCount} פוליסות
-        </p>
-      )}
-      {data.totalAnnualPremium != null && data.totalAnnualPremium > 0 && (
-        <p className="mt-0.5 text-xs font-medium text-surface-700 number">
-          {formatCurrency(data.totalAnnualPremium)}/שנה
-        </p>
-      )}
-      {data.totalAccumulated != null && data.totalAccumulated > 0 && (
-        <p className="mt-0.5 text-xs font-medium text-surface-700 number">
-          {formatCurrency(data.totalAccumulated)}
-        </p>
-      )}
-      {data.dataFreshness && (
-        <div className="mt-2">
-          <DataFreshness date={data.dataFreshness} />
-        </div>
-      )}
+    <div
+      className="relative flex flex-col overflow-hidden rounded-[14px] border border-white/70 bg-white/70 p-4 text-center backdrop-blur-md"
+      style={{
+        boxShadow:
+          "0 1px 0 rgba(255,255,255,0.9) inset, " +
+          "0 6px 18px -8px rgba(80,70,180,0.18)",
+      }}
+    >
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(80% 60% at 50% 0%, rgba(167,139,250,0.2), transparent 70%)",
+        }}
+      />
+      <div className="relative">
+        <span className="relative mx-auto mb-2 inline-grid h-8 w-8 place-items-center">
+          <span
+            aria-hidden
+            className="absolute -inset-1 rounded-full"
+            style={{
+              background:
+                "conic-gradient(from 0deg, rgba(240,171,252,0.5), rgba(129,140,248,0.5), rgba(34,211,238,0.45), rgba(167,139,250,0.5), rgba(240,171,252,0.5))",
+              filter: "blur(6px)",
+              opacity: 0.7,
+            }}
+          />
+          <Shield
+            className="relative h-5 w-5 text-violet-600"
+            style={{ filter: "drop-shadow(0 0 3px rgba(167,139,250,0.6))" }}
+          />
+        </span>
+        <p className="text-xs font-semibold text-surface-900">{label}</p>
+        {data.policyCount != null && data.policyCount > 0 && (
+          <p className="mt-1 text-[10px] text-surface-600 number">
+            {data.policyCount} פוליסות
+          </p>
+        )}
+        {data.totalAnnualPremium != null && data.totalAnnualPremium > 0 && (
+          <p className="mt-0.5 text-xs font-medium text-surface-800 number">
+            {formatCurrency(data.totalAnnualPremium)}/שנה
+          </p>
+        )}
+        {data.totalAccumulated != null && data.totalAccumulated > 0 && (
+          <p className="mt-0.5 text-xs font-medium text-surface-800 number">
+            {formatCurrency(data.totalAccumulated)}
+          </p>
+        )}
+        {data.dataFreshness && (
+          <div className="mt-2">
+            <DataFreshness date={data.dataFreshness} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

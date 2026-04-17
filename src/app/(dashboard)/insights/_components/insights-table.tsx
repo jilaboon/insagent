@@ -23,10 +23,10 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UrgencyIndicator } from "@/components/ui/indicators";
+import { NeonRing } from "@/components/prism/neon-ring";
 import {
   insightCategoryLabels,
   branchLabels,
-  getScoreTier,
   messageStatusLabels,
 } from "@/lib/constants";
 import { useInsights, type PaginatedInsights } from "@/lib/api/hooks";
@@ -93,19 +93,14 @@ function createColumns(): ColumnDef<InsightDetail, unknown>[] {
         </div>
       ),
     },
-    // Score
+    // Score — small NeonRing, auto-colored by value tier
     {
       accessorKey: "strengthScore",
       header: "ציון",
       size: 80,
       cell: ({ row }) => {
         const score = row.original.strengthScore;
-        const tier = getScoreTier(score);
-        return (
-          <Badge variant={tier.color}>
-            <span className="number">{score}</span>
-          </Badge>
-        );
+        return <NeonRing value={score} size={32} strokeWidth={2.5} />;
       },
     },
     // Category
@@ -225,11 +220,11 @@ export function InsightsTable({ className }: InsightsTableProps) {
 
   return (
     <div className={cn("space-y-3", className)}>
-      <div className="overflow-x-auto rounded-xl border border-surface-200 bg-white">
+      <div className="overflow-x-auto rounded-[20px] border border-white/65 bg-white/75 backdrop-blur-xl backdrop-saturate-150 shadow-[0_1px_0_rgba(255,255,255,0.9)_inset,0_10px_30px_-14px_rgba(80,70,180,0.18),0_2px_8px_-2px_rgba(80,70,180,0.08)]">
         <table className="w-full text-right">
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="border-b border-surface-100">
+              <tr key={headerGroup.id} className="border-b border-white/70">
                 {headerGroup.headers.map((header) => {
                   const isSortable = sortableColumns.includes(header.column.id);
                   const isCurrentSort =
@@ -239,8 +234,8 @@ export function InsightsTable({ className }: InsightsTableProps) {
                     <th
                       key={header.id}
                       className={cn(
-                        "px-3 py-2.5 text-xs font-semibold text-surface-500",
-                        isSortable && "cursor-pointer select-none hover:text-surface-700"
+                        "px-3 py-2.5 text-xs font-semibold text-surface-600",
+                        isSortable && "cursor-pointer select-none hover:text-surface-800"
                       )}
                       style={{ width: header.getSize() }}
                       onClick={
@@ -276,10 +271,10 @@ export function InsightsTable({ className }: InsightsTableProps) {
           <tbody>
             {isLoading ? (
               Array.from({ length: 8 }).map((_, i) => (
-                <tr key={i} className="border-b border-surface-50">
+                <tr key={i} className="border-b border-white/50">
                   {columns.map((_, ci) => (
                     <td key={ci} className="px-3 py-3">
-                      <div className="h-4 animate-pulse rounded bg-surface-100" />
+                      <div className="h-4 animate-pulse rounded bg-white/60" />
                     </td>
                   ))}
                 </tr>
@@ -288,7 +283,7 @@ export function InsightsTable({ className }: InsightsTableProps) {
               <tr>
                 <td
                   colSpan={columns.length}
-                  className="px-6 py-12 text-center text-sm text-surface-500"
+                  className="px-6 py-12 text-center text-sm text-surface-600"
                 >
                   לא נמצאו תובנות
                 </td>
@@ -298,8 +293,8 @@ export function InsightsTable({ className }: InsightsTableProps) {
                 <Fragment key={row.id}>
                   <tr
                     className={cn(
-                      "border-b border-surface-50 transition-colors hover:bg-surface-50/50",
-                      row.getIsExpanded() && "bg-surface-50/50"
+                      "border-b border-white/50 transition-colors hover:bg-white/40",
+                      row.getIsExpanded() && "bg-white/40"
                     )}
                   >
                     {row.getVisibleCells().map((cell) => (

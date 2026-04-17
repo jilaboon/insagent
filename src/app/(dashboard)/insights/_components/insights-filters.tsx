@@ -143,7 +143,7 @@ export function InsightsFilters({ className }: InsightsFiltersProps) {
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
             placeholder="חיפוש לקוח או תובנה..."
-            className="h-8 w-56 rounded-lg border border-surface-300 bg-white pr-8 pl-3 text-xs text-surface-700 placeholder:text-surface-400 focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400"
+            className="h-8 w-56 rounded-lg border border-white/80 bg-white/80 pr-8 pl-3 text-xs text-surface-800 placeholder:text-surface-500 backdrop-blur-sm focus:border-violet-400/60 focus:bg-white/90 focus:outline-none focus:ring-1 focus:ring-violet-400/40"
           />
           {searchValue && (
             <button
