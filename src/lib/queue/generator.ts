@@ -24,6 +24,7 @@ import {
 } from "./reason-builder";
 import { getQueueSettings } from "./settings";
 import { computePriority, type PriorityBreakdown } from "./priority";
+import { resolveBucket } from "./buckets";
 
 interface BuildQueueOptions {
   reason: GenerationReason;
@@ -190,6 +191,24 @@ export async function buildQueue(
     insightsByCustomer.set(i.customerId, arr);
   }
 
+  // Fetch rule categories so we can resolve each insight's office bucket
+  // (רפי's taxonomy: כיסוי / חיסכון / שירות / כללי).
+  const ruleIds = Array.from(
+    new Set(
+      insightRows
+        .map((i) => i.linkedRuleId)
+        .filter((x): x is string => !!x)
+    )
+  );
+  const rules =
+    ruleIds.length > 0
+      ? await prisma.officeRule.findMany({
+          where: { id: { in: ruleIds } },
+          select: { id: true, category: true },
+        })
+      : [];
+  const ruleCategoryById = new Map(rules.map((r) => [r.id, r.category]));
+
   // Last contact date — take most recent SENT message timestamp per customer
   const lastContactRows = (await prisma.$queryRawUnsafe(
     `SELECT "customerId", MAX("updatedAt") as last_sent
@@ -238,12 +257,11 @@ export async function buildQueue(
 
     let best: Candidate | null = null;
 
-    // Renewals now live in the BAFI lane. Never pick an EXPIRING_POLICY
-    // insight as the primary story — they can still appear as supporting
-    // topics inside the card.
-    const primaryCandidates = customerInsights.filter(
-      (i) => i.category !== "EXPIRING_POLICY"
-    );
+    // Renewals now live in the BAFI lane (/renewals) when the toggle is on.
+    // An EXPIRING_POLICY insight can still appear as a supporting topic.
+    const primaryCandidates = settings.renewalsLaneEnabled
+      ? customerInsights.filter((i) => i.category !== "EXPIRING_POLICY")
+      : customerInsights;
     const usable = primaryCandidates.length > 0 ? primaryCandidates : [];
 
     for (const ins of usable) {
@@ -278,7 +296,11 @@ export async function buildQueue(
         if (daysToExpiry == null || d < daysToExpiry) daysToExpiry = d;
       }
 
-      const priority = computePriority(ctx, reasonCategory);
+      const bucket = resolveBucket(
+        ins.linkedRuleId ? ruleCategoryById.get(ins.linkedRuleId) : null,
+        ins.category
+      );
+      const priority = computePriority(ctx, bucket, settings);
 
       const candidate: Candidate = {
         customerId: cust.id,
@@ -391,8 +413,8 @@ async function persistLane(
         score: c.score,
         priorityScore: c.priority.score,
         priorityBreakdown: {
-          categoryFloor: c.priority.categoryFloor,
-          categoryLabel: c.priority.categoryLabel,
+          bucket: c.priority.bucket,
+          bucketFloor: c.priority.bucketFloor,
           strengthBonus: c.priority.strengthBonus,
           valueBonus: c.priority.valueBonus,
           renewalPenalty: c.priority.renewalPenalty,

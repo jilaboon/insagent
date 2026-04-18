@@ -1,24 +1,29 @@
 /**
- * Queue priority score — a single 0-100 number that matches the displayed
- * order in the queue. Replaces the raw insight strengthScore for sorting
- * AND for the gauge shown on each card, so rank and gauge can't disagree.
+ * Queue priority score — a single 0-100 number that orders the queue.
+ * Internal only now: the card does not display it after Stage 1. We keep
+ * computing it because (a) it still drives the sort and (b) Stage 3 may
+ * re-surface it in admin/research screens.
  *
  * Formula:
- *   score = categoryFloor + strengthBonus + valueBonus + renewalPenalty
+ *   score = bucketFloor + strengthBonus + valueBonus + renewalPenalty
  *   clamp 0..100
  *
- * Category floor sets the band (AGE_MILESTONE 85, HIGH_VALUE 65, …).
- * Strength + value nudge up to ±5 each within the band.
- * Renewal penalty (-10) demotes EXPIRING_POLICY insights since BAFI already
- * surfaces them — we want our *unique* insights to be the hero.
+ * bucketFloor comes from settings.bucketOrder — the position of this
+ * insight's office bucket (רפי's taxonomy). Position 1 = 85, 2 = 68,
+ * 3 = 55, 4 = 42. Spaced widely enough that the ±5 strength nudge and
+ * 0..+5 value bonus cannot flip a customer out of their bucket band.
+ *
+ * Strength + value nudge within the band. Renewal penalty (-10) keeps
+ * EXPIRING_POLICY insights at the bottom if they ever sneak in.
  */
-import type { ReasonCategory } from "@prisma/client";
 import type { ReasonContext } from "./reason-builder";
+import type { OfficeBucket } from "./buckets";
+import type { QueueSettings } from "./settings";
 
 export interface PriorityBreakdown {
   score: number;
-  categoryFloor: number;
-  categoryLabel: ReasonCategory;
+  bucket: OfficeBucket;
+  bucketFloor: number;
   strengthBonus: number;
   valueBonus: number;
   renewalPenalty: number;
@@ -26,32 +31,32 @@ export interface PriorityBreakdown {
 
 const RENEWAL_INSIGHT_CATEGORIES = new Set(["EXPIRING_POLICY"]);
 
-function categoryFloor(cat: ReasonCategory): number {
-  switch (cat) {
-    case "URGENT_EXPIRY":
-      return 95;
-    case "AGE_MILESTONE":
-      return 85;
-    case "HIGH_VALUE":
-      return 65;
-    case "COST_OPTIMIZATION":
-      return 55;
-    case "COVERAGE_GAP":
-      return 50;
-    case "CROSS_SELL":
-      return 35;
-    case "SERVICE":
-      return 25;
-    default:
-      return 20;
+/**
+ * Ordered floors by bucket position in settings.bucketOrder.
+ * Spacing of 13-17 keeps bucket bands well-separated.
+ */
+const POSITION_FLOORS = [85, 68, 55, 42];
+
+function floorForBucket(
+  bucket: OfficeBucket,
+  settings: Pick<QueueSettings, "bucketOrder">
+): number {
+  // Renewals, if they somehow end up as primary, sit below everything.
+  if (bucket === "renewal") return 30;
+  const idx = settings.bucketOrder.indexOf(
+    bucket as "coverage" | "savings" | "service" | "general"
+  );
+  if (idx < 0 || idx >= POSITION_FLOORS.length) {
+    // Unknown bucket — bottom of the pack
+    return POSITION_FLOORS[POSITION_FLOORS.length - 1];
   }
+  return POSITION_FLOORS[idx];
 }
 
-/** Map insight strength (0-100) to ±5. */
+/** Map insight strength (0-100) to ±5 within the band. */
 function strengthBonus(strength: number | null): number {
   if (strength == null) return 0;
   const clamped = Math.max(0, Math.min(100, strength));
-  // 50 = neutral, 100 = +5, 0 = -5
   return Math.round(((clamped - 50) / 50) * 5);
 }
 
@@ -61,16 +66,16 @@ function valueBonus(ctx: ReasonContext): number {
   const total = ctx.totalAccumulatedSavings + annualized;
   if (total <= 100_000) return 0;
   if (total >= 3_000_000) return 5;
-  // Log scale between 100k and 3M
-  const t = Math.log10(total / 100_000) / Math.log10(30); // 0..1 over [100k, 3M]
+  const t = Math.log10(total / 100_000) / Math.log10(30);
   return Math.round(t * 5);
 }
 
 export function computePriority(
   ctx: ReasonContext,
-  category: ReasonCategory
+  bucket: OfficeBucket,
+  settings: Pick<QueueSettings, "bucketOrder">
 ): PriorityBreakdown {
-  const floor = categoryFloor(category);
+  const floor = floorForBucket(bucket, settings);
   const strength = strengthBonus(ctx.insight.strengthScore);
   const value = valueBonus(ctx);
   const penalty = RENEWAL_INSIGHT_CATEGORIES.has(ctx.insight.category)
@@ -82,8 +87,8 @@ export function computePriority(
 
   return {
     score,
-    categoryFloor: floor,
-    categoryLabel: category,
+    bucket,
+    bucketFloor: floor,
     strengthBonus: strength,
     valueBonus: value,
     renewalPenalty: penalty,

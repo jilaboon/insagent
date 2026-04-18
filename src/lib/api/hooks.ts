@@ -935,6 +935,8 @@ export interface QueueSettingsData {
   cooldownAfterDismissalDays: number;
   recentContactSuppressionDays: number;
   urgentCategories: string[];
+  bucketOrder: Array<"coverage" | "savings" | "service" | "general">;
+  renewalsLaneEnabled: boolean;
 }
 
 export const queueSettingsQueryKey = ["queue", "settings"] as const;

@@ -44,6 +44,18 @@ export interface QueueSettings {
     | "SERVICE"
     | "CROSS_SELL"
   >;
+  /**
+   * Office bucket priority order (רפי's own taxonomy).
+   * First bucket in the list dominates the queue; last competes last.
+   * The renewal bucket lives in its own BAFI lane and never appears here.
+   */
+  bucketOrder: Array<"coverage" | "savings" | "service" | "general">;
+  /**
+   * When true (default), renewal insights (EXPIRING_POLICY) are routed to
+   * the /renewals page and never appear as the primary on a queue card.
+   * When false, renewals compete in the main queue like any other insight.
+   */
+  renewalsLaneEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: QueueSettings = {
@@ -60,6 +72,8 @@ export const DEFAULT_SETTINGS: QueueSettings = {
   cooldownAfterDismissalDays: 60,
   recentContactSuppressionDays: 30,
   urgentCategories: ["AGE_MILESTONE"],
+  bucketOrder: ["coverage", "savings", "service", "general"],
+  renewalsLaneEnabled: true,
 };
 
 const SETTING_KEY = "queueSettings";
@@ -120,6 +134,23 @@ function mergeSettings(
   // Urgent reserve cannot exceed capacity
   if (merged.urgentReserveSlots > merged.dailyCapacity) {
     merged.urgentReserveSlots = merged.dailyCapacity;
+  }
+  // Normalize bucketOrder — dedupe, keep only known buckets, fill missing at the end.
+  const known = ["coverage", "savings", "service", "general"] as const;
+  type Bucket = (typeof known)[number];
+  if (Array.isArray(merged.bucketOrder)) {
+    const seen = new Set<Bucket>();
+    const cleaned: Bucket[] = [];
+    for (const b of merged.bucketOrder) {
+      if ((known as readonly string[]).includes(b) && !seen.has(b as Bucket)) {
+        cleaned.push(b as Bucket);
+        seen.add(b as Bucket);
+      }
+    }
+    for (const b of known) {
+      if (!seen.has(b)) cleaned.push(b);
+    }
+    merged.bucketOrder = cleaned;
   }
   return merged;
 }

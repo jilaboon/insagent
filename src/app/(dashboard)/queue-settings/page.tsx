@@ -9,22 +9,28 @@ import {
   Info,
   Users,
   Cake,
-  Gem,
-  Percent,
   ShieldOff,
   RefreshCw,
   Check,
-  AlertCircle,
+  Layers,
+  SlidersHorizontal,
+  ChevronDown,
+  ChevronUp,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 import {
   useQueueSettings,
   useUpdateQueueSettings,
   useRebuildQueue,
   type QueueSettingsData,
 } from "@/lib/api/hooks";
+
+type Bucket = "coverage" | "savings" | "service" | "general";
 
 const DEFAULTS: QueueSettingsData = {
   dailyCapacity: 20,
@@ -40,20 +46,38 @@ const DEFAULTS: QueueSettingsData = {
   cooldownAfterDismissalDays: 60,
   recentContactSuppressionDays: 30,
   urgentCategories: ["AGE_MILESTONE"],
+  bucketOrder: ["coverage", "savings", "service", "general"],
+  renewalsLaneEnabled: true,
 };
 
 const MILESTONE_AGE_OPTIONS = [55, 60, 65, 67];
 const FRESHNESS_OPTIONS = [30, 60, 90];
 
-const URGENT_CATEGORY_OPTIONS: Array<{ value: string; label: string; description: string }> = [
-  { value: "AGE_MILESTONE", label: "אבן דרך גילית", description: "הלקוח הגיע לגיל משמעותי (60, 65, וכו')" },
-  { value: "HIGH_VALUE", label: "לקוח משמעותי", description: "חיסכון גבוה או פרמיה גבוהה" },
-  { value: "COST_OPTIMIZATION", label: "אופטימיזציית עלות", description: "דמי ניהול חריגים" },
-  { value: "COVERAGE_GAP", label: "פער כיסוי", description: "חסר ביטוח חיים או בריאות" },
-  { value: "URGENT_EXPIRY", label: "פוליסה מתחדשת", description: "BAFI כבר מטפל בזה — בדרך כלל לא מומלץ" },
-  { value: "SERVICE", label: "שירות", description: "לא היה קשר תקופה ארוכה" },
-  { value: "CROSS_SELL", label: "הרחבת סל", description: "לקוח עם ענף אחד בלבד" },
-];
+const BUCKET_META: Record<
+  Bucket,
+  { label: string; description: string; chip: string }
+> = {
+  coverage: {
+    label: "כיסוי",
+    description: "פערי כיסוי — חסר בריאות, חסר חיים, רכב חדש, נספח תרופות",
+    chip: "bg-indigo-500/12 text-indigo-700 border-indigo-300/50",
+  },
+  savings: {
+    label: "חיסכון",
+    description: "דמי ניהול, חשיפה למניות, מסלולי חיסכון, פנסיה",
+    chip: "bg-cyan-500/12 text-cyan-700 border-cyan-300/50",
+  },
+  service: {
+    label: "שירות",
+    description: "אבני דרך גיליות, תכנון פרישה, אין קשר לאחרונה",
+    chip: "bg-violet-500/12 text-violet-700 border-violet-300/50",
+  },
+  general: {
+    label: "כללי",
+    description: "הרחבת סל, לקוח עם ענף אחד, הזדמנויות חוצות",
+    chip: "bg-rose-500/12 text-rose-700 border-rose-300/50",
+  },
+};
 
 function formatNumber(n: number): string {
   return n.toLocaleString("he-IL");
@@ -67,12 +91,10 @@ export default function QueueSettingsPage() {
   const [form, setForm] = useState<QueueSettingsData>(DEFAULTS);
   const [dirty, setDirty] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
-  // Sync form when the server data arrives (but don't overwrite local edits).
   useEffect(() => {
-    if (data && !dirty) {
-      setForm(data);
-    }
+    if (data && !dirty) setForm(data);
   }, [data, dirty]);
 
   function patch(p: Partial<QueueSettingsData>) {
@@ -85,6 +107,15 @@ export default function QueueSettingsPage() {
     if (set.has(age)) set.delete(age);
     else set.add(age);
     patch({ ageMilestones: Array.from(set).sort((a, b) => a - b) });
+  }
+
+  function moveBucket(bucket: Bucket, direction: -1 | 1) {
+    const order = [...form.bucketOrder];
+    const idx = order.indexOf(bucket);
+    const newIdx = idx + direction;
+    if (idx < 0 || newIdx < 0 || newIdx >= order.length) return;
+    [order[idx], order[newIdx]] = [order[newIdx], order[idx]];
+    patch({ bucketOrder: order });
   }
 
   async function handleSave() {
@@ -125,7 +156,7 @@ export default function QueueSettingsPage() {
             הגדרות תור
           </h1>
           <p className="mt-1 text-sm text-surface-500">
-            כיוונון האלגוריתם שבונה את המשימות היומיות
+            איך לבנות את התור — בשפה של המשרד, לא של המערכת
           </p>
         </div>
       </div>
@@ -135,13 +166,13 @@ export default function QueueSettingsPage() {
         <div className="flex items-start gap-2.5">
           <Info className="h-4 w-4 text-primary-600 mt-0.5 shrink-0" />
           <p className="text-sm text-surface-700 leading-relaxed">
-            הגדרות אלו קובעות איך התור בונה את המשימות של היום. שינויים ייכנסו
-            לתוקף בבניית התור הבאה.
+            רוב ההחלטות של התור נשלטות בשתי הגדרות: <b>סדר הקטגוריות</b> ו
+            <b>האם חידושים במסלול נפרד</b>. השאר כיוונון עדין.
           </p>
         </div>
       </Card>
 
-      {/* Card 1 — Daily Capacity */}
+      {/* === 1. Daily capacity === */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -149,32 +180,112 @@ export default function QueueSettingsPage() {
             קיבולת יומית
           </CardTitle>
         </CardHeader>
+        <NumberField
+          label="כמה לקוחות בתור של היום"
+          helper="כמה משימות המשרד מטפל בהן ביום"
+          value={form.dailyCapacity}
+          defaultValue={DEFAULTS.dailyCapacity}
+          min={1}
+          max={100}
+          onChange={(v) => patch({ dailyCapacity: v })}
+          suffix="לקוחות"
+        />
+      </Card>
 
-        <div className="space-y-5">
-          <NumberField
-            label="כמה לקוחות מופיעים בתור היומי"
-            helper="מספר המשימות שהמשרד יכול לטפל בהן ביום"
-            value={form.dailyCapacity}
-            defaultValue={DEFAULTS.dailyCapacity}
-            min={1}
-            max={100}
-            onChange={(v) => patch({ dailyCapacity: v })}
-            suffix="לקוחות"
-          />
-          <NumberField
-            label="מקומות שמורים לפריטים דחופים"
-            helper="מקומות שמורים לאבני דרך גיליות (שאר המקומות לערך)"
-            value={form.urgentReserveSlots}
-            defaultValue={DEFAULTS.urgentReserveSlots}
-            min={0}
-            max={Math.max(form.dailyCapacity - 1, 0)}
-            onChange={(v) => patch({ urgentReserveSlots: v })}
-            suffix="מקומות"
-          />
+      {/* === 2. Bucket order — the key lever === */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Layers className="h-4 w-4 text-primary-600" />
+            סדר הקטגוריות
+          </CardTitle>
+        </CardHeader>
+
+        <div className="space-y-3">
+          <p className="text-sm text-surface-600 leading-relaxed">
+            הקטגוריה בראש הרשימה שולטת בתור. הזיזו למעלה כדי להדגיש קטגוריה
+            השבוע, למטה כדי לדחות. לקוחות שאין להם תובנות בקטגוריה הדומיננטית
+            יעלו בקטגוריה הבאה ברשימה.
+          </p>
+
+          <ol className="space-y-2">
+            {form.bucketOrder.map((b, idx) => {
+              const meta = BUCKET_META[b];
+              const isFirst = idx === 0;
+              const isLast = idx === form.bucketOrder.length - 1;
+              return (
+                <li
+                  key={b}
+                  className="flex items-center gap-3 rounded-xl border border-white/70 bg-white/65 p-3 backdrop-blur-md transition-shadow hover:shadow-sm"
+                >
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => moveBucket(b, -1)}
+                      disabled={isFirst}
+                      aria-label="העבר למעלה"
+                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/60 bg-white/60 text-surface-600 transition-colors hover:bg-white/85 hover:text-violet-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveBucket(b, 1)}
+                      disabled={isLast}
+                      aria-label="העבר למטה"
+                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/60 bg-white/60 text-surface-600 transition-colors hover:bg-white/85 hover:text-violet-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="flex w-7 shrink-0 justify-center">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-surface-100 text-xs font-semibold text-surface-700 number">
+                      {idx + 1}
+                    </span>
+                  </div>
+
+                  <span
+                    className={cn(
+                      "inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium backdrop-blur-md",
+                      meta.chip
+                    )}
+                  >
+                    {meta.label}
+                  </span>
+
+                  <p className="flex-1 text-sm text-surface-700">
+                    {meta.description}
+                  </p>
+                </li>
+              );
+            })}
+          </ol>
         </div>
       </Card>
 
-      {/* Card 2 — Age Milestones */}
+      {/* === 3. Renewals lane === */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <RefreshCw className="h-4 w-4 text-primary-600" />
+            חידושים
+          </CardTitle>
+        </CardHeader>
+
+        <ToggleField
+          label="חידושים במסלול נפרד (חידושים מ-BAFI)"
+          helper={
+            form.renewalsLaneEnabled
+              ? "חידושים לא מתחרים בתור הראשי. הם מופיעים בעמוד 'חידושים מ-BAFI'."
+              : "חידושים מופיעים בתור הראשי יחד עם שאר התובנות."
+          }
+          checked={form.renewalsLaneEnabled}
+          onChange={(v) => patch({ renewalsLaneEnabled: v })}
+        />
+      </Card>
+
+      {/* === 4. Age milestones — still a distinct product lever === */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -185,7 +296,7 @@ export default function QueueSettingsPage() {
 
         <div className="space-y-5">
           <div>
-            <Label>בחר גילים שמפעילים את הכלל</Label>
+            <Label>גילים שמפעילים את הכלל</Label>
             <div className="mt-2 grid grid-cols-4 gap-2">
               {MILESTONE_AGE_OPTIONS.map((age) => {
                 const checked = form.ageMilestones.includes(age);
@@ -207,7 +318,7 @@ export default function QueueSettingsPage() {
                 );
               })}
             </div>
-            <Helper>ברירת המחדל: גיל 60 בלבד</Helper>
+            <Helper>ברירת מחדל: גיל 60 בלבד</Helper>
           </div>
 
           <div>
@@ -252,122 +363,7 @@ export default function QueueSettingsPage() {
         </div>
       </Card>
 
-      {/* Card 3 — High Value */}
-      {/* Urgent categories — which types of insights get reserved slots */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-amber-500" />
-            קטגוריות דחופות
-          </CardTitle>
-        </CardHeader>
-        <div className="space-y-3">
-          <p className="text-xs text-surface-500">
-            בחר אילו סוגי תובנות מקבלים מקומות שמורים בתור (פריטים דחופים).
-            שאר הקטגוריות מתחרות על המקומות הנותרים לפי ציון.
-          </p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {URGENT_CATEGORY_OPTIONS.map((opt) => {
-              const checked = form.urgentCategories.includes(opt.value);
-              return (
-                <label
-                  key={opt.value}
-                  className={`flex items-start gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${
-                    checked
-                      ? "border-amber-300 bg-amber-50/40"
-                      : "border-surface-200 bg-white hover:bg-surface-50"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => {
-                      const next = checked
-                        ? form.urgentCategories.filter((c) => c !== opt.value)
-                        : [...form.urgentCategories, opt.value];
-                      patch({ urgentCategories: next });
-                    }}
-                    className="mt-1 h-4 w-4 shrink-0 accent-amber-500"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <span className="text-sm font-medium text-surface-900">{opt.label}</span>
-                    <p className="mt-0.5 text-xs text-surface-500">{opt.description}</p>
-                  </div>
-                </label>
-              );
-            })}
-          </div>
-        </div>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Gem className="h-4 w-4 text-primary-600" />
-            לקוחות בעלי ערך גבוה
-          </CardTitle>
-        </CardHeader>
-
-        <div className="space-y-5">
-          <NumberField
-            label="חיסכון מצטבר מינימלי"
-            helper="לקוחות מעל הסף מקבלים עדיפות גבוהה"
-            value={form.highValueSavingsThreshold}
-            defaultValue={DEFAULTS.highValueSavingsThreshold}
-            min={0}
-            step={10_000}
-            onChange={(v) => patch({ highValueSavingsThreshold: v })}
-            currency
-          />
-          <NumberField
-            label="פרמיה חודשית מינימלית"
-            helper="לקוחות עם פרמיה חודשית מעל הסף מקבלים עדיפות גבוהה"
-            value={form.highValueMonthlyPremiumThreshold}
-            defaultValue={DEFAULTS.highValueMonthlyPremiumThreshold}
-            min={0}
-            step={100}
-            onChange={(v) => patch({ highValueMonthlyPremiumThreshold: v })}
-            currency
-          />
-        </div>
-      </Card>
-
-      {/* Card 4 — Cost Optimization */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Percent className="h-4 w-4 text-primary-600" />
-            אופטימיזציית עלות
-          </CardTitle>
-        </CardHeader>
-
-        <div className="space-y-5">
-          <NumberField
-            label="דמי ניהול מעל"
-            helper="דמי ניהול מעל הסף יסומנו כזדמנות חיסכון"
-            value={form.managementFeeThreshold}
-            defaultValue={DEFAULTS.managementFeeThreshold}
-            min={0}
-            max={10}
-            step={0.1}
-            onChange={(v) => patch({ managementFeeThreshold: v })}
-            suffix="%"
-            decimals={1}
-          />
-          <NumberField
-            label="חיסכון מינימלי לרלוונטיות"
-            helper="אופטימיזציה רלוונטית רק כשיש מספיק חיסכון כדי להצדיק העברה"
-            value={form.costOptimizationMinSavings}
-            defaultValue={DEFAULTS.costOptimizationMinSavings}
-            min={0}
-            step={10_000}
-            onChange={(v) => patch({ costOptimizationMinSavings: v })}
-            currency
-          />
-        </div>
-      </Card>
-
-      {/* Card 5 — Suppression */}
+      {/* === 5. Stale / contact === */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -379,7 +375,7 @@ export default function QueueSettingsPage() {
         <div className="space-y-5">
           <NumberField
             label="כמה ימים לא להציג לקוח שנדחה"
-            helper="זמן המתנה אחרי Dismiss לפני שהלקוח יוכל לחזור לתור"
+            helper="זמן המתנה אחרי סימון 'לא רלוונטי' לפני שהלקוח יוכל לחזור"
             value={form.cooldownAfterDismissalDays}
             defaultValue={DEFAULTS.cooldownAfterDismissalDays}
             min={0}
@@ -389,7 +385,7 @@ export default function QueueSettingsPage() {
           />
           <NumberField
             label="כמה ימים אחרי פנייה ללקוח לא להציג שוב"
-            helper="מונע הטרדה — אחרי הודעה נשלחת אנחנו לא מציגים את הלקוח שוב"
+            helper="מונע הטרדה — אחרי הודעה שנשלחה, הלקוח לא יחזור מיד"
             value={form.recentContactSuppressionDays}
             defaultValue={DEFAULTS.recentContactSuppressionDays}
             min={0}
@@ -397,16 +393,90 @@ export default function QueueSettingsPage() {
             onChange={(v) => patch({ recentContactSuppressionDays: v })}
             suffix="ימים"
           />
-
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-            <div className="flex items-start gap-2">
-              <Info className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-              <p className="text-xs text-amber-800 leading-relaxed">
-                פריטים דחופים (אבני דרך גיליות) עוקפים את החוק הזה
-              </p>
-            </div>
-          </div>
         </div>
+      </Card>
+
+      {/* === 6. Advanced (collapsed) === */}
+      <Card>
+        <button
+          type="button"
+          onClick={() => setAdvancedOpen((v) => !v)}
+          className="flex w-full items-center justify-between text-right"
+        >
+          <CardTitle className="flex items-center gap-2 text-surface-700">
+            <SlidersHorizontal className="h-4 w-4" />
+            הגדרות מתקדמות
+            <span className="mr-1 text-[11px] font-normal text-surface-500">
+              (לא חייב לגעת)
+            </span>
+          </CardTitle>
+          {advancedOpen ? (
+            <ChevronUp className="h-4 w-4 text-surface-500" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-surface-500" />
+          )}
+        </button>
+
+        {advancedOpen && (
+          <div className="mt-5 space-y-5 border-t border-white/60 pt-5">
+            <p className="text-xs text-surface-500 leading-relaxed">
+              הגדרות אלה קובעות מתי תובנה נחשבת &quot;חזקה&quot; פנימית —
+              משפיעות על הדירוג בתוך קטגוריה, לא על סדר הקטגוריות עצמו.
+            </p>
+
+            <NumberField
+              label="חיסכון מצטבר לזיהוי לקוח משמעותי"
+              helper="מעל הסף מקבלים בונוס ערך בתוך הקטגוריה"
+              value={form.highValueSavingsThreshold}
+              defaultValue={DEFAULTS.highValueSavingsThreshold}
+              min={0}
+              step={10_000}
+              onChange={(v) => patch({ highValueSavingsThreshold: v })}
+              currency
+            />
+            <NumberField
+              label="פרמיה חודשית לזיהוי לקוח משמעותי"
+              value={form.highValueMonthlyPremiumThreshold}
+              defaultValue={DEFAULTS.highValueMonthlyPremiumThreshold}
+              min={0}
+              step={100}
+              onChange={(v) =>
+                patch({ highValueMonthlyPremiumThreshold: v })
+              }
+              currency
+            />
+            <NumberField
+              label="דמי ניהול חריגים מעל"
+              value={form.managementFeeThreshold}
+              defaultValue={DEFAULTS.managementFeeThreshold}
+              min={0}
+              max={10}
+              step={0.1}
+              onChange={(v) => patch({ managementFeeThreshold: v })}
+              suffix="%"
+              decimals={1}
+            />
+            <NumberField
+              label="חיסכון מינימלי לרלוונטיות אופטימיזציה"
+              value={form.costOptimizationMinSavings}
+              defaultValue={DEFAULTS.costOptimizationMinSavings}
+              min={0}
+              step={10_000}
+              onChange={(v) => patch({ costOptimizationMinSavings: v })}
+              currency
+            />
+            <NumberField
+              label="מקומות שמורים לפריטים דחופים (אבני דרך)"
+              helper="משוריינים לטובת אבני דרך גיליות לפני תחרות על שאר המקומות"
+              value={form.urgentReserveSlots}
+              defaultValue={DEFAULTS.urgentReserveSlots}
+              min={0}
+              max={Math.max(form.dailyCapacity - 1, 0)}
+              onChange={(v) => patch({ urgentReserveSlots: v })}
+              suffix="מקומות"
+            />
+          </div>
+        )}
       </Card>
 
       {/* Sticky footer */}
@@ -528,10 +598,7 @@ function NumberField({
       <div className="flex items-baseline justify-between gap-3">
         <Label>{label}</Label>
         {showDefault && (
-          <span
-            className="text-[11px] text-surface-400"
-            title="ברירת המחדל המקורית"
-          >
+          <span className="text-[11px] text-surface-400" title="ברירת המחדל המקורית">
             ברירת מחדל: {defaultLabel}
           </span>
         )}
