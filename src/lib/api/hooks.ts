@@ -759,6 +759,7 @@ export interface QueueEntryWithRelations {
   actionedAt?: string | null;
   createdAt?: string;
   debugContext?: Record<string, unknown> | null;
+  bucket?: "coverage" | "savings" | "service" | "general" | "renewal";
   priorityScore?: number | null;
   priorityBreakdown?: {
     categoryFloor: number;

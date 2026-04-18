@@ -4,23 +4,14 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScoreBadge } from "@/components/shared/score-badge";
-import { NeonRing } from "@/components/prism/neon-ring";
-import { ChromaticBadge } from "@/components/prism/chromatic-badge";
 import { MessageComposer } from "@/components/shared/message-composer";
 import { ActionModal, type ActionKind } from "@/components/queue/action-modal";
 import {
   useQueueAction,
-  useGenerateCombinedMessage,
   type QueueEntryWithRelations,
   type QueueStatus,
 } from "@/lib/api/hooks";
-import type { MessageDraftItem } from "@/lib/types/message";
-import {
-  reasonCategoryLabels,
-  reasonCategoryIcons,
-  insightCategoryLabels,
-} from "@/lib/constants";
+import { OFFICE_BUCKET_LABELS, type OfficeBucket } from "@/lib/queue/buckets";
 import {
   ChevronDown,
   ChevronUp,
@@ -34,7 +25,6 @@ import {
   Phone,
   Mail,
   ArrowUpCircle,
-  Info,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -51,26 +41,24 @@ interface CustomerCardProps {
 
 type ActionableStatus = Exclude<QueueStatus, "PENDING">;
 
-type PrismColor = "indigo" | "violet" | "cyan" | "rose";
+type PrismColor = "indigo" | "violet" | "cyan" | "rose" | "amber";
 
-// Maps queue reason categories to Prism palette colors.
-// AGE_MILESTONE→violet, HIGH_VALUE→rose, COST_OPTIMIZATION→cyan,
-// COVERAGE_GAP→indigo, URGENT_EXPIRY→rose, SERVICE→indigo, CROSS_SELL→violet.
-function mapReasonToColor(reason: string): PrismColor {
-  switch (reason) {
-    case "AGE_MILESTONE":
-    case "CROSS_SELL":
-      return "violet";
-    case "HIGH_VALUE":
-    case "URGENT_EXPIRY":
-      return "rose";
-    case "COST_OPTIMIZATION":
-      return "cyan";
-    case "COVERAGE_GAP":
-    case "SERVICE":
+// Maps office buckets (רפי's own taxonomy) to Prism palette colors.
+// כיסוי → indigo, חיסכון → cyan, שירות → violet, כללי → rose,
+// חידוש → amber (and normally lives in the BAFI lane, not here).
+function bucketColor(bucket: OfficeBucket | undefined): PrismColor {
+  switch (bucket) {
+    case "coverage":
       return "indigo";
-    default:
+    case "savings":
+      return "cyan";
+    case "service":
       return "violet";
+    case "renewal":
+      return "amber";
+    case "general":
+    default:
+      return "rose";
   }
 }
 
@@ -92,15 +80,9 @@ export function CustomerCard({
   const fullName =
     customer.fullName || `${customer.firstName} ${customer.lastName}`.trim();
   const supportingCount = supportingInsights?.length ?? 0;
-  const reasonColor = mapReasonToColor(entry.reasonCategory);
-  const reasonEmoji = reasonCategoryIcons[entry.reasonCategory] || "⭐";
-  const reasonLabel =
-    reasonCategoryLabels[entry.reasonCategory] || entry.reasonCategory;
-  // The gauge shows the queue PRIORITY score (0-100) — same number that
-  // drives the rank. Falls back to insight strength for old entries built
-  // before priorityScore was added to debugContext.
-  const priorityScore = entry.priorityScore ?? primaryInsight?.strengthScore ?? null;
-  const breakdown = entry.priorityBreakdown ?? null;
+  const bucket: OfficeBucket = entry.bucket ?? "general";
+  const bucketLabel = OFFICE_BUCKET_LABELS[bucket];
+  const reasonColor = bucketColor(bucket);
 
   async function handleAction(
     status: ActionableStatus,
@@ -212,62 +194,24 @@ export function CustomerCard({
                   {" פוליסות"}
                 </Badge>
               )}
+              <BucketTag bucket={bucket} label={bucketLabel} />
             </div>
 
-            {/* Why today — Prism ChromaticBadge replaces the old inline icon+badge */}
-            <div className="mt-2.5 flex flex-wrap items-center gap-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-violet-700/70">
-                למה היום?
-              </span>
-              <ChromaticBadge
-                icon={reasonEmoji}
-                label={reasonLabel}
-                color={reasonColor}
-              />
-            </div>
-            <p className="mt-2 text-sm font-normal text-surface-800 leading-snug">
+            {/* Why now — single Hebrew sentence, no competing scores */}
+            <p className="mt-2.5 text-sm font-normal text-surface-800 leading-snug">
               {whyTodayReason}
             </p>
 
-            {/* Primary insight + supporting count */}
-            {primaryInsight && (
-              <div className="mt-3 flex items-center gap-2 text-xs text-surface-600">
-                <span className="line-clamp-1 flex-1">
-                  <span className="font-medium text-surface-800">
-                    {primaryInsight.title}
-                  </span>
-                  {insightCategoryLabels[
-                    primaryInsight.category as keyof typeof insightCategoryLabels
-                  ] && (
-                    <span className="text-surface-500">
-                      {" · "}
-                      {
-                        insightCategoryLabels[
-                          primaryInsight.category as keyof typeof insightCategoryLabels
-                        ]
-                      }
-                    </span>
-                  )}
-                </span>
-                {supportingCount > 0 && (
-                  <span className="shrink-0 rounded-full border border-white/60 bg-white/50 px-2 py-0.5 text-[11px] text-surface-600 number backdrop-blur-md">
-                    +{supportingCount} תובנות נוספות
-                  </span>
-                )}
-              </div>
+            {/* "+N more topics" — no per-insight score badges on the queue card */}
+            {supportingCount > 0 && (
+              <p className="mt-1.5 text-xs text-surface-500">
+                +{supportingCount} נושאים נוספים
+              </p>
             )}
           </div>
 
-          {/* Right column — primary score ring + actions */}
+          {/* Right column — actions only (the gauge + ⓘ are gone) */}
           <div className="flex shrink-0 flex-col items-end gap-2">
-            {priorityScore != null && (
-              <PriorityGauge
-                score={priorityScore}
-                size={compact ? 44 : 56}
-                reasonLabel={reasonLabel}
-                breakdown={breakdown}
-              />
-            )}
 
             <div className="flex items-center gap-2">
               {showPromote && (
@@ -393,12 +337,51 @@ export function CustomerCard({
               </div>
             )}
 
-            {/* Insight selection + combined message */}
-            <InsightSelectAndMessage
-              primaryInsight={primaryInsight}
-              supportingInsights={supportingInsights ?? []}
-              customerName={fullName}
-            />
+            {/* Primary insight — one sentence, no score badge */}
+            {primaryInsight && (
+              <div className="rounded-lg border border-white/60 bg-white/55 p-3 backdrop-blur-md">
+                <p className="text-sm font-medium text-surface-900">
+                  {primaryInsight.title}
+                </p>
+                {primaryInsight.summary && (
+                  <p className="mt-1 text-xs text-surface-600">
+                    {primaryInsight.summary}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Supporting topics — titles only, no scores, no checkboxes */}
+            {supportingInsights && supportingInsights.length > 0 && (
+              <div>
+                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-surface-600">
+                  נושאים נוספים
+                </h4>
+                <ul className="space-y-1.5">
+                  {supportingInsights.map((s) => (
+                    <li
+                      key={s.id}
+                      className="text-xs text-surface-700 before:me-2 before:text-surface-400 before:content-['•']"
+                    >
+                      {s.title}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Message composer — always targets the primary insight */}
+            {primaryInsight && (
+              <div className="rounded-lg border border-white/60 bg-white/55 p-4 backdrop-blur-md">
+                <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-surface-600">
+                  הודעה ללקוח
+                </h4>
+                <MessageComposer
+                  insightId={primaryInsight.id}
+                  customerName={fullName}
+                />
+              </div>
+            )}
 
             {/* Bottom actions */}
             <div className="flex flex-wrap items-center gap-2 border-t border-white/60 pt-4">
@@ -467,94 +450,29 @@ export function CustomerCard({
 }
 
 // ============================================================
-// Priority gauge — neon ring + hover info popover explaining the rank
+// Bucket tag — the single visible category on a queue card
 // ============================================================
 
-function PriorityGauge({
-  score,
-  size,
-  reasonLabel,
-  breakdown,
-}: {
-  score: number;
-  size: number;
-  reasonLabel: string;
-  breakdown: QueueEntryWithRelations["priorityBreakdown"] | null;
-}) {
+function BucketTag({ bucket, label }: { bucket: OfficeBucket; label: string }) {
+  const tone =
+    bucket === "coverage"
+      ? "bg-indigo-500/12 text-indigo-700 border-indigo-300/50"
+      : bucket === "savings"
+        ? "bg-cyan-500/12 text-cyan-700 border-cyan-300/50"
+        : bucket === "service"
+          ? "bg-violet-500/12 text-violet-700 border-violet-300/50"
+          : bucket === "renewal"
+            ? "bg-amber-500/12 text-amber-700 border-amber-300/50"
+            : "bg-rose-500/12 text-rose-700 border-rose-300/50";
   return (
-    <div className="group/gauge relative flex items-center gap-1">
-      <NeonRing value={score} size={size} />
-      <button
-        type="button"
-        aria-label="איך חישבנו את הדחיפות?"
-        className="flex h-5 w-5 items-center justify-center rounded-full border border-white/60 bg-white/60 text-surface-500 backdrop-blur-md transition-colors hover:bg-white/85 hover:text-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-400/40"
-      >
-        <Info className="h-3 w-3" />
-      </button>
-
-      {/* Hover / focus popover */}
-      <div
-        className="pointer-events-none absolute left-0 top-full z-30 mt-2 w-64 rounded-xl border border-white/70 bg-white/90 p-3 text-right text-xs text-surface-700 opacity-0 shadow-[0_12px_30px_-10px_rgba(80,70,180,0.25)] backdrop-blur-xl transition-opacity duration-150 group-hover/gauge:pointer-events-auto group-hover/gauge:opacity-100 group-focus-within/gauge:pointer-events-auto group-focus-within/gauge:opacity-100"
-      >
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-violet-700/80">
-          איך חושב הציון
-        </p>
-        {breakdown ? (
-          <ul className="space-y-1.5">
-            <BreakdownRow
-              label={`בסיס: ${reasonLabel}`}
-              value={breakdown.categoryFloor}
-              isBase
-            />
-            <BreakdownRow
-              label="חוזק התובנה"
-              value={breakdown.strengthBonus}
-            />
-            <BreakdownRow label="ערך תיק הלקוח" value={breakdown.valueBonus} />
-            {breakdown.renewalPenalty !== 0 && (
-              <BreakdownRow
-                label="קנס חידוש (נמצא ב-BAFI)"
-                value={breakdown.renewalPenalty}
-              />
-            )}
-            <li className="mt-2 flex items-center justify-between border-t border-surface-200/70 pt-2 font-semibold text-surface-900">
-              <span className="number">{score}</span>
-              <span>ציון דחיפות</span>
-            </li>
-          </ul>
-        ) : (
-          <p className="text-surface-500">
-            אין פירוט זמין עבור רשומה זו. בנייה מחדש של התור תייצר פירוט.
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function BreakdownRow({
-  label,
-  value,
-  isBase = false,
-}: {
-  label: string;
-  value: number;
-  isBase?: boolean;
-}) {
-  const sign = value > 0 ? "+" : "";
-  const color =
-    value > 0
-      ? "text-emerald-600"
-      : value < 0
-        ? "text-rose-600"
-        : "text-surface-500";
-  return (
-    <li className="flex items-center justify-between gap-3">
-      <span className={cn("number", isBase ? "text-surface-700" : color)}>
-        {isBase ? value : `${sign}${value}`}
-      </span>
-      <span className="truncate text-surface-600">{label}</span>
-    </li>
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium backdrop-blur-md",
+        tone
+      )}
+    >
+      {label}
+    </span>
   );
 }
 
@@ -578,196 +496,3 @@ function MenuItem({
   );
 }
 
-// ============================================================
-// Insight selection + combined message generation
-// ============================================================
-
-interface InsightLite {
-  id: string;
-  title: string;
-  summary: string;
-  category: string;
-  strengthScore: number | null;
-}
-
-function InsightSelectAndMessage({
-  primaryInsight,
-  supportingInsights,
-  customerName,
-}: {
-  primaryInsight: InsightLite | null;
-  supportingInsights: InsightLite[];
-  customerName: string;
-}) {
-  const allInsights = primaryInsight
-    ? [primaryInsight, ...supportingInsights]
-    : supportingInsights;
-
-  // By default, only the primary insight is selected
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(
-    new Set(primaryInsight ? [primaryInsight.id] : [])
-  );
-  const [generatedMessage, setGeneratedMessage] =
-    useState<MessageDraftItem | null>(null);
-  const generate = useGenerateCombinedMessage();
-
-  function toggle(id: string) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  async function handleGenerate() {
-    const ids = Array.from(selectedIds);
-    if (ids.length === 0) return;
-    try {
-      const result = await generate.mutateAsync({
-        insightIds: ids,
-        combined: true,
-      });
-      const raw = result as unknown as Record<string, unknown>;
-      setGeneratedMessage({
-        id: (raw.messageId || raw.id || "") as string,
-        customerId: "",
-        customerName,
-        insightId: ids[0] ?? null,
-        insightTitle: null,
-        body: (raw.body || "") as string,
-        tone: null,
-        purpose: null,
-        status: "DRAFT",
-        generatedBy: "AI",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-    } catch {
-      /* handled via mutation state */
-    }
-  }
-
-  const selectedCount = selectedIds.size;
-  const isSingle = selectedCount === 1;
-
-  return (
-    <div className="space-y-4">
-      {/* Insight selector */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-surface-600">
-            בחר תובנות להודעה ({selectedCount})
-          </h4>
-          {allInsights.length > 1 && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() =>
-                  setSelectedIds(new Set(allInsights.map((i) => i.id)))
-                }
-                className="text-xs text-violet-700 hover:text-violet-800"
-              >
-                בחר הכל
-              </button>
-              <span className="text-surface-400">|</span>
-              <button
-                onClick={() => setSelectedIds(new Set())}
-                className="text-xs text-surface-500 hover:text-surface-700"
-              >
-                נקה
-              </button>
-            </div>
-          )}
-        </div>
-        <div className="space-y-2">
-          {allInsights.map((ins, idx) => {
-            const isChecked = selectedIds.has(ins.id);
-            const isPrimary = idx === 0 && primaryInsight;
-            return (
-              <label
-                key={ins.id}
-                className={cn(
-                  "flex items-start gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors backdrop-blur-md",
-                  isChecked
-                    ? "border-violet-300/60 bg-violet-500/8"
-                    : "border-white/60 bg-white/55 hover:bg-white/70"
-                )}
-              >
-                <input
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={() => toggle(ins.id)}
-                  className="mt-1 h-4 w-4 shrink-0 accent-violet-600"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    {isPrimary && <Badge variant="primary">ראשי</Badge>}
-                    <span className="text-sm font-medium text-surface-900 truncate">
-                      {ins.title}
-                    </span>
-                  </div>
-                  {ins.summary && (
-                    <p className="mt-1 text-xs text-surface-600 line-clamp-2">
-                      {ins.summary}
-                    </p>
-                  )}
-                </div>
-                {ins.strengthScore != null && (
-                  <div className="shrink-0">
-                    <ScoreBadge score={ins.strengthScore} />
-                  </div>
-                )}
-              </label>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Message generator */}
-      <div className="rounded-lg border border-white/60 bg-white/55 p-4 backdrop-blur-md">
-        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-surface-600">
-          הודעה ללקוח
-        </h4>
-
-        {selectedCount === 0 ? (
-          <p className="text-xs text-surface-600">
-            בחר לפחות תובנה אחת כדי לייצר הודעה
-          </p>
-        ) : isSingle && !generatedMessage ? (
-          // Single insight — use the existing MessageComposer flow
-          <MessageComposer
-            insightId={Array.from(selectedIds)[0]}
-            customerName={customerName}
-          />
-        ) : generatedMessage ? (
-          // Combined message generated — show as MessageComposer preview
-          <MessageComposer
-            insightId={Array.from(selectedIds)[0]}
-            customerName={customerName}
-            existingMessage={generatedMessage}
-          />
-        ) : (
-          <div className="space-y-3">
-            <p className="text-xs text-surface-600">
-              {selectedCount} תובנות נבחרו — ה-AI ישלב אותן להודעה אחת טבעית
-            </p>
-            <button
-              onClick={handleGenerate}
-              disabled={generate.isPending}
-              className={cn(
-                "group relative inline-flex items-center gap-2 rounded-lg border border-white/40 px-4 py-2 text-sm font-medium text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed",
-                "bg-gradient-to-l from-indigo-500 via-violet-500 to-rose-400",
-                "shadow-[0_1px_0_rgba(255,255,255,0.5)_inset,0_8px_24px_-10px_rgba(167,139,250,0.65),0_2px_8px_-2px_rgba(129,140,248,0.35)]",
-                "hover:shadow-[0_1px_0_rgba(255,255,255,0.6)_inset,0_12px_30px_-10px_rgba(167,139,250,0.85),0_4px_12px_-2px_rgba(240,171,252,0.45)]",
-                "hover:brightness-[1.05]"
-              )}
-            >
-              <Sparkles className="h-4 w-4" />
-              {generate.isPending ? "יוצר הודעה משולבת..." : "צור הודעה משולבת"}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}

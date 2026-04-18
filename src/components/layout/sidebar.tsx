@@ -18,10 +18,12 @@ import {
   Clock,
   Settings,
   Palette,
+  RefreshCw,
 } from "lucide-react";
 
 const navigation = [
   { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
+  { name: "חידושים מ-BAFI", href: "/renewals", icon: RefreshCw },
   { name: "בקרוב", href: "/soon", icon: Clock },
   { name: "הגדרות תור", href: "/queue-settings", icon: Settings },
   { name: "לקוחות", href: "/customers", icon: Users },

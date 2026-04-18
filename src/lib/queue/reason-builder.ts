@@ -149,7 +149,8 @@ export function determineReasonCategory(
   }
   if (!ctx.lastContactAt) return "SERVICE";
   if (ctx.activeCategoryCount === 1) return "CROSS_SELL";
-  if (nearestExpiringActivePolicy(ctx.policies)) return "URGENT_EXPIRY";
+  // URGENT_EXPIRY is intentionally not returned here any more — renewals
+  // live in the BAFI lane (/renewals) and do not compete with the AI queue.
   return "CROSS_SELL";
 }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { resolveBucket } from "@/lib/queue/buckets";
 
 export async function GET(request: NextRequest) {
   const { response: authResponse, userId, role } = await requireAuth();
@@ -74,6 +75,23 @@ export async function GET(request: NextRequest) {
       : [];
   const supportingById = new Map(supporting.map((s) => [s.id, s]));
 
+  // Pull rule categories for bucket resolution
+  const ruleIds = Array.from(
+    new Set(
+      entries
+        .map((e) => e.primaryInsight?.linkedRuleId)
+        .filter((x): x is string => !!x)
+    )
+  );
+  const rules =
+    ruleIds.length > 0
+      ? await prisma.officeRule.findMany({
+          where: { id: { in: ruleIds } },
+          select: { id: true, category: true },
+        })
+      : [];
+  const ruleCategoryById = new Map(rules.map((r) => [r.id, r.category]));
+
   // Policy counts per customer (single query)
   const customerIds = entries.map((e) => e.customerId);
   const policyCounts =
@@ -100,6 +118,11 @@ export async function GET(request: NextRequest) {
         ? (ctx.priorityBreakdown as Record<string, unknown>)
         : null;
 
+    const ruleCategory = e.primaryInsight?.linkedRuleId
+      ? ruleCategoryById.get(e.primaryInsight.linkedRuleId) ?? null
+      : null;
+    const bucket = resolveBucket(ruleCategory, e.primaryInsight?.category);
+
     return {
       id: e.id,
       rank: e.rank,
@@ -108,6 +131,7 @@ export async function GET(request: NextRequest) {
       queueDate: e.queueDate,
       whyTodayReason: e.whyTodayReason,
       reasonCategory: e.reasonCategory,
+      bucket,
       generationReason: e.generationReason,
       assignedUserId: e.assignedUserId,
       postponeUntil: e.postponeUntil,

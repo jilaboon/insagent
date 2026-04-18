@@ -238,7 +238,15 @@ export async function buildQueue(
 
     let best: Candidate | null = null;
 
-    for (const ins of customerInsights) {
+    // Renewals now live in the BAFI lane. Never pick an EXPIRING_POLICY
+    // insight as the primary story — they can still appear as supporting
+    // topics inside the card.
+    const primaryCandidates = customerInsights.filter(
+      (i) => i.category !== "EXPIRING_POLICY"
+    );
+    const usable = primaryCandidates.length > 0 ? primaryCandidates : [];
+
+    for (const ins of usable) {
       const ctx: ReasonContext = {
         insight: ins,
         customer: reasonCustomer,
