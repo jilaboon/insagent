@@ -363,17 +363,19 @@
             </div>
 
             <div style="margin-top: 16px; font-size: 13px; color: var(--surface-500);">
-              כל תובנה מסווגת לאחת מ-7 קטגוריות:
+              כל תובנה משויכת לאחת מארבע קטגוריות בשפה של המשרד:
             </div>
             <div class="category-grid">
-              <div class="category-chip urgent">⏰ פוליסה מתחדשת</div>
-              <div class="category-chip">🎯 אבן דרך גילית</div>
-              <div class="category-chip">💎 לקוח משמעותי</div>
-              <div class="category-chip">🛡️ פער כיסוי</div>
-              <div class="category-chip">💰 אופטימיזציה</div>
+              <div class="category-chip">🛡️ כיסוי</div>
+              <div class="category-chip">💰 חיסכון</div>
               <div class="category-chip">🤝 שירות</div>
-              <div class="category-chip">✨ הרחבת סל</div>
-              <div class="category-chip" style="background: var(--surface-50); color: var(--surface-400);">תוצאה: אלפי תובנות</div>
+              <div class="category-chip">✨ כללי</div>
+              <div class="category-chip" style="background: var(--surface-50); color: var(--surface-400); grid-column: span 4;">תוצאה: אלפי תובנות מסווגות בשפה אחת</div>
+            </div>
+
+            <div class="example" style="margin-top: 14px; border-right-color: var(--amber-500); background: var(--amber-50);">
+              <div class="example-label" style="color: #7a5616;">מסלול נפרד — חידושים מ-BAFI</div>
+              פוליסות שמתחדשות ב-90 הימים הקרובים לא מתחרות בתור היומי. הן מופיעות במסך ייעודי (״חידושים״) ממוין לפי תאריך סיום — כי BAFI כבר מציף אותן מדי בוקר. כך התור היומי מתמקד רק בהזדמנויות ייחודיות.
             </div>
           </div>
         </div>
@@ -389,7 +391,7 @@
         <div class="stage-card highlight">
           <h2 class="stage-title">
             <span class="stage-emoji">📋</span>
-            התור — 20 הלקוחות הכי חשובים היום
+            התור — הלקוחות הכי חשובים היום
           </h2>
           <p class="stage-tagline">המערכת בוחרת את הלקוחות שבאמת חשוב לפנות אליהם היום — לא יותר ולא פחות</p>
 
@@ -398,19 +400,24 @@
               <strong>איך נבחרים:</strong>
             </div>
             <ul style="margin: 0; padding-right: 20px; font-size: 13px; color: var(--surface-700); line-height: 1.8;">
-              <li>הלקוח עובר בדיקות זכאות (לא נדחה לאחרונה, לא יצרנו קשר ב-30 ימים אחרונים)</li>
-              <li>נבחר ״למה היום?״ ראשי לכל לקוח (התובנה החשובה ביותר)</li>
-              <li>20 הראשונים — מקומות שמורים לקטגוריות דחופות, השאר לפי ערך</li>
+              <li>הלקוח עובר בדיקות זכאות (לא נדחה לאחרונה, לא יצרנו איתו קשר בימים האחרונים)</li>
+              <li>לכל לקוח נבחרת תובנה ראשית אחת — הסיבה המרכזית לפנייה היום</li>
+              <li>סדר הלקוחות בתור נקבע לפי סדר הקטגוריות שרפי הגדיר: הקטגוריה העליונה (למשל ״כיסוי״) שולטת בתור, אחריה הבאה, וכן הלאה</li>
+              <li>חידושים לא מופיעים כאן — יש להם מסך נפרד (״חידושים מ-BAFI״)</li>
             </ul>
 
             <div class="queue-visual">
-              <div class="queue-card top">#1<br><span style="font-size:9px;">דוד כהן</span></div>
-              <div class="queue-card top">#2<br><span style="font-size:9px;">שרה לוי</span></div>
-              <div class="queue-card top">#3<br><span style="font-size:9px;">יואב גל</span></div>
-              <div class="queue-card">#4</div>
-              <div class="queue-card">#5</div>
+              <div class="queue-card top">#1<br><span style="font-size:9px;">דוד כהן</span><br><span style="font-size:9px; color:#7a5616;">כיסוי</span></div>
+              <div class="queue-card top">#2<br><span style="font-size:9px;">שרה לוי</span><br><span style="font-size:9px; color:#7a5616;">כיסוי</span></div>
+              <div class="queue-card top">#3<br><span style="font-size:9px;">יואב גל</span><br><span style="font-size:9px; color:#7a5616;">חיסכון</span></div>
+              <div class="queue-card">#4<br><span style="font-size:9px; color:var(--surface-500);">חיסכון</span></div>
+              <div class="queue-card">#5<br><span style="font-size:9px; color:var(--surface-500);">שירות</span></div>
               <div class="queue-card" style="color:var(--surface-400);">...</div>
-              <div class="queue-card">#20</div>
+              <div class="queue-card">#N</div>
+            </div>
+
+            <div style="margin-top: 14px; font-size: 12px; color: var(--surface-500);">
+              <strong>מה רפי רואה על הכרטיס:</strong> מיקום בתור, שם וגיל, מספר פוליסות, תג אחד של קטגוריה (כיסוי / חיסכון / שירות / כללי), משפט אחד של ״למה היום״, ופעולה אחת — ״צור הודעה״. אין ציונים מספריים על הכרטיס — רפי שולט בעדיפות דרך <strong>סדר הקטגוריות</strong> בהגדרות.
             </div>
           </div>
         </div>
@@ -426,18 +433,23 @@
         <div class="stage-card">
           <h2 class="stage-title">
             <span class="stage-emoji">✅</span>
-            רפי בוחר במה לטפל
+            רפי פותח את הכרטיס ורואה את התמונה
           </h2>
-          <p class="stage-tagline">פתיחת כרטיס לקוח — בחירת התובנות שנכנסות להודעה</p>
+          <p class="stage-tagline">תובנה ראשית אחת בראש, נושאים תומכים כרשימה — הודעה אחת ממוקדת</p>
 
           <div class="stage-content">
             <div style="font-size: 13px; color: var(--surface-700);">
-              לכל לקוח יש תובנה ראשית + עד 2 תובנות תומכות. רפי מסמן באמצעות צ'קבוקס:
+              לכל לקוח יש תובנה ראשית אחת (סיבת הפנייה המרכזית) ונושאים תומכים נוספים להקשר. אין צורך לבחור — ההודעה נבנית סביב התובנה הראשית בלבד:
             </div>
-            <div style="margin-top: 12px; padding: 12px; background: var(--surface-50); border-radius: 10px;">
-              <div style="font-size: 13px; margin-bottom: 6px;">☑ תכנון פרישה (תובנה ראשית)</div>
-              <div style="font-size: 13px; margin-bottom: 6px;">☑ דמי ניהול חריגים בקרן השתלמות</div>
-              <div style="font-size: 13px; color: var(--surface-400);">☐ ביטוח חיים ותיק (לא נכלל הפעם)</div>
+            <div style="margin-top: 12px; padding: 14px; background: var(--surface-50); border-radius: 10px;">
+              <div style="font-size: 12px; font-weight: 700; color: var(--teal-700); margin-bottom: 6px; letter-spacing: 0.04em;">תובנה ראשית</div>
+              <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">תכנון פרישה — הלקוח הגיע לגיל 66</div>
+
+              <div style="font-size: 12px; font-weight: 700; color: var(--surface-500); margin-bottom: 6px; letter-spacing: 0.04em;">נושאים נוספים להקשר</div>
+              <ul style="margin: 0; padding-right: 20px; font-size: 13px; color: var(--surface-700); line-height: 1.8;">
+                <li>דמי ניהול גבוהים בקרן השתלמות</li>
+                <li>ביטוח חיים ותיק — כדאי לבדוק רלוונטיות</li>
+              </ul>
             </div>
           </div>
         </div>
@@ -455,11 +467,11 @@
             <span class="stage-emoji">💬</span>
             AI כותב הודעת WhatsApp
           </h2>
-          <p class="stage-tagline">הודעה אישית בעברית, ממזגת את כל התובנות שנבחרו, מותאמת למין הלקוח</p>
+          <p class="stage-tagline">הודעה אישית בעברית, ממוקדת בתובנה הראשית, מותאמת למין הלקוח</p>
 
           <div class="stage-content">
             <div class="message-bubble">
-              דוד, רציתי להעלות שני נושאים: בגיל 66 זה הזמן המושלם לתכנון פרישה מקצועי כדי למקסם את הפנסיה. בנוסף, ראיתי שדמי הניהול בקרן ההשתלמות שלך גבוהים — אפשר לחסוך הרבה כסף בהעברה. מתי נוח לך לשיחה קצרה? 📞
+              דוד, רציתי להעלות נושא חשוב: בגיל 66 זה הזמן המושלם לתכנון פרישה מקצועי כדי למקסם את הפנסיה שלך. מתי נוח לך לשיחה קצרה? 📞
             </div>
 
             <div style="margin-top: 16px; font-size: 13px; color: var(--surface-500);">
