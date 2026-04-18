@@ -34,6 +34,7 @@ import {
   Phone,
   Mail,
   ArrowUpCircle,
+  Info,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -95,7 +96,11 @@ export function CustomerCard({
   const reasonEmoji = reasonCategoryIcons[entry.reasonCategory] || "⭐";
   const reasonLabel =
     reasonCategoryLabels[entry.reasonCategory] || entry.reasonCategory;
-  const primaryScore = primaryInsight?.strengthScore ?? null;
+  // The gauge shows the queue PRIORITY score (0-100) — same number that
+  // drives the rank. Falls back to insight strength for old entries built
+  // before priorityScore was added to debugContext.
+  const priorityScore = entry.priorityScore ?? primaryInsight?.strengthScore ?? null;
+  const breakdown = entry.priorityBreakdown ?? null;
 
   async function handleAction(
     status: ActionableStatus,
@@ -255,11 +260,13 @@ export function CustomerCard({
 
           {/* Right column — primary score ring + actions */}
           <div className="flex shrink-0 flex-col items-end gap-2">
-            {primaryScore != null && !compact && (
-              <NeonRing value={primaryScore} size={56} />
-            )}
-            {primaryScore != null && compact && (
-              <NeonRing value={primaryScore} size={44} />
+            {priorityScore != null && (
+              <PriorityGauge
+                score={priorityScore}
+                size={compact ? 44 : 56}
+                reasonLabel={reasonLabel}
+                breakdown={breakdown}
+              />
             )}
 
             <div className="flex items-center gap-2">
@@ -456,6 +463,98 @@ export function CustomerCard({
         />
       )}
     </>
+  );
+}
+
+// ============================================================
+// Priority gauge — neon ring + hover info popover explaining the rank
+// ============================================================
+
+function PriorityGauge({
+  score,
+  size,
+  reasonLabel,
+  breakdown,
+}: {
+  score: number;
+  size: number;
+  reasonLabel: string;
+  breakdown: QueueEntryWithRelations["priorityBreakdown"] | null;
+}) {
+  return (
+    <div className="group/gauge relative flex items-center gap-1">
+      <NeonRing value={score} size={size} />
+      <button
+        type="button"
+        aria-label="איך חישבנו את הדחיפות?"
+        className="flex h-5 w-5 items-center justify-center rounded-full border border-white/60 bg-white/60 text-surface-500 backdrop-blur-md transition-colors hover:bg-white/85 hover:text-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-400/40"
+      >
+        <Info className="h-3 w-3" />
+      </button>
+
+      {/* Hover / focus popover */}
+      <div
+        className="pointer-events-none absolute left-0 top-full z-30 mt-2 w-64 rounded-xl border border-white/70 bg-white/90 p-3 text-right text-xs text-surface-700 opacity-0 shadow-[0_12px_30px_-10px_rgba(80,70,180,0.25)] backdrop-blur-xl transition-opacity duration-150 group-hover/gauge:pointer-events-auto group-hover/gauge:opacity-100 group-focus-within/gauge:pointer-events-auto group-focus-within/gauge:opacity-100"
+      >
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-violet-700/80">
+          איך חושב הציון
+        </p>
+        {breakdown ? (
+          <ul className="space-y-1.5">
+            <BreakdownRow
+              label={`בסיס: ${reasonLabel}`}
+              value={breakdown.categoryFloor}
+              isBase
+            />
+            <BreakdownRow
+              label="חוזק התובנה"
+              value={breakdown.strengthBonus}
+            />
+            <BreakdownRow label="ערך תיק הלקוח" value={breakdown.valueBonus} />
+            {breakdown.renewalPenalty !== 0 && (
+              <BreakdownRow
+                label="קנס חידוש (נמצא ב-BAFI)"
+                value={breakdown.renewalPenalty}
+              />
+            )}
+            <li className="mt-2 flex items-center justify-between border-t border-surface-200/70 pt-2 font-semibold text-surface-900">
+              <span className="number">{score}</span>
+              <span>ציון דחיפות</span>
+            </li>
+          </ul>
+        ) : (
+          <p className="text-surface-500">
+            אין פירוט זמין עבור רשומה זו. בנייה מחדש של התור תייצר פירוט.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function BreakdownRow({
+  label,
+  value,
+  isBase = false,
+}: {
+  label: string;
+  value: number;
+  isBase?: boolean;
+}) {
+  const sign = value > 0 ? "+" : "";
+  const color =
+    value > 0
+      ? "text-emerald-600"
+      : value < 0
+        ? "text-rose-600"
+        : "text-surface-500";
+  return (
+    <li className="flex items-center justify-between gap-3">
+      <span className={cn("number", isBase ? "text-surface-700" : color)}>
+        {isBase ? value : `${sign}${value}`}
+      </span>
+      <span className="truncate text-surface-600">{label}</span>
+    </li>
   );
 }
 

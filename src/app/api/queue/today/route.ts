@@ -88,29 +88,44 @@ export async function GET(request: NextRequest) {
     policyCounts.map((p) => [p.customerId, p._count._all])
   );
 
-  const items = entries.map((e) => ({
-    id: e.id,
-    rank: e.rank,
-    lane: e.lane,
-    status: e.status,
-    queueDate: e.queueDate,
-    whyTodayReason: e.whyTodayReason,
-    reasonCategory: e.reasonCategory,
-    generationReason: e.generationReason,
-    assignedUserId: e.assignedUserId,
-    postponeUntil: e.postponeUntil,
-    actionedAt: e.actionedAt,
-    createdAt: e.createdAt,
-    customer: {
-      ...e.customer,
-      fullName: `${e.customer.firstName} ${e.customer.lastName}`,
-      activePolicyCount: policyCountByCustomer.get(e.customerId) ?? 0,
-    },
-    primaryInsight: e.primaryInsight,
-    supportingInsights: e.supportingInsightIds
-      .map((id) => supportingById.get(id))
-      .filter((x): x is NonNullable<typeof x> => !!x),
-  }));
+  const items = entries.map((e) => {
+    const ctx =
+      e.debugContext && typeof e.debugContext === "object"
+        ? (e.debugContext as Record<string, unknown>)
+        : {};
+    const priorityScore =
+      typeof ctx.priorityScore === "number" ? ctx.priorityScore : null;
+    const priorityBreakdown =
+      ctx.priorityBreakdown && typeof ctx.priorityBreakdown === "object"
+        ? (ctx.priorityBreakdown as Record<string, unknown>)
+        : null;
+
+    return {
+      id: e.id,
+      rank: e.rank,
+      lane: e.lane,
+      status: e.status,
+      queueDate: e.queueDate,
+      whyTodayReason: e.whyTodayReason,
+      reasonCategory: e.reasonCategory,
+      generationReason: e.generationReason,
+      assignedUserId: e.assignedUserId,
+      postponeUntil: e.postponeUntil,
+      actionedAt: e.actionedAt,
+      createdAt: e.createdAt,
+      priorityScore,
+      priorityBreakdown,
+      customer: {
+        ...e.customer,
+        fullName: `${e.customer.firstName} ${e.customer.lastName}`,
+        activePolicyCount: policyCountByCustomer.get(e.customerId) ?? 0,
+      },
+      primaryInsight: e.primaryInsight,
+      supportingInsights: e.supportingInsightIds
+        .map((id) => supportingById.get(id))
+        .filter((x): x is NonNullable<typeof x> => !!x),
+    };
+  });
 
   return NextResponse.json({ items, total: items.length });
 }

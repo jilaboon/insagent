@@ -759,6 +759,14 @@ export interface QueueEntryWithRelations {
   actionedAt?: string | null;
   createdAt?: string;
   debugContext?: Record<string, unknown> | null;
+  priorityScore?: number | null;
+  priorityBreakdown?: {
+    categoryFloor: number;
+    categoryLabel: ReasonCategory;
+    strengthBonus: number;
+    valueBonus: number;
+    renewalPenalty: number;
+  } | null;
   customer: {
     id: string;
     firstName: string;

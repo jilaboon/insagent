@@ -23,6 +23,7 @@ import {
   type ReasonInsight,
 } from "./reason-builder";
 import { getQueueSettings } from "./settings";
+import { computePriority, type PriorityBreakdown } from "./priority";
 
 interface BuildQueueOptions {
   reason: GenerationReason;
@@ -41,6 +42,7 @@ interface Candidate {
   timeCritical: boolean;
   gateResults: Record<string, boolean>;
   score: number;
+  priority: PriorityBreakdown;
   daysToExpiry: number | null;
 }
 
@@ -48,27 +50,6 @@ const SOON_CAPACITY = 50;
 
 function startOfDayUTC(d = new Date()): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-}
-
-function categoryPriority(cat: ReasonCategory): number {
-  switch (cat) {
-    case "URGENT_EXPIRY":
-      return 100;
-    case "AGE_MILESTONE":
-      return 90;
-    case "HIGH_VALUE":
-      return 70;
-    case "COVERAGE_GAP":
-      return 60;
-    case "COST_OPTIMIZATION":
-      return 55;
-    case "CROSS_SELL":
-      return 40;
-    case "SERVICE":
-      return 30;
-    default:
-      return 0;
-  }
 }
 
 export async function buildQueue(
@@ -289,11 +270,7 @@ export async function buildQueue(
         if (daysToExpiry == null || d < daysToExpiry) daysToExpiry = d;
       }
 
-      const score =
-        categoryPriority(reasonCategory) * 1000 +
-        (ins.strengthScore ?? 0) * 5 +
-        Math.min(totalAccumulatedSavings / 10_000, 100) +
-        Math.min(totalMonthlyPremium / 10, 50);
+      const priority = computePriority(ctx, reasonCategory);
 
       const candidate: Candidate = {
         customerId: cust.id,
@@ -304,7 +281,8 @@ export async function buildQueue(
         whyToday,
         timeCritical: critical,
         gateResults: elig.gateResults,
-        score,
+        score: priority.score,
+        priority,
         daysToExpiry,
       };
 
@@ -403,6 +381,14 @@ async function persistLane(
       debugContext: {
         gateResults: c.gateResults,
         score: c.score,
+        priorityScore: c.priority.score,
+        priorityBreakdown: {
+          categoryFloor: c.priority.categoryFloor,
+          categoryLabel: c.priority.categoryLabel,
+          strengthBonus: c.priority.strengthBonus,
+          valueBonus: c.priority.valueBonus,
+          renewalPenalty: c.priority.renewalPenalty,
+        },
         timeCritical: c.timeCritical,
         daysToExpiry: c.daysToExpiry,
         primaryInsightCategory: c.primaryInsight.category,
