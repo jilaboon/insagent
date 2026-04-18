@@ -9,7 +9,7 @@ import {
   Info,
   Users,
   Cake,
-  ShieldOff,
+  Clock,
   RefreshCw,
   Check,
   Layers,
@@ -285,112 +285,34 @@ export default function QueueSettingsPage() {
         />
       </Card>
 
-      {/* === 4. Age milestones — still a distinct product lever === */}
+      {/* === 4. When a customer returns to the queue === */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Cake className="h-4 w-4 text-primary-600" />
-            אבני דרך גיליות
-          </CardTitle>
-        </CardHeader>
-
-        <div className="space-y-5">
-          <div>
-            <Label>גילים שמפעילים את הכלל</Label>
-            <div className="mt-2 grid grid-cols-4 gap-2">
-              {MILESTONE_AGE_OPTIONS.map((age) => {
-                const checked = form.ageMilestones.includes(age);
-                return (
-                  <label
-                    key={age}
-                    className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-sm transition-colors ${
-                      checked
-                        ? "border-primary-500 bg-primary-50 text-primary-700"
-                        : "border-surface-200 bg-white text-surface-700 hover:border-surface-300"
-                    }`}
-                  >
-                    <span className="font-medium">גיל {age}</span>
-                    <Checkbox
-                      checked={checked}
-                      onChange={() => toggleMilestone(age)}
-                    />
-                  </label>
-                );
-              })}
-            </div>
-            <Helper>ברירת מחדל: גיל 60 בלבד</Helper>
-          </div>
-
-          <div>
-            <Label>כמה זמן אחרי המילסטון הלקוח עדיין רלוונטי</Label>
-            <select
-              value={form.milestoneFreshnessDays}
-              onChange={(e) =>
-                patch({ milestoneFreshnessDays: Number(e.target.value) })
-              }
-              className="mt-2 w-full rounded-lg border border-white/80 bg-white/80 px-3 py-2 text-sm text-surface-900 text-right backdrop-blur-sm focus:border-violet-400/60 focus:bg-white/90 focus:outline-none focus:ring-2 focus:ring-violet-400/25"
-            >
-              {FRESHNESS_OPTIONS.map((d) => (
-                <option key={d} value={d}>
-                  {d} ימים
-                </option>
-              ))}
-            </select>
-            <Helper>
-              ברירת מחדל: {DEFAULTS.milestoneFreshnessDays} ימים
-            </Helper>
-          </div>
-
-          <ToggleField
-            label="דרוש פנסיה או חיסכון משמעותי"
-            helper="דרישת מינימום כדי שהשיחה תהיה משמעותית"
-            checked={form.milestoneRequiresPensionOrSavings}
-            onChange={(v) => patch({ milestoneRequiresPensionOrSavings: v })}
-          />
-
-          {form.milestoneRequiresPensionOrSavings && (
-            <NumberField
-              label="סף חיסכון מצטבר מינימלי"
-              helper="רק לקוחות עם פנסיה או חיסכון מעל הסף יופיעו"
-              value={form.milestoneMinSavings}
-              defaultValue={DEFAULTS.milestoneMinSavings}
-              min={0}
-              step={1000}
-              onChange={(v) => patch({ milestoneMinSavings: v })}
-              currency
-            />
-          )}
-        </div>
-      </Card>
-
-      {/* === 5. Stale / contact === */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShieldOff className="h-4 w-4 text-primary-600" />
-            דיכוי וחפיפות
+            <Clock className="h-4 w-4 text-primary-600" />
+            מתי לקוח חוזר לתור
           </CardTitle>
         </CardHeader>
 
         <div className="space-y-5">
           <NumberField
-            label="כמה ימים לא להציג לקוח שנדחה"
-            helper="זמן המתנה אחרי סימון 'לא רלוונטי' לפני שהלקוח יוכל לחזור"
-            value={form.cooldownAfterDismissalDays}
-            defaultValue={DEFAULTS.cooldownAfterDismissalDays}
-            min={0}
-            max={365}
-            onChange={(v) => patch({ cooldownAfterDismissalDays: v })}
-            suffix="ימים"
-          />
-          <NumberField
-            label="כמה ימים אחרי פנייה ללקוח לא להציג שוב"
-            helper="מונע הטרדה — אחרי הודעה שנשלחה, הלקוח לא יחזור מיד"
+            label="אחרי פנייה, כמה ימים עד שהלקוח יחזור"
+            helper="מונע הטרדה — אחרי הודעה שנשלחה ללקוח, לא נציג אותו מיד"
             value={form.recentContactSuppressionDays}
             defaultValue={DEFAULTS.recentContactSuppressionDays}
             min={0}
             max={365}
             onChange={(v) => patch({ recentContactSuppressionDays: v })}
+            suffix="ימים"
+          />
+          <NumberField
+            label="אחרי 'לא רלוונטי', כמה ימים עד שהלקוח יחזור"
+            helper="סימון לקוח כלא רלוונטי מרחיק אותו מהתור לתקופה הזאת"
+            value={form.cooldownAfterDismissalDays}
+            defaultValue={DEFAULTS.cooldownAfterDismissalDays}
+            min={0}
+            max={365}
+            onChange={(v) => patch({ cooldownAfterDismissalDays: v })}
             suffix="ימים"
           />
         </div>
@@ -418,11 +340,90 @@ export default function QueueSettingsPage() {
         </button>
 
         {advancedOpen && (
-          <div className="mt-5 space-y-5 border-t border-white/60 pt-5">
+          <div className="mt-5 space-y-6 border-t border-white/60 pt-5">
             <p className="text-xs text-surface-500 leading-relaxed">
               הגדרות אלה קובעות מתי תובנה נחשבת &quot;חזקה&quot; פנימית —
               משפיעות על הדירוג בתוך קטגוריה, לא על סדר הקטגוריות עצמו.
+              הגדרות הקשורות לכלל ספציפי (כמו אבני דרך גיליות) יעברו
+              לעמוד הכללים בעתיד.
             </p>
+
+            {/* Age milestones — tied to a single rule, lives here until
+                it moves to the rules page */}
+            <div className="space-y-4 rounded-xl border border-white/60 bg-white/40 p-4 backdrop-blur-md">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-surface-800">
+                <Cake className="h-4 w-4 text-primary-600" />
+                אבני דרך גיליות (הגדרות הכלל)
+              </h3>
+
+              <div>
+                <Label>גילים שמפעילים את הכלל</Label>
+                <div className="mt-2 grid grid-cols-4 gap-2">
+                  {MILESTONE_AGE_OPTIONS.map((age) => {
+                    const checked = form.ageMilestones.includes(age);
+                    return (
+                      <label
+                        key={age}
+                        className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-sm transition-colors ${
+                          checked
+                            ? "border-primary-500 bg-primary-50 text-primary-700"
+                            : "border-surface-200 bg-white text-surface-700 hover:border-surface-300"
+                        }`}
+                      >
+                        <span className="font-medium">גיל {age}</span>
+                        <Checkbox
+                          checked={checked}
+                          onChange={() => toggleMilestone(age)}
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+                <Helper>ברירת מחדל: גיל 60 בלבד</Helper>
+              </div>
+
+              <div>
+                <Label>כמה זמן אחרי המילסטון הלקוח עדיין רלוונטי</Label>
+                <select
+                  value={form.milestoneFreshnessDays}
+                  onChange={(e) =>
+                    patch({ milestoneFreshnessDays: Number(e.target.value) })
+                  }
+                  className="mt-2 w-full rounded-lg border border-white/80 bg-white/80 px-3 py-2 text-sm text-surface-900 text-right backdrop-blur-sm focus:border-violet-400/60 focus:bg-white/90 focus:outline-none focus:ring-2 focus:ring-violet-400/25"
+                >
+                  {FRESHNESS_OPTIONS.map((d) => (
+                    <option key={d} value={d}>
+                      {d} ימים
+                    </option>
+                  ))}
+                </select>
+                <Helper>
+                  ברירת מחדל: {DEFAULTS.milestoneFreshnessDays} ימים
+                </Helper>
+              </div>
+
+              <ToggleField
+                label="דרוש פנסיה או חיסכון משמעותי"
+                helper="דרישת מינימום כדי שהשיחה תהיה משמעותית"
+                checked={form.milestoneRequiresPensionOrSavings}
+                onChange={(v) =>
+                  patch({ milestoneRequiresPensionOrSavings: v })
+                }
+              />
+
+              {form.milestoneRequiresPensionOrSavings && (
+                <NumberField
+                  label="סף חיסכון מצטבר מינימלי"
+                  helper="רק לקוחות עם פנסיה או חיסכון מעל הסף יופיעו"
+                  value={form.milestoneMinSavings}
+                  defaultValue={DEFAULTS.milestoneMinSavings}
+                  min={0}
+                  step={1000}
+                  onChange={(v) => patch({ milestoneMinSavings: v })}
+                  currency
+                />
+              )}
+            </div>
 
             <NumberField
               label="חיסכון מצטבר לזיהוי לקוח משמעותי"
