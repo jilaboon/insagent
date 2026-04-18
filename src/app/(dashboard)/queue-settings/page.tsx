@@ -18,6 +18,9 @@ import {
   ChevronUp,
   ArrowUp,
   ArrowDown,
+  Gem,
+  Percent,
+  Bookmark,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -425,57 +428,80 @@ export default function QueueSettingsPage() {
               )}
             </div>
 
-            <NumberField
-              label="חיסכון מצטבר לזיהוי לקוח משמעותי"
-              helper="מעל הסף מקבלים בונוס ערך בתוך הקטגוריה"
-              value={form.highValueSavingsThreshold}
-              defaultValue={DEFAULTS.highValueSavingsThreshold}
-              min={0}
-              step={10_000}
-              onChange={(v) => patch({ highValueSavingsThreshold: v })}
-              currency
-            />
-            <NumberField
-              label="פרמיה חודשית לזיהוי לקוח משמעותי"
-              value={form.highValueMonthlyPremiumThreshold}
-              defaultValue={DEFAULTS.highValueMonthlyPremiumThreshold}
-              min={0}
-              step={100}
-              onChange={(v) =>
-                patch({ highValueMonthlyPremiumThreshold: v })
-              }
-              currency
-            />
-            <NumberField
-              label="דמי ניהול חריגים מעל"
-              value={form.managementFeeThreshold}
-              defaultValue={DEFAULTS.managementFeeThreshold}
-              min={0}
-              max={10}
-              step={0.1}
-              onChange={(v) => patch({ managementFeeThreshold: v })}
-              suffix="%"
-              decimals={1}
-            />
-            <NumberField
-              label="חיסכון מינימלי לרלוונטיות אופטימיזציה"
-              value={form.costOptimizationMinSavings}
-              defaultValue={DEFAULTS.costOptimizationMinSavings}
-              min={0}
-              step={10_000}
-              onChange={(v) => patch({ costOptimizationMinSavings: v })}
-              currency
-            />
-            <NumberField
-              label="מקומות שמורים לפריטים דחופים (אבני דרך)"
-              helper="משוריינים לטובת אבני דרך גיליות לפני תחרות על שאר המקומות"
-              value={form.urgentReserveSlots}
-              defaultValue={DEFAULTS.urgentReserveSlots}
-              min={0}
-              max={Math.max(form.dailyCapacity - 1, 0)}
-              onChange={(v) => patch({ urgentReserveSlots: v })}
-              suffix="מקומות"
-            />
+            {/* High-value sub-panel */}
+            <div className="space-y-4 rounded-xl border border-white/60 bg-white/40 p-4 backdrop-blur-md">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-surface-800">
+                <Gem className="h-4 w-4 text-primary-600" />
+                לקוח משמעותי (ערך תיק)
+              </h3>
+              <NumberField
+                label="חיסכון מצטבר לזיהוי לקוח משמעותי"
+                helper="מעל הסף מקבלים בונוס ערך בתוך הקטגוריה"
+                value={form.highValueSavingsThreshold}
+                defaultValue={DEFAULTS.highValueSavingsThreshold}
+                min={0}
+                step={10_000}
+                onChange={(v) => patch({ highValueSavingsThreshold: v })}
+                currency
+              />
+              <NumberField
+                label="פרמיה חודשית לזיהוי לקוח משמעותי"
+                value={form.highValueMonthlyPremiumThreshold}
+                defaultValue={DEFAULTS.highValueMonthlyPremiumThreshold}
+                min={0}
+                step={100}
+                onChange={(v) =>
+                  patch({ highValueMonthlyPremiumThreshold: v })
+                }
+                currency
+              />
+            </div>
+
+            {/* Cost optimization sub-panel */}
+            <div className="space-y-4 rounded-xl border border-white/60 bg-white/40 p-4 backdrop-blur-md">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-surface-800">
+                <Percent className="h-4 w-4 text-primary-600" />
+                אופטימיזציית עלות
+              </h3>
+              <NumberField
+                label="דמי ניהול חריגים מעל"
+                value={form.managementFeeThreshold}
+                defaultValue={DEFAULTS.managementFeeThreshold}
+                min={0}
+                max={10}
+                step={0.1}
+                onChange={(v) => patch({ managementFeeThreshold: v })}
+                suffix="%"
+                decimals={1}
+              />
+              <NumberField
+                label="חיסכון מינימלי לרלוונטיות אופטימיזציה"
+                value={form.costOptimizationMinSavings}
+                defaultValue={DEFAULTS.costOptimizationMinSavings}
+                min={0}
+                step={10_000}
+                onChange={(v) => patch({ costOptimizationMinSavings: v })}
+                currency
+              />
+            </div>
+
+            {/* Reserved slots sub-panel */}
+            <div className="space-y-4 rounded-xl border border-white/60 bg-white/40 p-4 backdrop-blur-md">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-surface-800">
+                <Bookmark className="h-4 w-4 text-primary-600" />
+                מקומות שמורים
+              </h3>
+              <NumberField
+                label="מקומות שמורים לפריטים דחופים (אבני דרך)"
+                helper="משוריינים לטובת אבני דרך גיליות לפני תחרות על שאר המקומות"
+                value={form.urgentReserveSlots}
+                defaultValue={DEFAULTS.urgentReserveSlots}
+                min={0}
+                max={Math.max(form.dailyCapacity - 1, 0)}
+                onChange={(v) => patch({ urgentReserveSlots: v })}
+                suffix="מקומות"
+              />
+            </div>
           </div>
         )}
       </Card>
