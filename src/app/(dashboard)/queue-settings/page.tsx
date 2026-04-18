@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Settings,
   Save,
@@ -8,23 +9,16 @@ import {
   Loader2,
   Info,
   Users,
-  Cake,
   Clock,
   RefreshCw,
   Check,
   Layers,
-  SlidersHorizontal,
-  ChevronDown,
-  ChevronUp,
   ArrowUp,
   ArrowDown,
-  Gem,
-  Percent,
-  Bookmark,
+  BookOpen,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import {
   useQueueSettings,
@@ -52,9 +46,6 @@ const DEFAULTS: QueueSettingsData = {
   bucketOrder: ["coverage", "savings", "service", "general"],
   renewalsLaneEnabled: true,
 };
-
-const MILESTONE_AGE_OPTIONS = [55, 60, 65, 67];
-const FRESHNESS_OPTIONS = [30, 60, 90];
 
 const BUCKET_META: Record<
   Bucket,
@@ -94,7 +85,6 @@ export default function QueueSettingsPage() {
   const [form, setForm] = useState<QueueSettingsData>(DEFAULTS);
   const [dirty, setDirty] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   useEffect(() => {
     if (data && !dirty) setForm(data);
@@ -103,13 +93,6 @@ export default function QueueSettingsPage() {
   function patch(p: Partial<QueueSettingsData>) {
     setForm((prev) => ({ ...prev, ...p }));
     setDirty(true);
-  }
-
-  function toggleMilestone(age: number) {
-    const set = new Set(form.ageMilestones);
-    if (set.has(age)) set.delete(age);
-    else set.add(age);
-    patch({ ageMilestones: Array.from(set).sort((a, b) => a - b) });
   }
 
   function moveBucket(bucket: Bucket, direction: -1 | 1) {
@@ -321,189 +304,27 @@ export default function QueueSettingsPage() {
         </div>
       </Card>
 
-      {/* === 6. Advanced (collapsed) === */}
-      <Card>
-        <button
-          type="button"
-          onClick={() => setAdvancedOpen((v) => !v)}
-          className="flex w-full items-center justify-between text-right"
-        >
-          <CardTitle className="flex items-center gap-2 text-surface-700">
-            <SlidersHorizontal className="h-4 w-4" />
-            הגדרות מתקדמות
-            <span className="mr-1 text-[11px] font-normal text-surface-500">
-              (לא חייב לגעת)
-            </span>
-          </CardTitle>
-          {advancedOpen ? (
-            <ChevronUp className="h-4 w-4 text-surface-500" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-surface-500" />
-          )}
-        </button>
-
-        {advancedOpen && (
-          <div className="mt-5 space-y-6 border-t border-white/60 pt-5">
-            <p className="text-xs text-surface-500 leading-relaxed">
-              הגדרות אלה קובעות מתי תובנה נחשבת &quot;חזקה&quot; פנימית —
-              משפיעות על הדירוג בתוך קטגוריה, לא על סדר הקטגוריות עצמו.
-              הגדרות הקשורות לכלל ספציפי (כמו אבני דרך גיליות) יעברו
-              לעמוד הכללים בעתיד.
+      {/* Rules link — replaces the old "advanced" drawer */}
+      <Card padding="sm" className="border-primary-200 bg-primary-50/40">
+        <div className="flex items-start gap-3">
+          <BookOpen className="h-4 w-4 text-primary-600 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-surface-800">
+              כיוונון של כלל ספציפי
             </p>
-
-            {/* Age milestones — tied to a single rule, lives here until
-                it moves to the rules page */}
-            <div className="space-y-4 rounded-xl border border-surface-200/80 bg-white/55 p-4 shadow-[0_1px_2px_-1px_rgba(80,70,180,0.08)] backdrop-blur-md">
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-surface-800">
-                <Cake className="h-4 w-4 text-primary-600" />
-                אבני דרך גיליות (הגדרות הכלל)
-              </h3>
-
-              <div>
-                <Label>גילים שמפעילים את הכלל</Label>
-                <div className="mt-2 grid grid-cols-4 gap-2">
-                  {MILESTONE_AGE_OPTIONS.map((age) => {
-                    const checked = form.ageMilestones.includes(age);
-                    return (
-                      <label
-                        key={age}
-                        className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-sm transition-colors ${
-                          checked
-                            ? "border-primary-500 bg-primary-50 text-primary-700"
-                            : "border-surface-200 bg-white text-surface-700 hover:border-surface-300"
-                        }`}
-                      >
-                        <span className="font-medium">גיל {age}</span>
-                        <Checkbox
-                          checked={checked}
-                          onChange={() => toggleMilestone(age)}
-                        />
-                      </label>
-                    );
-                  })}
-                </div>
-                <Helper>ברירת מחדל: גיל 60 בלבד</Helper>
-              </div>
-
-              <div>
-                <Label>כמה זמן אחרי המילסטון הלקוח עדיין רלוונטי</Label>
-                <select
-                  value={form.milestoneFreshnessDays}
-                  onChange={(e) =>
-                    patch({ milestoneFreshnessDays: Number(e.target.value) })
-                  }
-                  className="mt-2 w-full rounded-lg border border-white/80 bg-white/80 px-3 py-2 text-sm text-surface-900 text-right backdrop-blur-sm focus:border-violet-400/60 focus:bg-white/90 focus:outline-none focus:ring-2 focus:ring-violet-400/25"
-                >
-                  {FRESHNESS_OPTIONS.map((d) => (
-                    <option key={d} value={d}>
-                      {d} ימים
-                    </option>
-                  ))}
-                </select>
-                <Helper>
-                  ברירת מחדל: {DEFAULTS.milestoneFreshnessDays} ימים
-                </Helper>
-              </div>
-
-              <ToggleField
-                label="דרוש פנסיה או חיסכון משמעותי"
-                helper="דרישת מינימום כדי שהשיחה תהיה משמעותית"
-                checked={form.milestoneRequiresPensionOrSavings}
-                onChange={(v) =>
-                  patch({ milestoneRequiresPensionOrSavings: v })
-                }
-              />
-
-              {form.milestoneRequiresPensionOrSavings && (
-                <NumberField
-                  label="סף חיסכון מצטבר מינימלי"
-                  helper="רק לקוחות עם פנסיה או חיסכון מעל הסף יופיעו"
-                  value={form.milestoneMinSavings}
-                  defaultValue={DEFAULTS.milestoneMinSavings}
-                  min={0}
-                  step={1000}
-                  onChange={(v) => patch({ milestoneMinSavings: v })}
-                  currency
-                />
-              )}
-            </div>
-
-            {/* High-value sub-panel */}
-            <div className="space-y-4 rounded-xl border border-surface-200/80 bg-white/55 p-4 shadow-[0_1px_2px_-1px_rgba(80,70,180,0.08)] backdrop-blur-md">
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-surface-800">
-                <Gem className="h-4 w-4 text-primary-600" />
-                לקוח משמעותי (ערך תיק)
-              </h3>
-              <NumberField
-                label="חיסכון מצטבר לזיהוי לקוח משמעותי"
-                helper="מעל הסף מקבלים בונוס ערך בתוך הקטגוריה"
-                value={form.highValueSavingsThreshold}
-                defaultValue={DEFAULTS.highValueSavingsThreshold}
-                min={0}
-                step={10_000}
-                onChange={(v) => patch({ highValueSavingsThreshold: v })}
-                currency
-              />
-              <NumberField
-                label="פרמיה חודשית לזיהוי לקוח משמעותי"
-                value={form.highValueMonthlyPremiumThreshold}
-                defaultValue={DEFAULTS.highValueMonthlyPremiumThreshold}
-                min={0}
-                step={100}
-                onChange={(v) =>
-                  patch({ highValueMonthlyPremiumThreshold: v })
-                }
-                currency
-              />
-            </div>
-
-            {/* Cost optimization sub-panel */}
-            <div className="space-y-4 rounded-xl border border-surface-200/80 bg-white/55 p-4 shadow-[0_1px_2px_-1px_rgba(80,70,180,0.08)] backdrop-blur-md">
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-surface-800">
-                <Percent className="h-4 w-4 text-primary-600" />
-                אופטימיזציית עלות
-              </h3>
-              <NumberField
-                label="דמי ניהול חריגים מעל"
-                value={form.managementFeeThreshold}
-                defaultValue={DEFAULTS.managementFeeThreshold}
-                min={0}
-                max={10}
-                step={0.1}
-                onChange={(v) => patch({ managementFeeThreshold: v })}
-                suffix="%"
-                decimals={1}
-              />
-              <NumberField
-                label="חיסכון מינימלי לרלוונטיות אופטימיזציה"
-                value={form.costOptimizationMinSavings}
-                defaultValue={DEFAULTS.costOptimizationMinSavings}
-                min={0}
-                step={10_000}
-                onChange={(v) => patch({ costOptimizationMinSavings: v })}
-                currency
-              />
-            </div>
-
-            {/* Reserved slots sub-panel */}
-            <div className="space-y-4 rounded-xl border border-surface-200/80 bg-white/55 p-4 shadow-[0_1px_2px_-1px_rgba(80,70,180,0.08)] backdrop-blur-md">
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-surface-800">
-                <Bookmark className="h-4 w-4 text-primary-600" />
-                מקומות שמורים
-              </h3>
-              <NumberField
-                label="מקומות שמורים לפריטים דחופים (אבני דרך)"
-                helper="משוריינים לטובת אבני דרך גיליות לפני תחרות על שאר המקומות"
-                value={form.urgentReserveSlots}
-                defaultValue={DEFAULTS.urgentReserveSlots}
-                min={0}
-                max={Math.max(form.dailyCapacity - 1, 0)}
-                onChange={(v) => patch({ urgentReserveSlots: v })}
-                suffix="מקומות"
-              />
-            </div>
+            <p className="mt-0.5 text-xs text-surface-600 leading-relaxed">
+              הגדרות הקשורות לכלל אחד (למשל אבני דרך גיליות, דמי ניהול,
+              חשיפה למניות) יעברו לעמוד הכללים. שם כל כלל יכלול את
+              הפרמטרים שלו.
+            </p>
+            <Link
+              href="/rules"
+              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-violet-700 hover:text-violet-800"
+            >
+              עבור לעמוד הכללים ←
+            </Link>
           </div>
-        )}
+        </div>
       </Card>
 
       {/* Sticky footer */}
