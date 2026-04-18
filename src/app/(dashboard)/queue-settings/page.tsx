@@ -353,7 +353,7 @@ export default function QueueSettingsPage() {
 
             {/* Age milestones — tied to a single rule, lives here until
                 it moves to the rules page */}
-            <div className="space-y-4 rounded-xl border border-white/60 bg-white/40 p-4 backdrop-blur-md">
+            <div className="space-y-4 rounded-xl border border-surface-200/80 bg-white/55 p-4 shadow-[0_1px_2px_-1px_rgba(80,70,180,0.08)] backdrop-blur-md">
               <h3 className="flex items-center gap-2 text-sm font-semibold text-surface-800">
                 <Cake className="h-4 w-4 text-primary-600" />
                 אבני דרך גיליות (הגדרות הכלל)
@@ -429,7 +429,7 @@ export default function QueueSettingsPage() {
             </div>
 
             {/* High-value sub-panel */}
-            <div className="space-y-4 rounded-xl border border-white/60 bg-white/40 p-4 backdrop-blur-md">
+            <div className="space-y-4 rounded-xl border border-surface-200/80 bg-white/55 p-4 shadow-[0_1px_2px_-1px_rgba(80,70,180,0.08)] backdrop-blur-md">
               <h3 className="flex items-center gap-2 text-sm font-semibold text-surface-800">
                 <Gem className="h-4 w-4 text-primary-600" />
                 לקוח משמעותי (ערך תיק)
@@ -458,7 +458,7 @@ export default function QueueSettingsPage() {
             </div>
 
             {/* Cost optimization sub-panel */}
-            <div className="space-y-4 rounded-xl border border-white/60 bg-white/40 p-4 backdrop-blur-md">
+            <div className="space-y-4 rounded-xl border border-surface-200/80 bg-white/55 p-4 shadow-[0_1px_2px_-1px_rgba(80,70,180,0.08)] backdrop-blur-md">
               <h3 className="flex items-center gap-2 text-sm font-semibold text-surface-800">
                 <Percent className="h-4 w-4 text-primary-600" />
                 אופטימיזציית עלות
@@ -486,7 +486,7 @@ export default function QueueSettingsPage() {
             </div>
 
             {/* Reserved slots sub-panel */}
-            <div className="space-y-4 rounded-xl border border-white/60 bg-white/40 p-4 backdrop-blur-md">
+            <div className="space-y-4 rounded-xl border border-surface-200/80 bg-white/55 p-4 shadow-[0_1px_2px_-1px_rgba(80,70,180,0.08)] backdrop-blur-md">
               <h3 className="flex items-center gap-2 text-sm font-semibold text-surface-800">
                 <Bookmark className="h-4 w-4 text-primary-600" />
                 מקומות שמורים
