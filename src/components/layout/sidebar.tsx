@@ -13,15 +13,16 @@ import {
   Settings,
   RefreshCw,
   Brain,
+  Clock,
 } from "lucide-react";
 
-// Trimmed menu for the customer demo — only items that are real,
-// functional, and part of the story. Empty-state placeholders
-// (/documents, /tasks, /recommendations, /audit, /soon) and the
-// design playground (/studio) are hidden. The pages still exist;
-// just not surfaced in the nav.
+// Trimmed menu for the customer demo — only items that are real and
+// functional. Empty-state placeholders (/documents, /tasks,
+// /recommendations, /audit) and the design playground (/studio) are
+// hidden. The pages still exist; just not surfaced in the nav.
 const navigation = [
   { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
+  { name: "תור מחר", href: "/soon", icon: Clock },
   { name: "חידושים מ-BAFI", href: "/renewals", icon: RefreshCw },
   { name: "הגדרות תור", href: "/queue-settings", icon: Settings },
   { name: "לקוחות", href: "/customers", icon: Users },
