@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { resolveBucket } from "@/lib/queue/buckets";
+import { resolveCardBucket } from "@/lib/queue/buckets";
 
 export async function GET(request: NextRequest) {
   const { response: authResponse, userId, role } = await requireAuth();
@@ -122,7 +122,11 @@ export async function GET(request: NextRequest) {
     const ruleCategory = e.primaryInsight?.linkedRuleId
       ? ruleCategoryById.get(e.primaryInsight.linkedRuleId) ?? null
       : null;
-    const bucket = resolveBucket(ruleCategory, e.primaryInsight?.category);
+    const bucket = resolveCardBucket(
+      e.reasonCategory,
+      ruleCategory,
+      e.primaryInsight?.category
+    );
 
     return {
       id: e.id,

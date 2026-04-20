@@ -75,3 +75,51 @@ export function resolveBucket(
 ): OfficeBucket {
   return ruleCategoryToBucket(ruleCategory) ?? insightCategoryToBucket(insightCategory);
 }
+
+/**
+ * Map a queue entry's ReasonCategory (customer-level signal) to a bucket.
+ * The tag on the card answers "why THIS customer today?" — not "what's the
+ * topic of the insight?". Customer context usually beats insight topic:
+ * a wealthy client with a coverage gap is still a חיסכון conversation,
+ * a 60-year-old with a missing property policy is still a שירות call.
+ */
+export function reasonCategoryToBucket(
+  reasonCategory: string | null | undefined
+): OfficeBucket | null {
+  switch (reasonCategory) {
+    case "AGE_MILESTONE":
+      return "service";
+    case "HIGH_VALUE":
+      return "savings";
+    case "COST_OPTIMIZATION":
+      return "savings";
+    case "COVERAGE_GAP":
+      return "coverage";
+    case "SERVICE":
+      return "service";
+    case "CROSS_SELL":
+      return "general";
+    case "URGENT_EXPIRY":
+      return "renewal";
+    default:
+      return null;
+  }
+}
+
+/**
+ * Card-level bucket resolver. Prefers the customer-level reason category
+ * (diversifies the dashboard: age customers → שירות, wealthy → חיסכון,
+ * etc.) and falls back to the insight-level topic only when no clear
+ * customer signal exists.
+ */
+export function resolveCardBucket(
+  reasonCategory: string | null | undefined,
+  ruleCategory: string | null | undefined,
+  insightCategory: string | null | undefined
+): OfficeBucket {
+  return (
+    reasonCategoryToBucket(reasonCategory) ??
+    ruleCategoryToBucket(ruleCategory) ??
+    insightCategoryToBucket(insightCategory)
+  );
+}
