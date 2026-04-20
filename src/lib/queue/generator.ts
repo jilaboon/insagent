@@ -349,44 +349,71 @@ export async function buildQueue(
     }
   }
 
-  // Sort candidates: time-critical first (by days-to-expiry asc),
-  // then by score desc.
-  candidates.sort((a, b) => {
-    if (a.timeCritical && !b.timeCritical) return -1;
-    if (!a.timeCritical && b.timeCritical) return 1;
-    if (a.timeCritical && b.timeCritical) {
-      const da = a.daysToExpiry ?? Number.MAX_SAFE_INTEGER;
-      const db = b.daysToExpiry ?? Number.MAX_SAFE_INTEGER;
-      if (da !== db) return da - db;
-    }
-    return b.score - a.score;
-  });
+  // Global sort by priority score — used within each bucket and for
+  // the final cascade fill.
+  candidates.sort((a, b) => b.score - a.score);
 
-  // Allocate TODAY slots: reserve up to N slots for time-critical
-  const urgent = candidates.filter((c) => c.timeCritical);
-  const nonUrgent = candidates.filter((c) => !c.timeCritical);
+  // Bucket quotas — bucketOrder position determines share of the daily
+  // capacity. This replaces strict precedence (which caused רפי's dashboard
+  // to show ONLY coverage when coverage was position 1). Now each bucket
+  // gets a guaranteed slice: 40/30/20/10 for positions 1..4.
+  const BUCKET_SHARES = [0.4, 0.3, 0.2, 0.1];
+  const order = settings.bucketOrder;
+  const quotas: Array<{ bucket: string; quota: number }> = order.map(
+    (bucket, idx) => ({
+      bucket,
+      quota: Math.floor((BUCKET_SHARES[idx] ?? 0) * capacity),
+    })
+  );
+  // Distribute any rounding shortfall to the top bucket(s) so we hit capacity.
+  let assigned = quotas.reduce((s, q) => s + q.quota, 0);
+  let i = 0;
+  while (assigned < capacity && quotas.length > 0) {
+    quotas[i % quotas.length].quota += 1;
+    assigned += 1;
+    i += 1;
+  }
 
+  // Partition candidates by bucket (already score-sorted from above).
+  const byBucket = new Map<string, Candidate[]>();
+  for (const c of candidates) {
+    const b = c.priority.bucket;
+    const arr = byBucket.get(b) ?? [];
+    arr.push(c);
+    byBucket.set(b, arr);
+  }
+
+  // Fill TODAY from each bucket up to its quota. Track shortfall as we go.
   const today: Candidate[] = [];
-  const urgentTaken = urgent.slice(0, Math.min(reserveUrgentSlots, capacity));
-  today.push(...urgentTaken);
-
-  // Fill remaining with best non-urgent
-  const remainingAfterUrgent = capacity - today.length;
-  if (remainingAfterUrgent > 0) {
-    today.push(...nonUrgent.slice(0, remainingAfterUrgent));
-  }
-
-  // If still room (not enough non-urgent), backfill with more urgent
-  if (today.length < capacity) {
-    const taken = new Set(today.map((c) => c.customerId));
-    for (const c of urgent) {
-      if (today.length >= capacity) break;
-      if (!taken.has(c.customerId)) {
-        today.push(c);
-        taken.add(c.customerId);
-      }
+  const taken = new Set<string>();
+  for (const q of quotas) {
+    const pool = byBucket.get(q.bucket) ?? [];
+    let added = 0;
+    for (const c of pool) {
+      if (added >= q.quota) break;
+      if (taken.has(c.customerId)) continue;
+      today.push(c);
+      taken.add(c.customerId);
+      added += 1;
     }
   }
+
+  // Cascade fill: any unused slots (because a bucket had fewer candidates
+  // than its quota) go to the next best candidates regardless of bucket.
+  if (today.length < capacity) {
+    for (const c of candidates) {
+      if (today.length >= capacity) break;
+      if (taken.has(c.customerId)) continue;
+      today.push(c);
+      taken.add(c.customerId);
+    }
+  }
+
+  // Sort the final TODAY list by score so rank 1 is still the top card.
+  today.sort((a, b) => b.score - a.score);
+  // Silence "unused var" — reserveUrgentSlots is kept in settings for
+  // forward compatibility but no longer drives TODAY allocation.
+  void reserveUrgentSlots;
 
   // SOON: next best candidates not already in TODAY
   const todayIds = new Set(today.map((c) => c.customerId));
