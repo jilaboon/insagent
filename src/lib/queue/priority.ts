@@ -77,18 +77,22 @@ export function computePriority(
   reasonBucket: OfficeBucket | null,
   settings: Pick<QueueSettings, "bucketOrder">
 ): PriorityBreakdown {
-  const floor = floorForBucket(bucket, settings);
+  // The floor comes from the CUSTOMER's reason bucket — shared by all of
+  // that customer's insights — so bucket order ranks customers against
+  // each other, not insights within a single customer. This keeps a
+  // wealthy customer with a coverage insight in the חיסכון band, and
+  // prevents the highest-floor insight from always winning primary just
+  // because its own topic happens to land in position 1 of bucketOrder.
+  const floorBucket: OfficeBucket = reasonBucket ?? bucket;
+  const floor = floorForBucket(floorBucket, settings);
   const strength = strengthBonus(ctx.insight.strengthScore);
   const value = valueBonus(ctx);
   const penalty = RENEWAL_INSIGHT_CATEGORIES.has(ctx.insight.category)
     ? -10
     : 0;
-  // The headline insight should MATCH the reason the customer is in the
-  // queue. Example: an age-60 customer (reason=service) should lead with
-  // תכנון פרישה (bucket=service), not ביטוח נסיעות לחו"ל (bucket=coverage)
-  // just because the travel rule has a slightly higher strengthScore.
-  // +8 is enough to beat a ~5-point strength advantage but doesn't violate
-  // the bucket-floor bands across customers.
+  // The headline insight should MATCH the customer's reason bucket.
+  // Age-60 customer (reason=service) → prefers תכנון פרישה (service)
+  // over ביטוח נסיעות (coverage) even if travel has higher strength.
   const reasonMatch =
     reasonBucket != null && reasonBucket === bucket ? 8 : 0;
 
@@ -97,7 +101,7 @@ export function computePriority(
 
   return {
     score,
-    bucket,
+    bucket: floorBucket,
     bucketFloor: floor,
     strengthBonus: strength,
     valueBonus: value,
