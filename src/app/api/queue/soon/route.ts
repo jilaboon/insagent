@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { resolveBucket } from "@/lib/queue/buckets";
 
 export async function GET(request: NextRequest) {
   const { response: authResponse, userId, role } = await requireAuth();
@@ -28,6 +29,7 @@ export async function GET(request: NextRequest) {
   const where = {
     queueDate,
     lane: "SOON" as const,
+    status: "PENDING" as const,
     ...(assignedUserId !== undefined ? { assignedUserId } : {}),
   };
 
@@ -58,27 +60,69 @@ export async function GET(request: NextRequest) {
             category: true,
             strengthScore: true,
             urgencyLevel: true,
+            linkedRuleId: true,
           },
         },
       },
     }),
   ]);
 
-  const items = entries.map((e) => ({
-    id: e.id,
-    rank: e.rank,
-    lane: e.lane,
-    status: e.status,
-    whyTodayReason: e.whyTodayReason,
-    reasonCategory: e.reasonCategory,
-    queueDate: e.queueDate,
-    customer: {
-      ...e.customer,
-      fullName: `${e.customer.firstName} ${e.customer.lastName}`,
-    },
-    primaryInsight: e.primaryInsight,
-    supportingInsightIds: e.supportingInsightIds,
-  }));
+  // Resolve office bucket per card — same source as the /today API so the
+  // two lanes show consistent tags (כיסוי/חיסכון/שירות/כללי).
+  const ruleIds = Array.from(
+    new Set(
+      entries
+        .map((e) => e.primaryInsight?.linkedRuleId)
+        .filter((x): x is string => !!x)
+    )
+  );
+  const rules =
+    ruleIds.length > 0
+      ? await prisma.officeRule.findMany({
+          where: { id: { in: ruleIds } },
+          select: { id: true, category: true },
+        })
+      : [];
+  const ruleCategoryById = new Map(rules.map((r) => [r.id, r.category]));
+
+  // Active policy counts per customer — same shape as /today
+  const customerIds = entries.map((e) => e.customerId);
+  const policyCounts =
+    customerIds.length > 0
+      ? await prisma.policy.groupBy({
+          by: ["customerId"],
+          where: { customerId: { in: customerIds }, status: "ACTIVE" },
+          _count: { _all: true },
+        })
+      : [];
+  const policyCountByCustomer = new Map(
+    policyCounts.map((p) => [p.customerId, p._count._all])
+  );
+
+  const items = entries.map((e) => {
+    const ruleCategory = e.primaryInsight?.linkedRuleId
+      ? ruleCategoryById.get(e.primaryInsight.linkedRuleId) ?? null
+      : null;
+    const bucket = resolveBucket(ruleCategory, e.primaryInsight?.category);
+
+    return {
+      id: e.id,
+      rank: e.rank,
+      lane: e.lane,
+      status: e.status,
+      whyTodayReason: e.whyTodayReason,
+      reasonCategory: e.reasonCategory,
+      bucket,
+      queueDate: e.queueDate,
+      customer: {
+        ...e.customer,
+        fullName: `${e.customer.firstName} ${e.customer.lastName}`,
+        activePolicyCount: policyCountByCustomer.get(e.customerId) ?? 0,
+      },
+      primaryInsight: e.primaryInsight,
+      supportingInsightIds: e.supportingInsightIds,
+    };
+  });
 
   return NextResponse.json({
     items,

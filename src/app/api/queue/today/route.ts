@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
     where: {
       queueDate,
       lane: "TODAY",
+      status: "PENDING",
       ...(assignedUserId !== undefined
         ? { assignedUserId: assignedUserId }
         : {}),

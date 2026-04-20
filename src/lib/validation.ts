@@ -167,6 +167,10 @@ export const queueSettingsSchema = z.object({
       "CROSS_SELL",
     ])
   ).optional(),
+  bucketOrder: z
+    .array(z.enum(["coverage", "savings", "service", "general"]))
+    .optional(),
+  renewalsLaneEnabled: z.boolean().optional(),
 });
 
 // ============================================================
