@@ -31,7 +31,7 @@ type Bucket = "coverage" | "savings" | "service" | "general";
 
 const DEFAULTS: QueueSettingsData = {
   dailyCapacity: 20,
-  urgentReserveSlots: 8,
+  urgentReserveSlots: 0,
   ageMilestones: [60],
   milestoneFreshnessDays: 30,
   milestoneRequiresPensionOrSavings: true,
@@ -42,7 +42,7 @@ const DEFAULTS: QueueSettingsData = {
   costOptimizationMinSavings: 100_000,
   cooldownAfterDismissalDays: 60,
   recentContactSuppressionDays: 30,
-  urgentCategories: ["AGE_MILESTONE"],
+  urgentCategories: [],
   bucketOrder: ["coverage", "savings", "service", "general"],
   renewalsLaneEnabled: true,
 };

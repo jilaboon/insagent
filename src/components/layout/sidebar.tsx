@@ -7,35 +7,28 @@ import {
   LayoutDashboard,
   Users,
   Search,
-  Star,
-  FileText,
-  ListTodo,
   BookOpen,
   Upload,
-  Shield,
   ShieldCheck,
-  Brain,
-  Clock,
   Settings,
-  Palette,
   RefreshCw,
+  Brain,
 } from "lucide-react";
 
+// Trimmed menu for the customer demo — only items that are real,
+// functional, and part of the story. Empty-state placeholders
+// (/documents, /tasks, /recommendations, /audit, /soon) and the
+// design playground (/studio) are hidden. The pages still exist;
+// just not surfaced in the nav.
 const navigation = [
   { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
   { name: "חידושים מ-BAFI", href: "/renewals", icon: RefreshCw },
-  { name: "בקרוב", href: "/soon", icon: Clock },
   { name: "הגדרות תור", href: "/queue-settings", icon: Settings },
   { name: "לקוחות", href: "/customers", icon: Users },
-  { name: "חקור", href: "/insights", icon: Search },
-  { name: "המלצות", href: "/recommendations", icon: Star },
-  { name: "מסמכים", href: "/documents", icon: FileText },
-  { name: "משימות", href: "/tasks", icon: ListTodo },
+  { name: "חקור תובנות", href: "/insights", icon: Search },
   { name: "מנוע חוקים", href: "/rules", icon: BookOpen },
   { name: "יבוא נתונים", href: "/import", icon: Upload },
-  { name: "יומן פעילות", href: "/audit", icon: Shield },
   { name: "אבטחה ופרטיות", href: "/security", icon: ShieldCheck },
-  { name: "סטודיו עיצוב", href: "/studio", icon: Palette },
 ];
 
 export function Sidebar() {

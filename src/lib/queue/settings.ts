@@ -60,7 +60,10 @@ export interface QueueSettings {
 
 export const DEFAULT_SETTINGS: QueueSettings = {
   dailyCapacity: 20,
-  urgentReserveSlots: 8,
+  // No reserved slots by default. The bucket order is the single ranking
+  // lever; a hidden "age gets slot #1 no matter what" contradicts the story.
+  // If רפי wants retirement calls to dominate, he moves שירות to position 1.
+  urgentReserveSlots: 0,
   ageMilestones: [60],
   milestoneFreshnessDays: 30,
   milestoneRequiresPensionOrSavings: true,
@@ -71,7 +74,7 @@ export const DEFAULT_SETTINGS: QueueSettings = {
   costOptimizationMinSavings: 100_000,
   cooldownAfterDismissalDays: 60,
   recentContactSuppressionDays: 30,
-  urgentCategories: ["AGE_MILESTONE"],
+  urgentCategories: [],
   bucketOrder: ["coverage", "savings", "service", "general"],
   renewalsLaneEnabled: true,
 };
