@@ -77,6 +77,32 @@ export function resolveBucket(
 }
 
 /**
+ * Rules that fire for broad populations and carry only generic advice —
+ * not personalized to the customer's data. They're useful as "conversation
+ * topics" but should never headline a card as the primary insight when
+ * something more specific is available. Identified by trigger conditions
+ * that match most customers (any car, any home, policy_count ≥ 2, or
+ * season-based) without narrowing by age/policy-age/amount.
+ *
+ * Detection is a substring match on the rule title. It's not pretty, but
+ * it avoids a schema change and works against רפי's current seed catalog.
+ */
+const GENERIC_TIP_TITLE_PATTERNS: string[] = [
+  "ביטוח נסיעות",
+  "אל תחכו עם ביטוח נסיעות",
+  "מוסכי הסדר",
+  "קרתה תאונה",
+  "שיפוץ",
+  "משפצים",
+];
+
+export function isGenericTipRule(ruleTitle: string | null | undefined): boolean {
+  if (!ruleTitle) return false;
+  const title = ruleTitle.trim();
+  return GENERIC_TIP_TITLE_PATTERNS.some((pattern) => title.includes(pattern));
+}
+
+/**
  * Map a queue entry's ReasonCategory (customer-level signal) to a bucket.
  * The tag on the card answers "why THIS customer today?" — not "what's the
  * topic of the insight?". Customer context usually beats insight topic:

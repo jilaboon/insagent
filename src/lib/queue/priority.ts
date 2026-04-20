@@ -28,6 +28,7 @@ export interface PriorityBreakdown {
   valueBonus: number;
   renewalPenalty: number;
   reasonMatchBonus: number;
+  genericTipPenalty: number;
 }
 
 const RENEWAL_INSIGHT_CATEGORIES = new Set(["EXPIRING_POLICY"]);
@@ -75,6 +76,7 @@ export function computePriority(
   ctx: ReasonContext,
   bucket: OfficeBucket,
   reasonBucket: OfficeBucket | null,
+  isGenericTip: boolean,
   settings: Pick<QueueSettings, "bucketOrder">
 ): PriorityBreakdown {
   // The floor comes from the CUSTOMER's reason bucket — shared by all of
@@ -95,8 +97,13 @@ export function computePriority(
   // over ביטוח נסיעות (coverage) even if travel has higher strength.
   const reasonMatch =
     reasonBucket != null && reasonBucket === bucket ? 8 : 0;
+  // Generic tips (travel, garages, renovation, money-in-bank) are broad
+  // conversation starters, not data-backed insights. Push them out of
+  // primary selection. They still appear as supporting "+N נושאים נוספים"
+  // so the agent sees them — just not as the headline.
+  const genericPenalty = isGenericTip ? -20 : 0;
 
-  const raw = floor + strength + value + penalty + reasonMatch;
+  const raw = floor + strength + value + penalty + reasonMatch + genericPenalty;
   const score = Math.max(0, Math.min(100, raw));
 
   return {
@@ -107,5 +114,6 @@ export function computePriority(
     valueBonus: value,
     renewalPenalty: penalty,
     reasonMatchBonus: reasonMatch,
+    genericTipPenalty: genericPenalty,
   };
 }

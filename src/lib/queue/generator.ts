@@ -24,7 +24,11 @@ import {
 } from "./reason-builder";
 import { getQueueSettings } from "./settings";
 import { computePriority, type PriorityBreakdown } from "./priority";
-import { resolveBucket, reasonCategoryToBucket } from "./buckets";
+import {
+  resolveBucket,
+  reasonCategoryToBucket,
+  isGenericTipRule,
+} from "./buckets";
 
 interface BuildQueueOptions {
   reason: GenerationReason;
@@ -305,7 +309,14 @@ export async function buildQueue(
       // bucket prevents headlines like "travel insurance" on a 60-year-old
       // whose real story is retirement planning.
       const reasonBucket = reasonCategoryToBucket(reasonCategory);
-      const priority = computePriority(ctx, bucket, reasonBucket, settings);
+      const genericTip = isGenericTipRule(ins.title);
+      const priority = computePriority(
+        ctx,
+        bucket,
+        reasonBucket,
+        genericTip,
+        settings
+      );
 
       const candidate: Candidate = {
         customerId: cust.id,
@@ -424,6 +435,7 @@ async function persistLane(
           valueBonus: c.priority.valueBonus,
           renewalPenalty: c.priority.renewalPenalty,
           reasonMatchBonus: c.priority.reasonMatchBonus,
+          genericTipPenalty: c.priority.genericTipPenalty,
         },
         timeCritical: c.timeCritical,
         daysToExpiry: c.daysToExpiry,
