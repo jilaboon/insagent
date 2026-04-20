@@ -46,18 +46,18 @@ export function AmbientField() {
         }}
       />
 
-      {/* Blob field — blurred, saturated, blend-mode: screen so the
-          colors layer additively without washing the UI above. */}
+      {/* Blob field — static, smaller blur. Infinite animations were
+          forcing per-frame GPU recomposites behind every glass element;
+          the visual delta of the drift is not worth the cost. */}
       <div
         className="absolute -inset-[10%]"
         style={{
-          filter: "blur(70px) saturate(1.15)",
+          filter: "blur(50px) saturate(1.15)",
           opacity: 0.85,
         }}
       >
-        {/* Indigo — top-right, slowest */}
+        {/* Indigo — top-right */}
         <div
-          data-prism-motion="blob"
           className="absolute rounded-full"
           style={{
             top: "-8%",
@@ -65,15 +65,12 @@ export function AmbientField() {
             width: "48rem",
             height: "48rem",
             mixBlendMode: "screen",
-            willChange: "transform",
             background:
               "radial-gradient(circle at 30% 30%, #818CF8 0%, rgba(129,140,248,0.45) 40%, transparent 70%)",
-            animation: "prism-float-a 22s ease-in-out infinite",
           }}
         />
-        {/* Violet — left, medium */}
+        {/* Violet — left */}
         <div
-          data-prism-motion="blob"
           className="absolute rounded-full"
           style={{
             top: "18%",
@@ -81,15 +78,12 @@ export function AmbientField() {
             width: "42rem",
             height: "42rem",
             mixBlendMode: "screen",
-            willChange: "transform",
             background:
               "radial-gradient(circle at 60% 40%, #A78BFA 0%, rgba(167,139,250,0.45) 40%, transparent 70%)",
-            animation: "prism-float-b 28s ease-in-out infinite",
           }}
         />
-        {/* Cyan — bottom-right, slowest-but-wider */}
+        {/* Cyan — bottom-right */}
         <div
-          data-prism-motion="blob"
           className="absolute rounded-full"
           style={{
             bottom: "-12%",
@@ -97,15 +91,12 @@ export function AmbientField() {
             width: "38rem",
             height: "38rem",
             mixBlendMode: "screen",
-            willChange: "transform",
             background:
               "radial-gradient(circle at 50% 50%, #22D3EE 0%, rgba(34,211,238,0.35) 40%, transparent 70%)",
-            animation: "prism-float-c 32s ease-in-out infinite",
           }}
         />
-        {/* Rose — bottom-left, drifts opposite */}
+        {/* Rose — bottom-left */}
         <div
-          data-prism-motion="blob"
           className="absolute rounded-full"
           style={{
             bottom: "10%",
@@ -113,19 +104,14 @@ export function AmbientField() {
             width: "30rem",
             height: "30rem",
             mixBlendMode: "screen",
-            willChange: "transform",
             background:
               "radial-gradient(circle at 40% 60%, #F0ABFC 0%, rgba(240,171,252,0.35) 40%, transparent 70%)",
-            animation: "prism-float-d 36s ease-in-out infinite reverse",
           }}
         />
       </div>
 
-      {/* Lens flare — corner conic-gradient, barely visible. Sits in the
-          TOP-LEFT of the content area (which in this RTL app is the
-          "far" corner from the sidebar). */}
+      {/* Lens flare — static. Breathing animation removed for perf. */}
       <div
-        data-prism-motion="flare"
         className="absolute rounded-full"
         style={{
           top: "3rem",
@@ -142,7 +128,6 @@ export function AmbientField() {
             "radial-gradient(closest-side, black, transparent 75%)",
           maskImage:
             "radial-gradient(closest-side, black, transparent 75%)",
-          animation: "prism-breathe-soft 14s ease-in-out infinite",
         }}
       />
 

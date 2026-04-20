@@ -111,17 +111,22 @@ export function CustomerCard({
     <>
       <div
         className={cn(
-          // Glass-friendly card — lets the Card/ambient field show through.
-          // Sits on a translucent white sheet with a violet hairline shadow.
-          "group relative rounded-[20px] border border-white/65 bg-white/55 backdrop-blur-xl backdrop-saturate-150",
+          // Glass-friendly card — bg-white/85 is near-opaque so we don't need
+          // heavy backdrop-blur. Previously backdrop-blur-xl forced a full
+          // composite behind every card on every scroll frame.
+          "group relative rounded-[20px] border border-white/65 bg-white/85",
           "transition-all duration-300 ease-out",
-          "hover:-translate-y-0.5 hover:border-white/80 hover:bg-white/65",
-          expanded && "border-white/85 bg-white/70",
+          "hover:-translate-y-0.5 hover:border-white/90 hover:bg-white/95",
+          expanded && "border-white/90 bg-white/95",
           fading && "opacity-0 scale-[0.98] pointer-events-none",
           "animate-[slideUp_0.45s_cubic-bezier(0.22,1,0.36,1)_both]"
         )}
         style={{
           animationDelay: `${Math.min(entry.rank * 60, 480)}ms`,
+          // content-visibility tells the browser to skip painting cards
+          // off-screen. Massive scroll-perf win with many cards in the list.
+          contentVisibility: "auto",
+          containIntrinsicSize: "0 180px",
           boxShadow:
             "0 1px 0 0 rgba(255,255,255,0.9) inset, " +
             "0 -1px 0 0 rgba(130,120,200,0.08) inset, " +
