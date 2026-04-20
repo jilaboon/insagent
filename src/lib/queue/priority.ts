@@ -27,6 +27,7 @@ export interface PriorityBreakdown {
   strengthBonus: number;
   valueBonus: number;
   renewalPenalty: number;
+  reasonMatchBonus: number;
 }
 
 const RENEWAL_INSIGHT_CATEGORIES = new Set(["EXPIRING_POLICY"]);
@@ -73,6 +74,7 @@ function valueBonus(ctx: ReasonContext): number {
 export function computePriority(
   ctx: ReasonContext,
   bucket: OfficeBucket,
+  reasonBucket: OfficeBucket | null,
   settings: Pick<QueueSettings, "bucketOrder">
 ): PriorityBreakdown {
   const floor = floorForBucket(bucket, settings);
@@ -81,8 +83,16 @@ export function computePriority(
   const penalty = RENEWAL_INSIGHT_CATEGORIES.has(ctx.insight.category)
     ? -10
     : 0;
+  // The headline insight should MATCH the reason the customer is in the
+  // queue. Example: an age-60 customer (reason=service) should lead with
+  // תכנון פרישה (bucket=service), not ביטוח נסיעות לחו"ל (bucket=coverage)
+  // just because the travel rule has a slightly higher strengthScore.
+  // +8 is enough to beat a ~5-point strength advantage but doesn't violate
+  // the bucket-floor bands across customers.
+  const reasonMatch =
+    reasonBucket != null && reasonBucket === bucket ? 8 : 0;
 
-  const raw = floor + strength + value + penalty;
+  const raw = floor + strength + value + penalty + reasonMatch;
   const score = Math.max(0, Math.min(100, raw));
 
   return {
@@ -92,5 +102,6 @@ export function computePriority(
     strengthBonus: strength,
     valueBonus: value,
     renewalPenalty: penalty,
+    reasonMatchBonus: reasonMatch,
   };
 }

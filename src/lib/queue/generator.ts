@@ -24,7 +24,7 @@ import {
 } from "./reason-builder";
 import { getQueueSettings } from "./settings";
 import { computePriority, type PriorityBreakdown } from "./priority";
-import { resolveBucket } from "./buckets";
+import { resolveBucket, reasonCategoryToBucket } from "./buckets";
 
 interface BuildQueueOptions {
   reason: GenerationReason;
@@ -300,7 +300,12 @@ export async function buildQueue(
         ins.linkedRuleId ? ruleCategoryById.get(ins.linkedRuleId) : null,
         ins.category
       );
-      const priority = computePriority(ctx, bucket, settings);
+      // The reason the customer is in the queue (age milestone, high value,
+      // etc.) maps to its own bucket. Matching the primary insight to this
+      // bucket prevents headlines like "travel insurance" on a 60-year-old
+      // whose real story is retirement planning.
+      const reasonBucket = reasonCategoryToBucket(reasonCategory);
+      const priority = computePriority(ctx, bucket, reasonBucket, settings);
 
       const candidate: Candidate = {
         customerId: cust.id,
@@ -418,6 +423,7 @@ async function persistLane(
           strengthBonus: c.priority.strengthBonus,
           valueBonus: c.priority.valueBonus,
           renewalPenalty: c.priority.renewalPenalty,
+          reasonMatchBonus: c.priority.reasonMatchBonus,
         },
         timeCritical: c.timeCritical,
         daysToExpiry: c.daysToExpiry,
