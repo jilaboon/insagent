@@ -14,6 +14,11 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CustomerCard } from "@/components/queue/customer-card";
 import {
+  BucketTabsStrip,
+  type BucketTabValue,
+} from "@/components/queue/bucket-tabs";
+import type { OfficeBucket } from "@/lib/queue/buckets";
+import {
   useQueueSoon,
   useQueueAction,
   type QueueEntryWithRelations,
@@ -24,10 +29,18 @@ export default function SoonPage() {
   const { data, isLoading } = useQueueSoon(page);
   const action = useQueueAction();
   const [toast, setToast] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<BucketTabValue>("all");
 
-  const items = data?.items ?? [];
+  const allItems = data?.items ?? [];
   const total = data?.total ?? 0;
   const totalPages = data?.totalPages ?? 1;
+
+  const items =
+    activeTab === "all"
+      ? allItems
+      : allItems.filter(
+          (e) => (e.bucket ?? "general") === (activeTab as OfficeBucket)
+        );
 
   async function handlePromote(entry: QueueEntryWithRelations) {
     // Promote = mark current SOON entry as COMPLETED so backend can rebuild with it in TODAY,
@@ -61,17 +74,29 @@ export default function SoonPage() {
         </div>
       </div>
 
+      <BucketTabsStrip
+        entries={allItems}
+        active={activeTab}
+        onChange={setActiveTab}
+      />
+
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-6 w-6 animate-spin text-surface-400" />
         </div>
-      ) : items.length === 0 ? (
+      ) : allItems.length === 0 ? (
         <Card padding="lg">
           <EmptyState
             icon={Inbox}
             title="אין משימות בתור 'בקרוב'"
             description="רענן את התור מהדשבורד כדי לייצר משימות חדשות."
           />
+        </Card>
+      ) : items.length === 0 ? (
+        <Card padding="md">
+          <p className="text-center text-sm text-surface-500 py-4">
+            אין פריטים בקטגוריה זו
+          </p>
         </Card>
       ) : (
         <>

@@ -1,9 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
-import { OFFICE_BUCKET_LABELS, type OfficeBucket } from "@/lib/queue/buckets";
+import type { OfficeBucket } from "@/lib/queue/buckets";
+import {
+  BucketTabsStrip,
+  type BucketTabValue,
+} from "@/components/queue/bucket-tabs";
 import {
   RefreshCw,
   Inbox,
@@ -35,33 +38,19 @@ export default function DashboardPage() {
   const dashboardStats = useDashboardStats();
   const rebuild = useRebuildQueue();
   const [toast, setToast] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<OfficeBucket | "all">("all");
+  const [activeTab, setActiveTab] = useState<BucketTabValue>("all");
 
   const allEntries = today.data?.items ?? [];
   const lastRebuildAt = stats.data?.lastRebuildAt ?? null;
   const totalCustomers = dashboardStats.data?.totalCustomers ?? 0;
   const totalInsights = dashboardStats.data?.totalInsights ?? 0;
 
-  // Per-bucket counts + filtered entries for the active tab
-  const bucketCounts = useMemo(() => {
-    const counts: Record<OfficeBucket, number> = {
-      coverage: 0,
-      savings: 0,
-      service: 0,
-      general: 0,
-      renewal: 0,
-    };
-    for (const e of allEntries) {
-      const b = e.bucket ?? "general";
-      counts[b] = (counts[b] ?? 0) + 1;
-    }
-    return counts;
-  }, [allEntries]);
-
   const entries =
     activeTab === "all"
       ? allEntries
-      : allEntries.filter((e) => (e.bucket ?? "general") === activeTab);
+      : allEntries.filter(
+          (e) => (e.bucket ?? "general") === (activeTab as OfficeBucket)
+        );
 
   async function handleRebuild() {
     try {
@@ -119,29 +108,11 @@ export default function DashboardPage() {
         {/* Main list */}
         <div className="min-w-0 space-y-3">
           {/* Bucket tabs */}
-          {allEntries.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-surface-200/80 bg-white/55 p-1.5 backdrop-blur-md">
-              <BucketTab
-                label="הכל"
-                count={allEntries.length}
-                active={activeTab === "all"}
-                onClick={() => setActiveTab("all")}
-                tone="all"
-              />
-              {(["coverage", "savings", "service", "general"] as const).map(
-                (b) => (
-                  <BucketTab
-                    key={b}
-                    label={OFFICE_BUCKET_LABELS[b]}
-                    count={bucketCounts[b]}
-                    active={activeTab === b}
-                    onClick={() => setActiveTab(b)}
-                    tone={b}
-                  />
-                )
-              )}
-            </div>
-          )}
+          <BucketTabsStrip
+            entries={allEntries}
+            active={activeTab}
+            onChange={setActiveTab}
+          />
 
           {today.isLoading ? (
             <QueueListSkeleton />
@@ -402,58 +373,3 @@ function EmptyQueueState({
   );
 }
 
-// ============================================================
-// Bucket tab — filters the queue list by bucket
-// ============================================================
-
-function BucketTab({
-  label,
-  count,
-  active,
-  onClick,
-  tone,
-}: {
-  label: string;
-  count: number;
-  active: boolean;
-  onClick: () => void;
-  tone: "all" | "coverage" | "savings" | "service" | "general";
-}) {
-  const activeTone =
-    tone === "coverage"
-      ? "bg-indigo-500/15 text-indigo-700 border-indigo-300/60"
-      : tone === "savings"
-        ? "bg-cyan-500/15 text-cyan-700 border-cyan-300/60"
-        : tone === "service"
-          ? "bg-violet-500/15 text-violet-700 border-violet-300/60"
-          : tone === "general"
-            ? "bg-rose-500/15 text-rose-700 border-rose-300/60"
-            : "bg-surface-900 text-white border-surface-900";
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
-        active
-          ? activeTone
-          : "border-transparent bg-transparent text-surface-600 hover:bg-white/65 hover:text-surface-800"
-      )}
-    >
-      <span>{label}</span>
-      <span
-        className={cn(
-          "number text-[10px] tabular-nums rounded-full px-1.5 py-0.5",
-          active
-            ? tone === "all"
-              ? "bg-white/20"
-              : "bg-white/50"
-            : "bg-surface-200/60"
-        )}
-      >
-        {count}
-      </span>
-    </button>
-  );
-}
