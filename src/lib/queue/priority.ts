@@ -29,6 +29,7 @@ export interface PriorityBreakdown {
   renewalPenalty: number;
   reasonMatchBonus: number;
   genericTipPenalty: number;
+  externalDataBonus: number;
 }
 
 const RENEWAL_INSIGHT_CATEGORIES = new Set(["EXPIRING_POLICY"]);
@@ -77,7 +78,8 @@ export function computePriority(
   bucket: OfficeBucket,
   reasonBucket: OfficeBucket | null,
   isGenericTip: boolean,
-  settings: Pick<QueueSettings, "bucketOrder">
+  hasExternalData: boolean,
+  settings: Pick<QueueSettings, "bucketOrder" | "externalDataEmphasis">
 ): PriorityBreakdown {
   // The floor comes from the CUSTOMER's reason bucket — shared by all of
   // that customer's insights — so bucket order ranks customers against
@@ -102,8 +104,25 @@ export function computePriority(
   // primary selection. They still appear as supporting "+N נושאים נוספים"
   // so the agent sees them — just not as the headline.
   const genericPenalty = isGenericTip ? -20 : 0;
+  // Har HaBituach external-data boost. רפי tunes this from /queue-settings;
+  // default "high" = +5 (rises within the customer's bucket band but does
+  // not flip buckets — predictable behavior).
+  const externalBonus = hasExternalData
+    ? settings.externalDataEmphasis === "very_high"
+      ? 10
+      : settings.externalDataEmphasis === "high"
+        ? 5
+        : 0
+    : 0;
 
-  const raw = floor + strength + value + penalty + reasonMatch + genericPenalty;
+  const raw =
+    floor +
+    strength +
+    value +
+    penalty +
+    reasonMatch +
+    genericPenalty +
+    externalBonus;
   const score = Math.max(0, Math.min(100, raw));
 
   return {
@@ -115,5 +134,6 @@ export function computePriority(
     renewalPenalty: penalty,
     reasonMatchBonus: reasonMatch,
     genericTipPenalty: genericPenalty,
+    externalDataBonus: externalBonus,
   };
 }

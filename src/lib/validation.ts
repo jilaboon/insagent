@@ -171,6 +171,7 @@ export const queueSettingsSchema = z.object({
     .array(z.enum(["coverage", "savings", "service", "general"]))
     .optional(),
   renewalsLaneEnabled: z.boolean().optional(),
+  externalDataEmphasis: z.enum(["normal", "high", "very_high"]).optional(),
 });
 
 // ============================================================

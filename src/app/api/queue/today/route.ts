@@ -56,6 +56,8 @@ export async function GET(request: NextRequest) {
           strengthScore: true,
           urgencyLevel: true,
           linkedRuleId: true,
+          evidenceJson: true,
+          generatedBy: true,
         },
       },
     },

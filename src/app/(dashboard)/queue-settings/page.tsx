@@ -45,6 +45,7 @@ const DEFAULTS: QueueSettingsData = {
   urgentCategories: [],
   bucketOrder: ["coverage", "savings", "service", "general"],
   renewalsLaneEnabled: true,
+  externalDataEmphasis: "high",
 };
 
 const BUCKET_META: Record<
@@ -269,6 +270,56 @@ export default function QueueSettingsPage() {
           checked={form.renewalsLaneEnabled}
           onChange={(v) => patch({ renewalsLaneEnabled: v })}
         />
+      </Card>
+
+      {/* === 3b. External-data emphasis === */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <span className="text-base">📂</span>
+            חשיבות לקוחות עם דאטה מהר הביטוח
+          </CardTitle>
+        </CardHeader>
+
+        <div className="space-y-3">
+          <p className="text-sm text-surface-600 leading-relaxed">
+            לקוחות שמזוהים בהר הביטוח עם פוליסות מחוץ למשרד הם הזדמנויות
+            מסחריות ייחודיות (ריכוז תיק, העברות). כאן את/ה קובע/ת כמה
+            לקדם אותם בתור:
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { value: "normal" as const, label: "רגילה", sub: "+0" },
+              { value: "high" as const, label: "גבוהה", sub: "+5" },
+              { value: "very_high" as const, label: "מאוד גבוהה", sub: "+10" },
+            ].map((opt) => {
+              const active = form.externalDataEmphasis === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() =>
+                    patch({ externalDataEmphasis: opt.value })
+                  }
+                  className={cn(
+                    "flex flex-col items-center gap-0.5 rounded-lg border px-3 py-2.5 text-sm transition-colors",
+                    active
+                      ? "border-violet-300/60 bg-violet-500/10 text-violet-800"
+                      : "border-surface-200 bg-white text-surface-700 hover:border-surface-300"
+                  )}
+                >
+                  <span className="font-medium">{opt.label}</span>
+                  <span className="text-[11px] text-surface-500 number">
+                    {opt.sub}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-surface-500">
+            ברירת מחדל: גבוהה. עליה בתוך הקטגוריה של הלקוח, לא חציית קטגוריות.
+          </p>
+        </div>
       </Card>
 
       {/* === 4. When a customer returns to the queue === */}

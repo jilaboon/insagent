@@ -357,6 +357,11 @@ export function CustomerCard({
                     {primaryInsight.summary}
                   </p>
                 )}
+                {/* Output contract: every insight shows its evidence basis.
+                    Currently wired for Har HaBituach-derived insights; other
+                    rule-based insights can surface their triggerHint here
+                    in a future pass. */}
+                <EvidenceLine evidenceJson={primaryInsight.evidenceJson} />
               </div>
             )}
 
@@ -461,6 +466,51 @@ export function CustomerCard({
 // ============================================================
 // Bucket tag — the single visible category on a queue card
 // ============================================================
+
+// ============================================================
+// Evidence line — "מבוסס על..." row under an insight
+// ============================================================
+// Renders only when the insight carries a recognizable evidence payload.
+// Today we recognize Har HaBituach-origin evidence; other sources can
+// plug in by extending the shape check below.
+
+function EvidenceLine({ evidenceJson }: { evidenceJson: unknown }) {
+  if (!evidenceJson || typeof evidenceJson !== "object") return null;
+  const e = evidenceJson as Record<string, unknown>;
+  if (e.source !== "HAR_HABITUACH") return null;
+
+  const count =
+    typeof e.externalPoliciesCount === "number"
+      ? e.externalPoliciesCount
+      : null;
+  const insurers = Array.isArray(e.insurers) ? (e.insurers as string[]) : null;
+  const importedAt =
+    typeof e.importedAt === "string" ? new Date(e.importedAt) : null;
+
+  const insurerText =
+    insurers && insurers.length > 0
+      ? insurers.length === 1
+        ? insurers[0]
+        : `${insurers.length} חברות`
+      : null;
+
+  const dateText = importedAt
+    ? importedAt.toLocaleDateString("he-IL")
+    : null;
+
+  return (
+    <p className="mt-2 border-t border-surface-200/60 pt-2 text-[11px] text-surface-500 leading-snug">
+      <span className="font-medium text-surface-600">מבוסס על: </span>
+      {count != null && (
+        <>
+          <span className="number">{count}</span> פוליסות
+        </>
+      )}
+      {insurerText && ` אצל ${insurerText}`}
+      {dateText && ` · ייבוא הר הביטוח מתאריך ${dateText}`}
+    </p>
+  );
+}
 
 // ============================================================
 // Customer source badge — flags external-data state

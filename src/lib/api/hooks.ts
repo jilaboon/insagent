@@ -743,6 +743,8 @@ export interface QueuePrimaryInsight {
   strengthScore: number | null;
   urgencyLevel: number;
   linkedRuleId?: string | null;
+  evidenceJson?: unknown;
+  generatedBy?: string | null;
 }
 
 export interface QueueEntryWithRelations {
@@ -940,6 +942,7 @@ export interface QueueSettingsData {
   urgentCategories: string[];
   bucketOrder: Array<"coverage" | "savings" | "service" | "general">;
   renewalsLaneEnabled: boolean;
+  externalDataEmphasis: "normal" | "high" | "very_high";
 }
 
 export const queueSettingsQueryKey = ["queue", "settings"] as const;

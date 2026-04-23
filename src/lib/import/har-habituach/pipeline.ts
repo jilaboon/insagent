@@ -20,6 +20,7 @@ export interface RunResult {
   customersCreated: number;
   policiesMatched: number;
   policiesCreated: number;
+  insightsCreated: number;
   errors: Array<{ israeliId: string; error: string }>;
 }
 
@@ -105,6 +106,7 @@ export async function runHarHabituachImport(opts: {
         customersCreated: persistResult.customersCreated,
         policiesMatched: persistResult.policiesMatched,
         policiesCreated: persistResult.policiesCreated,
+        insightsCreated: persistResult.insightsCreated,
         errorCount: persistResult.errors.length,
       },
     });
@@ -118,6 +120,7 @@ export async function runHarHabituachImport(opts: {
       customersCreated: persistResult.customersCreated,
       policiesMatched: persistResult.policiesMatched,
       policiesCreated: persistResult.policiesCreated,
+      insightsCreated: persistResult.insightsCreated,
       errors: persistResult.errors,
     };
   } catch (err) {

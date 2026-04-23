@@ -26,6 +26,7 @@ export interface PersistResult {
   customersCreated: number;
   policiesMatched: number;    // already existed, timestamps updated
   policiesCreated: number;    // new external policies added
+  insightsCreated: number;    // "held elsewhere" insights generated
   errors: Array<{ israeliId: string; error: string }>;
   affectedCustomerIds: string[];
 }
@@ -39,6 +40,7 @@ export async function persistHarHabituach(
     customersCreated: 0,
     policiesMatched: 0,
     policiesCreated: 0,
+    insightsCreated: 0,
     errors: [],
     affectedCustomerIds: [],
   };
@@ -103,7 +105,15 @@ export async function persistHarHabituach(
           update: {},
         });
 
-        // 3) Upsert policies
+        // 3) Upsert policies (track new external policies per this customer
+        //    so we can attach a "held elsewhere" insight below)
+        const newExternalPolicies: Array<{
+          policyNumber: string;
+          insurer: string;
+          category: string;
+          productType: string | null;
+        }> = [];
+
         for (const p of mc.policies) {
           const existingPolicy = await tx.policy.findUnique({
             where: {
@@ -151,7 +161,51 @@ export async function persistHarHabituach(
               },
             });
             result.policiesCreated += 1;
+            newExternalPolicies.push({
+              policyNumber: p.policyNumber,
+              insurer: p.insurer,
+              category: p.category,
+              productType: p.productType,
+            });
           }
+        }
+
+        // 4) If this customer got new external policies, create (or refresh)
+        //    a single "held elsewhere" insight. This is the output-contract
+        //    entry point: evidenceJson carries the trace the card will show.
+        if (newExternalPolicies.length > 0) {
+          const insurers = Array.from(
+            new Set(newExternalPolicies.map((p) => p.insurer))
+          );
+          const summary =
+            newExternalPolicies.length === 1
+              ? `זוהתה פוליסה אחת אצל ${insurers[0]} שאינה מנוהלת במשרד. הזדמנות לשיחה על ריכוז/העברה.`
+              : `זוהו ${newExternalPolicies.length} פוליסות אצל ${insurers.length} חברות חיצוניות. הזדמנות לשיחת ריכוז תיק.`;
+
+          const evidenceJson = {
+            source: "HAR_HABITUACH",
+            importJobId,
+            importedAt: now.toISOString(),
+            externalPoliciesCount: newExternalPolicies.length,
+            insurers,
+            policies: newExternalPolicies.slice(0, 10), // cap for size
+          };
+
+          await tx.insight.create({
+            data: {
+              customerId,
+              category: "CROSS_SELL_OPPORTUNITY",
+              title: "מוצר קיים מחוץ למשרד — הזדמנות לריכוז",
+              summary,
+              explanation: summary,
+              whyNow: "זוהתה דאטה חדשה מהר הביטוח",
+              evidenceJson,
+              generatedBy: "HAR_HABITUACH_IMPORT",
+              strengthScore: 70,
+              status: "NEW",
+            },
+          });
+          result.insightsCreated += 1;
         }
       });
     } catch (err) {

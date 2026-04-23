@@ -56,6 +56,14 @@ export interface QueueSettings {
    * When false, renewals compete in the main queue like any other insight.
    */
   renewalsLaneEnabled: boolean;
+  /**
+   * How much to promote customers with Har HaBituach external-data insights
+   * in the daily queue. Rafi controls this — the math stays internal:
+   *   normal    → +0 bonus to priority score
+   *   high      → +5 (default; rises within the bucket)
+   *   very_high → +10 (can cross one bucket up)
+   */
+  externalDataEmphasis: "normal" | "high" | "very_high";
 }
 
 export const DEFAULT_SETTINGS: QueueSettings = {
@@ -77,6 +85,7 @@ export const DEFAULT_SETTINGS: QueueSettings = {
   urgentCategories: [],
   bucketOrder: ["coverage", "savings", "service", "general"],
   renewalsLaneEnabled: true,
+  externalDataEmphasis: "high",
 };
 
 const SETTING_KEY = "queueSettings";

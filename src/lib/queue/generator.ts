@@ -110,7 +110,8 @@ export async function buildQueue(
 
   const policyRows = (await prisma.$queryRawUnsafe(
     `SELECT id, "customerId", category, status, "endDate",
-            "premiumMonthly", "premiumAnnual", "accumulatedSavings"
+            "premiumMonthly", "premiumAnnual", "accumulatedSavings",
+            "externalSource"
      FROM policies WHERE "customerId" = ANY($1)`,
     customerIds
   )) as Array<{
@@ -122,7 +123,16 @@ export async function buildQueue(
     premiumMonthly: number | null;
     premiumAnnual: number | null;
     accumulatedSavings: number | null;
+    externalSource: string | null;
   }>;
+
+  // Customers that have at least one Har HaBituach external policy.
+  const customersWithExternal = new Set<string>();
+  for (const p of policyRows) {
+    if (p.externalSource === "HAR_HABITUACH") {
+      customersWithExternal.add(p.customerId);
+    }
+  }
 
   const mgmtFeeRows = (await prisma.$queryRawUnsafe(
     `SELECT mf."policyId", mf."ratePercent", p."customerId"
@@ -310,11 +320,13 @@ export async function buildQueue(
       // whose real story is retirement planning.
       const reasonBucket = reasonCategoryToBucket(reasonCategory);
       const genericTip = isGenericTipRule(ins.title);
+      const hasExternalData = customersWithExternal.has(cust.id);
       const priority = computePriority(
         ctx,
         bucket,
         reasonBucket,
         genericTip,
+        hasExternalData,
         settings
       );
 
@@ -463,6 +475,7 @@ async function persistLane(
           renewalPenalty: c.priority.renewalPenalty,
           reasonMatchBonus: c.priority.reasonMatchBonus,
           genericTipPenalty: c.priority.genericTipPenalty,
+          externalDataBonus: c.priority.externalDataBonus,
         },
         timeCritical: c.timeCritical,
         daysToExpiry: c.daysToExpiry,
