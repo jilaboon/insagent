@@ -8,7 +8,7 @@ export async function GET() {
 
   const roleResponse = requireRole(role, ["OWNER", "MANAGER", "OPERATIONS", "ADMIN"]);
   if (roleResponse) return roleResponse;
-  const allJobs = await prisma.importJob.findMany({
+  const jobs = await prisma.importJob.findMany({
     orderBy: { createdAt: "desc" },
     take: 100,
     select: {
@@ -26,13 +26,9 @@ export async function GET() {
     },
   });
 
-  // Show only the latest job per file name
-  const latestByFile = new Map<string, (typeof allJobs)[number]>();
-  for (const job of allJobs) {
-    if (!latestByFile.has(job.fileName)) {
-      latestByFile.set(job.fileName, job);
-    }
-  }
-
-  return NextResponse.json(Array.from(latestByFile.values()));
+  // Every import gets its own row. Previously we deduped by fileName to
+  // "hide replaced imports", but that broke the audit trail: re-uploading
+  // the same file on a different date silently disappeared the earlier
+  // entry. For an audit surface, honesty beats tidiness.
+  return NextResponse.json(jobs);
 }
