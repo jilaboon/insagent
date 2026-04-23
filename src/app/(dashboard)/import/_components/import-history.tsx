@@ -24,7 +24,25 @@ const statusMap: Record<string, { label: string; variant: "success" | "warning" 
   PROCESSING: { label: "בעיבוד", variant: "info" },
   PENDING: { label: "ממתין", variant: "default" },
   FAILED: { label: "נכשל", variant: "danger" },
+  PARTIAL: { label: "חלקי", variant: "warning" },
 };
+
+// Map the raw fileType string (as stored on ImportJob) to a human-facing
+// source label + tone. BAFI uploads currently store life/elementary/unknown
+// (legacy), while Har HaBituach uploads store "har_habituach".
+function sourceMetaFor(fileType: string): {
+  label: string;
+  tone: "indigo" | "violet" | "surface";
+} {
+  const t = (fileType || "").toLowerCase();
+  if (t === "har_habituach") {
+    return { label: "הר הביטוח", tone: "violet" };
+  }
+  if (t === "life" || t === "elementary" || t.startsWith("bafi")) {
+    return { label: "BAFI", tone: "indigo" };
+  }
+  return { label: "אחר", tone: "surface" };
+}
 
 interface ImportHistoryProps {
   refreshKey?: number;
@@ -79,13 +97,16 @@ export function ImportHistory({ refreshKey, className }: ImportHistoryProps) {
       <table className="w-full text-sm table-fixed">
         <thead>
           <tr className="border-b border-surface-200">
-            <th className="w-[40%] py-3 px-4 font-medium text-surface-500 text-right">
+            <th className="w-[14%] py-3 px-4 font-medium text-surface-500 text-right">
+              מקור
+            </th>
+            <th className="w-[34%] py-3 px-4 font-medium text-surface-500 text-right">
               שם קובץ
             </th>
-            <th className="w-[25%] py-3 px-4 font-medium text-surface-500 text-right">
+            <th className="w-[19%] py-3 px-4 font-medium text-surface-500 text-right">
               תאריך
             </th>
-            <th className="w-[20%] py-3 px-4 font-medium text-surface-500 text-right">
+            <th className="w-[18%] py-3 px-4 font-medium text-surface-500 text-right">
               סטטוס
             </th>
             <th className="w-[15%] py-3 px-4 font-medium text-surface-500 text-right">
@@ -95,14 +116,20 @@ export function ImportHistory({ refreshKey, className }: ImportHistoryProps) {
         </thead>
         <tbody>
           {jobs.map((job) => {
-            const status = statusMap[job.status] ?? { label: job.status, variant: "default" as const };
-            const customerCount = (job.newCustomers ?? 0) + (job.updatedCustomers ?? 0);
+            const status =
+              statusMap[job.status] ?? { label: job.status, variant: "default" as const };
+            const customerCount =
+              (job.newCustomers ?? 0) + (job.updatedCustomers ?? 0);
+            const source = sourceMetaFor(job.fileType);
 
             return (
               <tr
                 key={job.id}
                 className="border-b border-surface-100 hover:bg-surface-50 transition-colors"
               >
+                <td className="py-3 px-4 text-right">
+                  <SourceBadge tone={source.tone} label={source.label} />
+                </td>
                 <td className="py-3 px-4 text-surface-800 truncate text-right">
                   {job.fileName}
                 </td>
@@ -121,5 +148,30 @@ export function ImportHistory({ refreshKey, className }: ImportHistoryProps) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+function SourceBadge({
+  tone,
+  label,
+}: {
+  tone: "indigo" | "violet" | "surface";
+  label: string;
+}) {
+  const toneClass =
+    tone === "violet"
+      ? "bg-violet-500/12 text-violet-700 border-violet-300/50"
+      : tone === "indigo"
+        ? "bg-indigo-500/12 text-indigo-700 border-indigo-300/50"
+        : "bg-surface-100 text-surface-600 border-surface-200";
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium",
+        toneClass
+      )}
+    >
+      {label}
+    </span>
   );
 }
