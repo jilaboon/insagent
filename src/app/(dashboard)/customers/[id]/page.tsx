@@ -32,7 +32,69 @@ import {
   Sparkles,
   X,
   Loader2,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
+
+// ============================================================
+// Local types & helpers for Stage B (customer-detail UX)
+// ============================================================
+
+type CustomerInsight = {
+  id: string;
+  category: string;
+  title: string;
+  summary: string;
+  whyNow: string | null;
+  urgencyLevel: number;
+  strengthScore: number;
+  generatedBy: string;
+  kind?: "commercial" | "service_tip" | null;
+  messageDraft: {
+    id: string;
+    body: string;
+    status: string;
+  } | null;
+};
+
+/**
+ * Treat any insight without an explicit `kind` as commercial — matches
+ * the Stage A contract (default to opportunity so older payloads still
+ * show up as actionable).
+ */
+function insightKind(
+  insight: Pick<CustomerInsight, "kind">
+): "commercial" | "service_tip" {
+  return insight.kind === "service_tip" ? "service_tip" : "commercial";
+}
+
+const STRONG_SCORE_THRESHOLD = 70;
+const STRONG_SEGMENT_LIMIT = 2;
+
+function splitInsights(insights: CustomerInsight[]) {
+  const commercial = insights
+    .filter((i) => insightKind(i) === "commercial")
+    .sort((a, b) => b.strengthScore - a.strengthScore);
+
+  const serviceTips = insights
+    .filter((i) => insightKind(i) === "service_tip")
+    .sort((a, b) => b.strengthScore - a.strengthScore);
+
+  const strong: CustomerInsight[] = [];
+  const moreCommercial: CustomerInsight[] = [];
+  for (const item of commercial) {
+    if (
+      strong.length < STRONG_SEGMENT_LIMIT &&
+      item.strengthScore >= STRONG_SCORE_THRESHOLD
+    ) {
+      strong.push(item);
+    } else {
+      moreCommercial.push(item);
+    }
+  }
+
+  return { strong, moreCommercial, serviceTips };
+}
 
 export default function CustomerProfilePage() {
   const params = useParams<{ id: string }>();
@@ -41,6 +103,7 @@ export default function CustomerProfilePage() {
   // All hooks must be called unconditionally before any early returns
   const [selectedInsightIds, setSelectedInsightIds] = useState<Set<string>>(new Set());
   const [combinedMessage, setCombinedMessage] = useState<MessageDraftItem | null>(null);
+  const [showMoreInsights, setShowMoreInsights] = useState(false);
   const generateCombined = useGenerateCombinedMessage();
 
   if (isLoading) {
@@ -193,8 +256,12 @@ export default function CustomerProfilePage() {
               <Badge variant="muted">{customer.insights.length}</Badge>
             </CardHeader>
             {customer.insights.length > 0 ? (
-              <div className="space-y-3">
-                {customer.insights.map((insight) => (
+              (() => {
+                const { strong, moreCommercial, serviceTips } = splitInsights(
+                  customer.insights as CustomerInsight[]
+                );
+                const hiddenCount = moreCommercial.length + serviceTips.length;
+                const renderRow = (insight: CustomerInsight) => (
                   <div key={insight.id} className="flex items-start gap-3">
                     {/* Checkbox for multi-select */}
                     <label className="mt-4 flex shrink-0 cursor-pointer">
@@ -212,8 +279,102 @@ export default function CustomerProfilePage() {
                       />
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+
+                return (
+                  <div className="space-y-5">
+                    {/* Segment 1 — Strong opportunities (always visible, max 2) */}
+                    <section aria-labelledby="insights-strong-heading">
+                      <h3
+                        id="insights-strong-heading"
+                        className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-700"
+                      >
+                        <span aria-hidden>💰</span>
+                        <span>הזדמנויות חזקות</span>
+                      </h3>
+                      {strong.length > 0 ? (
+                        <div className="space-y-3">{strong.map(renderRow)}</div>
+                      ) : (
+                        <p className="rounded-lg border border-dashed border-surface-200 bg-surface-50/50 px-4 py-3 text-xs text-surface-500">
+                          אין הזדמנויות חזקות כרגע
+                        </p>
+                      )}
+                    </section>
+
+                    {/* Toggle — reveals segments 2 + 3 together */}
+                    {hiddenCount > 0 && (
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => setShowMoreInsights((v) => !v)}
+                          aria-expanded={showMoreInsights}
+                          aria-controls="insights-more-region"
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-primary-700 hover:text-primary-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 rounded"
+                        >
+                          {showMoreInsights ? (
+                            <>
+                              <span>הסתר</span>
+                              <ChevronUp className="h-3.5 w-3.5" />
+                            </>
+                          ) : (
+                            <>
+                              <span className="number">
+                                הצג עוד {hiddenCount} נושאים
+                              </span>
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+
+                    {showMoreInsights && (
+                      <div
+                        id="insights-more-region"
+                        className="space-y-5 animate-[fadeIn_0.2s_ease-out_forwards]"
+                      >
+                        {/* Segment 2 — More commercial opportunities */}
+                        {moreCommercial.length > 0 && (
+                          <section aria-labelledby="insights-more-heading">
+                            <h3
+                              id="insights-more-heading"
+                              className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-700/80"
+                            >
+                              <span aria-hidden>💰</span>
+                              <span>הזדמנויות נוספות</span>
+                              <span className="text-surface-400 number">
+                                ({moreCommercial.length})
+                              </span>
+                            </h3>
+                            <div className="space-y-3">
+                              {moreCommercial.map(renderRow)}
+                            </div>
+                          </section>
+                        )}
+
+                        {/* Segment 3 — Service tips */}
+                        {serviceTips.length > 0 && (
+                          <section aria-labelledby="insights-service-heading">
+                            <h3
+                              id="insights-service-heading"
+                              className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-cyan-700"
+                            >
+                              <span aria-hidden>🤝</span>
+                              <span>טיפי שירות מותאמים</span>
+                              <span className="text-surface-400 number">
+                                ({serviceTips.length})
+                              </span>
+                            </h3>
+                            <div className="space-y-3">
+                              {serviceTips.map(renderRow)}
+                            </div>
+                          </section>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()
             ) : (
               <p className="py-6 text-center text-sm text-surface-400">
                 אין תובנות עדיין — יש להריץ ניתוח
@@ -348,7 +509,7 @@ export default function CustomerProfilePage() {
                         }
                       >
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <p className="text-sm font-medium text-surface-800">
                               {policy.subType || policy.category}
                             </p>
@@ -358,6 +519,9 @@ export default function CustomerProfilePage() {
                                 <span>מחוץ למשרד</span>
                               </span>
                             )}
+                            {isExternal && (
+                              <ExternalExpiryTag endDate={policy.endDate} />
+                            )}
                           </div>
                           <div className="flex flex-wrap items-center gap-x-2 text-xs text-surface-500">
                             <span>{policy.insurer}</span>
@@ -365,6 +529,18 @@ export default function CustomerProfilePage() {
                               {policy.policyNumber}
                             </span>
                           </div>
+                          {isExternal && policy.startDate && policy.endDate && (
+                            <p className="mt-1 text-[11px] text-violet-700/80 number">
+                              תקופת ביטוח:{" "}
+                              {new Date(policy.startDate).toLocaleDateString(
+                                "he-IL"
+                              )}
+                              {" – "}
+                              {new Date(policy.endDate).toLocaleDateString(
+                                "he-IL"
+                              )}
+                            </p>
+                          )}
                           {isExternal && policy.harHabituachLastSeenAt && (
                             <p className="mt-1 text-[11px] text-violet-700/70">
                               זוהה בהר הביטוח{" "}
@@ -510,33 +686,21 @@ function InsightCard({
   insight,
   customerName,
 }: {
-  insight: {
-    id: string;
-    category: string;
-    title: string;
-    summary: string;
-    whyNow: string | null;
-    urgencyLevel: number;
-    strengthScore: number;
-    generatedBy: string;
-    messageDraft: {
-      id: string;
-      body: string;
-      status: string;
-    } | null;
-  };
+  insight: CustomerInsight;
   customerName: string;
 }) {
   const [showComposer, setShowComposer] = useState(false);
+  const kind = insightKind(insight);
 
   return (
     <div className="rounded-lg border border-surface-100 p-4">
       <div className="mb-2 flex items-start justify-between">
         <div className="flex-1">
-          <div className="mb-1 flex items-center gap-2">
+          <div className="mb-1 flex flex-wrap items-center gap-2">
             <h4 className="text-sm font-medium text-surface-900">
               {insight.title}
             </h4>
+            <InsightKindBadge kind={kind} />
             <ScoreBadge score={insight.strengthScore} />
           </div>
           <p className="text-sm text-surface-600">{insight.summary}</p>
@@ -599,6 +763,86 @@ function InsightCard({
         </div>
       )}
     </div>
+  );
+}
+
+// ============================================================
+// External Expiry Tag — surfaces the timing window on Har
+// HaBituach policies. Coarse tiers match the signal strength
+// an agent cares about: act-now / warn / inform / overdue.
+// ============================================================
+
+function ExternalExpiryTag({ endDate }: { endDate: string | null }) {
+  if (!endDate) return null;
+
+  // Compute whole-day delta in local time. Using UTC ms would shift
+  // results across time zones near midnight — Rafi ships in IL only,
+  // but using local midnight keeps "today = 0 days" correct.
+  const end = new Date(endDate);
+  if (Number.isNaN(end.getTime())) return null;
+
+  const today = new Date();
+  const startOfDay = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const days = Math.round((startOfDay(end) - startOfDay(today)) / msPerDay);
+
+  if (days < 0) {
+    const overdue = Math.abs(days);
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-red-300/60 bg-red-500/10 px-2 py-0.5 text-[10px] font-medium text-red-700">
+        <span className="number">פגה לפני {overdue} יום</span>
+      </span>
+    );
+  }
+
+  if (days <= 30) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-red-400/70 bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold text-red-700">
+        <span aria-hidden>🔥</span>
+        <span className="number">מסתיימת תוך {days} יום</span>
+      </span>
+    );
+  }
+
+  if (days <= 90) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/60 bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-800">
+        <span className="number">מסתיים בעוד {days} ימים</span>
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-surface-200 bg-surface-50 px-2 py-0.5 text-[10px] font-medium text-surface-600">
+      <span className="number">מסתיים בעוד {days} ימים</span>
+    </span>
+  );
+}
+
+// ============================================================
+// Insight Kind Badge — small inline pill distinguishing commercial
+// opportunities from service tips at a glance.
+// ============================================================
+
+function InsightKindBadge({
+  kind,
+}: {
+  kind: "commercial" | "service_tip";
+}) {
+  if (kind === "service_tip") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-cyan-300/60 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-medium text-cyan-700">
+        <span aria-hidden>🤝</span>
+        <span>טיפ שירות</span>
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/60 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+      <span aria-hidden>💰</span>
+      <span>הזדמנות</span>
+    </span>
   );
 }
 

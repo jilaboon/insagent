@@ -139,6 +139,12 @@ export interface CustomerDetail {
     generatedBy: string;
     status: string;
     createdAt: string;
+    /**
+     * Stage A field — distinguishes commercial opportunities from
+     * service tips. Missing values default to "commercial" at render
+     * time so older cached payloads still surface as opportunities.
+     */
+    kind?: "commercial" | "service_tip" | null;
     messageDraft: {
       id: string;
       body: string;
