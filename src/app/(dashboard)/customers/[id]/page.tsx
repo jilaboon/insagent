@@ -220,11 +220,6 @@ export default function CustomerProfilePage() {
         </div>
       </Card>
 
-      {/* Conversation journal — before insurance map so the agent sees
-          context ("what did we already talk about") before drilling into
-          the insurance picture. */}
-      <CustomerNotes customerId={customer.id} />
-
       {/* Insurance map */}
       <Card>
         <CardHeader>
@@ -399,6 +394,11 @@ export default function CustomerProfilePage() {
             )}
           </Card>
 
+          {/* Conversation journal — placed under insights so the agent
+              sees commercial opportunities first, then picks up context
+              from prior conversations. */}
+          <CustomerNotes customerId={customer.id} />
+
           {/* Floating action bar for combined message */}
           {selectedInsightIds.size >= 2 && (
             <div className="sticky bottom-4 z-20">
@@ -493,7 +493,7 @@ export default function CustomerProfilePage() {
               </div>
             </CardHeader>
             {customer.policies.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {[...customer.policies]
                   .sort((a, b) => {
                     // External policies first
@@ -510,11 +510,11 @@ export default function CustomerProfilePage() {
                         key={policy.id}
                         className={
                           isExternal
-                            ? "flex items-center justify-between rounded-lg border border-violet-300/50 bg-violet-500/5 p-3"
-                            : "flex items-center justify-between rounded-lg border border-surface-100 p-3"
+                            ? "flex items-start justify-between gap-4 rounded-lg border border-violet-300/50 bg-violet-500/5 p-4"
+                            : "flex items-start justify-between gap-4 rounded-lg border border-surface-100 p-4"
                         }
                       >
-                        <div className="flex-1">
+                        <div className="flex-1 space-y-2">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-sm font-medium text-surface-800">
                               {policy.subType || policy.category}
@@ -536,7 +536,7 @@ export default function CustomerProfilePage() {
                             </span>
                           </div>
                           {isExternal && policy.startDate && policy.endDate && (
-                            <p className="mt-1 text-[11px] text-violet-700/80 number">
+                            <p className="text-[11px] text-violet-700/80 number">
                               תקופת ביטוח:{" "}
                               {new Date(policy.startDate).toLocaleDateString(
                                 "he-IL"
@@ -548,7 +548,7 @@ export default function CustomerProfilePage() {
                             </p>
                           )}
                           {isExternal && policy.harHabituachLastSeenAt && (
-                            <p className="mt-1 text-[11px] text-violet-700/70">
+                            <p className="text-[11px] text-violet-700/70">
                               זוהה בהר הביטוח{" "}
                               {new Date(
                                 policy.harHabituachLastSeenAt
