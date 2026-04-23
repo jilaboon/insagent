@@ -15,7 +15,9 @@
  *   premium_annual >= 1200                   — per-policy
  *   policy_count = 1, policy_count >= 2      — customer-wide
  *   category_count = 1                       — customer-wide
- *   property_policy_count >= 2               — customer-wide
+ *   property_policy_count >= 2               — customer-wide (any PROPERTY)
+ *   home_policy_count >= 2                   — customer-wide (דירה/מבנה only)
+ *   car_policy_count >= 1                    — customer-wide (רכב only)
  *   has_expiring_policy                      — customer-wide
  *   savings > 100000                         — customer-wide
  *   management_fee > 1.5                     — customer-wide
@@ -208,6 +210,32 @@ function evaluateCondition(
         (p) => p.category === "PROPERTY"
       ).length;
       return compareNumber(propCount, operator, target);
+    }
+
+    case "home_policy_count": {
+      // Counts ONLY home-insurance policies (subType mentions דירה / מבנה).
+      // Use this for rental-apartment heuristics — property_policy_count
+      // is too loose because it also includes car policies, which makes
+      // "customer has a rented flat" fire for every normal car+home owner.
+      const target = parseFloat(value);
+      if (isNaN(target)) return false;
+      const homeCount = profile.activePolicies.filter((p) => {
+        if (p.category !== "PROPERTY") return false;
+        const sub = (p.subType || "").toLowerCase();
+        return sub.includes("דירה") || sub.includes("מבנה");
+      }).length;
+      return compareNumber(homeCount, operator, target);
+    }
+
+    case "car_policy_count": {
+      const target = parseFloat(value);
+      if (isNaN(target)) return false;
+      const carCount = profile.activePolicies.filter((p) => {
+        if (p.category !== "PROPERTY") return false;
+        const sub = (p.subType || "").toLowerCase();
+        return sub.includes("רכב");
+      }).length;
+      return compareNumber(carCount, operator, target);
     }
 
     case "savings": {
