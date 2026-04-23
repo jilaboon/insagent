@@ -59,6 +59,14 @@ model Customer {
   gender           String?
   lastReviewDate   DateTime?
   lastImportDate   DateTime?
+  // Where this customer originated. "OFFICE" = imported via BAFI; the
+  // office manages their book. "HAR_HABITUACH_ONLY" = seen in Har HaBituach
+  // but no office record in BAFI — a prospect-like record: same shape as
+  // other customers (so the rules engine can evaluate them uniformly), but
+  // the UI must flag them clearly so רפי can decide whether to onboard.
+  source           String?  @default("OFFICE")
+  firstSeenInHarHabituachAt DateTime?
+  lastHarHabituachImportAt  DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -75,6 +83,7 @@ model Customer {
   @@index([israeliId])
   @@index([assignedManagerId])
   @@index([lastName, firstName])
+  @@index([source])
   @@map("customers")
 }
 
@@ -145,6 +154,14 @@ model Policy {
   dataFreshnessDate DateTime?    // נכונות המידע
   importJobId     String?
   importJob       ImportJob?     @relation(fields: [importJobId], references: [id])
+  // Source of the policy data. null = created from BAFI/office data;
+  // "HAR_HABITUACH" = discovered via Har HaBituach import (= product held
+  // outside the office). A policy can start as BAFI and later be confirmed
+  // by Har HaBituach — in that case externalSource stays null but the
+  // harHabituach*SeenAt timestamps get set.
+  externalSource  String?
+  harHabituachFirstSeenAt DateTime?
+  harHabituachLastSeenAt  DateTime?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
@@ -165,6 +182,7 @@ model Policy {
   @@index([category])
   @@index([endDate])
   @@index([insurer])
+  @@index([externalSource])
   @@map("policies")
 }
 

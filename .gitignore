@@ -1,5 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# PII — real customer exports (BAFI, Har HaBituach Excel). Never commit.
+/data
+
 # dependencies
 /node_modules
 /.pnp

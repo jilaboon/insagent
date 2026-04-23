@@ -29,6 +29,7 @@
     "react-dom": "19.2.4",
     "tailwind-merge": "^3.5.0",
     "vercel": "^50.41.0",
+    "xlsx": "^0.18.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {
