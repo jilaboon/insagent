@@ -470,6 +470,8 @@ export function useCreateRule() {
       body: string;
       category?: string;
       triggerHint?: string;
+      kind?: "commercial" | "service_tip";
+      baseStrength?: number;
     }) => {
       return fetchJSON<OfficeRuleItem>("/api/rules", {
         method: "POST",
@@ -497,6 +499,8 @@ export function useUpdateRule() {
       category?: string;
       triggerHint?: string;
       isActive?: boolean;
+      kind?: "commercial" | "service_tip";
+      baseStrength?: number;
     }) => {
       return fetchJSON<OfficeRuleItem>(`/api/rules/${id}`, {
         method: "PUT",

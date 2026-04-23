@@ -19,7 +19,17 @@ export async function PUT(
   const validation = validateBody(ruleUpdateSchema, body);
   if (!validation.success) return validation.response;
 
-  const { title, body: ruleBody, category, triggerCondition, triggerHint, isActive, source } = validation.data;
+  const {
+    title,
+    body: ruleBody,
+    category,
+    triggerCondition,
+    triggerHint,
+    isActive,
+    source,
+    kind,
+    baseStrength,
+  } = validation.data;
 
   const updateData: Record<string, unknown> = {};
   if (title !== undefined) updateData.title = title;
@@ -29,6 +39,8 @@ export async function PUT(
   if (triggerHint !== undefined) updateData.triggerHint = triggerHint;
   if (isActive !== undefined) updateData.isActive = isActive;
   if (source !== undefined) updateData.source = source;
+  if (kind !== undefined) updateData.kind = kind;
+  if (baseStrength !== undefined) updateData.baseStrength = baseStrength;
 
   try {
     const updated = await prisma.officeRule.update({

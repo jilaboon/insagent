@@ -54,9 +54,18 @@ interface RuleFormData {
   body: string;
   category: string;
   triggerHint: string;
+  kind: "commercial" | "service_tip";
+  baseStrength: number;
 }
 
-const EMPTY_FORM: RuleFormData = { title: "", body: "", category: "", triggerHint: "" };
+const EMPTY_FORM: RuleFormData = {
+  title: "",
+  body: "",
+  category: "",
+  triggerHint: "",
+  kind: "commercial",
+  baseStrength: 60,
+};
 
 const RULES_TABS = [
   { id: "library", label: "ספריית חוקים" },
@@ -88,6 +97,10 @@ export default function RulesPage() {
       body: rule.body,
       category: rule.category ?? "",
       triggerHint: rule.triggerHint ?? "",
+      kind:
+        rule.kind === "service_tip" ? "service_tip" : "commercial",
+      baseStrength:
+        typeof rule.baseStrength === "number" ? rule.baseStrength : 60,
     });
   }
 
@@ -98,6 +111,8 @@ export default function RulesPage() {
       body: newForm.body,
       category: newForm.category || undefined,
       triggerHint: newForm.triggerHint || undefined,
+      kind: newForm.kind,
+      baseStrength: newForm.baseStrength,
     });
     setNewForm(EMPTY_FORM);
     setShowNewForm(false);
@@ -111,6 +126,8 @@ export default function RulesPage() {
       body: editForm.body,
       category: editForm.category || undefined,
       triggerHint: editForm.triggerHint || undefined,
+      kind: editForm.kind,
+      baseStrength: editForm.baseStrength,
     });
     setEditingId(null);
   }
@@ -497,6 +514,76 @@ function RuleForm({
           className="flex-1 rounded-lg border border-white/80 bg-white/80 px-3 py-2 text-sm text-surface-900 text-right placeholder:text-surface-500 backdrop-blur-sm focus:border-violet-400/60 focus:bg-white/90 focus:outline-none focus:ring-2 focus:ring-violet-400/25"
         />
       </div>
+
+      {/* Kind + baseStrength controls */}
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-surface-200/80 bg-white/55 p-3 backdrop-blur-md">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-surface-600">סוג:</span>
+          <div className="flex rounded-lg border border-white/80 bg-white/80 p-0.5 backdrop-blur-sm">
+            <button
+              type="button"
+              onClick={() => onChange({ ...form, kind: "commercial" })}
+              className={cn(
+                "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                form.kind === "commercial"
+                  ? "bg-emerald-500/15 text-emerald-700"
+                  : "text-surface-500 hover:text-surface-800"
+              )}
+            >
+              💰 הזדמנות
+            </button>
+            <button
+              type="button"
+              onClick={() => onChange({ ...form, kind: "service_tip" })}
+              className={cn(
+                "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                form.kind === "service_tip"
+                  ? "bg-cyan-500/15 text-cyan-700"
+                  : "text-surface-500 hover:text-surface-800"
+              )}
+            >
+              🤝 טיפ שירות
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-surface-600">
+            חוזק בסיסי:
+          </label>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={form.baseStrength}
+            onChange={(e) => {
+              const n = parseInt(e.target.value, 10);
+              if (Number.isFinite(n)) {
+                onChange({
+                  ...form,
+                  baseStrength: Math.max(0, Math.min(100, n)),
+                });
+              }
+            }}
+            className="number w-16 rounded-lg border border-white/80 bg-white/80 px-2 py-1 text-sm text-surface-900 text-center backdrop-blur-sm focus:border-violet-400/60 focus:bg-white/90 focus:outline-none focus:ring-2 focus:ring-violet-400/25"
+          />
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={form.baseStrength}
+            onChange={(e) =>
+              onChange({ ...form, baseStrength: parseInt(e.target.value, 10) })
+            }
+            className="flex-1 max-w-[240px] accent-violet-600"
+          />
+          <span className="text-[11px] text-surface-500">
+            (70+ נחשב חזק)
+          </span>
+        </div>
+      </div>
+
       <div className="flex items-center gap-2">
         <Button
           variant="primary"

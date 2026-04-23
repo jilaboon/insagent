@@ -64,6 +64,8 @@ export const ruleCreateSchema = z.object({
   triggerCondition: z.string().max(500).optional(),
   triggerHint: z.string().max(500).optional(),
   source: z.enum(["MANUAL", "AI_DATA", "AI_KNOWLEDGE"]).optional(),
+  kind: z.enum(["commercial", "service_tip"]).optional(),
+  baseStrength: z.number().int().min(0).max(100).optional(),
 });
 
 export const ruleUpdateSchema = z.object({
@@ -74,6 +76,8 @@ export const ruleUpdateSchema = z.object({
   triggerHint: z.string().max(500).nullable().optional(),
   isActive: z.boolean().optional(),
   source: z.enum(["MANUAL", "AI_DATA", "AI_KNOWLEDGE"]).optional(),
+  kind: z.enum(["commercial", "service_tip"]).optional(),
+  baseStrength: z.number().int().min(0).max(100).optional(),
 });
 
 // ============================================================
