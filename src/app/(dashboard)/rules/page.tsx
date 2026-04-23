@@ -356,7 +356,30 @@ export default function RulesPage() {
                   <h3 className="text-sm font-bold text-surface-900">
                     {rule.title}
                   </h3>
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                    {typeof rule.baseStrength === "number" && (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full border border-violet-300/50 bg-violet-500/10 px-2 py-0.5 text-[11px] font-medium text-violet-700"
+                        title="ציון חוזק בסיסי — משפיע על דירוג התובנות שנובעות מהחוק"
+                      >
+                        חוזק <span className="number">{rule.baseStrength}</span>
+                      </span>
+                    )}
+                    {rule.kind === "service_tip" ? (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full border border-cyan-300/50 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-medium text-cyan-700"
+                        title="טיפ שירות — שיחה שירותית ולא מכירתית"
+                      >
+                        🤝 טיפ שירות
+                      </span>
+                    ) : (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full border border-emerald-300/50 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700"
+                        title="הזדמנות מסחרית — שיחה על עסקה קונקרטית"
+                      >
+                        💰 הזדמנות
+                      </span>
+                    )}
                     {rule.category && (
                       <Badge variant={categoryVariant[rule.category] ?? "default"}>
                         {rule.category}

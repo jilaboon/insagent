@@ -173,7 +173,10 @@ export interface OfficeRuleItem {
   title: string;
   body: string;
   category: string | null;
+  triggerCondition?: string | null;
   triggerHint: string | null;
+  kind?: string | null;
+  baseStrength?: number | null;
   isActive: boolean;
   createdBy: string | null;
   createdAt: string;
