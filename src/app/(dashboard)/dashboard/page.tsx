@@ -7,6 +7,7 @@ import {
   filterEntriesByTab,
   type BucketTabValue,
 } from "@/components/queue/bucket-tabs";
+import { StalnessBanner } from "@/components/insights/staleness-banner";
 import {
   RefreshCw,
   Inbox,
@@ -59,6 +60,8 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 animate-[fadeIn_0.3s_ease-out_forwards]">
+      <StalnessBanner />
+
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>

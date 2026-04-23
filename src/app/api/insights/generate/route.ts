@@ -228,6 +228,18 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Mark staleness cleared — only when the full pass is actually done
+    // (paginated calls report `isDone` on the last page). Otherwise a
+    // mid-pagination timestamp would falsely hide the staleness banner.
+    if (isDone) {
+      const now = new Date().toISOString();
+      await prisma.systemSetting.upsert({
+        where: { key: "lastInsightGenerationAt" },
+        create: { key: "lastInsightGenerationAt", value: now },
+        update: { value: now },
+      });
+    }
+
     return NextResponse.json({
       processed: customerIds.length,
       insightsCreated,

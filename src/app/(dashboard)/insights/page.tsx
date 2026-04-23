@@ -9,6 +9,7 @@ import { useInsights, useDashboardStats } from "@/lib/api/hooks";
 import { useQueryClient } from "@tanstack/react-query";
 import { InsightsFilters, useFiltersFromURL } from "./_components/insights-filters";
 import { InsightsTable } from "./_components/insights-table";
+import { StalnessBanner } from "@/components/insights/staleness-banner";
 
 // ============================================================
 // Stats Header
@@ -391,6 +392,8 @@ function GenerateSection() {
 function InsightsContent() {
   return (
     <div className="space-y-6">
+      <StalnessBanner />
+
       {/* Header */}
       <div>
         <div className="flex items-start justify-between">
