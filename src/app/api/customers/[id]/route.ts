@@ -200,6 +200,9 @@ export async function GET(
       urgencyLevel: i.urgencyLevel,
       strengthScore: i.strengthScore ?? 0,
       generatedBy: i.generatedBy,
+      // Stage A: segment commercial opportunities from service tips.
+      // Older rows pre-dating the migration default to "commercial".
+      kind: i.kind ?? "commercial",
       status: i.status,
       createdAt: i.createdAt.toISOString(),
       messageDraft: i.messageDrafts[0]

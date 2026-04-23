@@ -24,6 +24,10 @@
  *   months_since_review > 18                 — customer-wide (null → ∞)
  *   has_life_and_elementary                  — customer-wide
  *   travel_season                            — customer-wide
+ *   external_policy_expiring_within_days < 90 — customer-wide
+ *       (matches when the customer has ≥1 Policy with
+ *        externalSource = HAR_HABITUACH and endDate within N days
+ *        from now; already-expired policies are excluded)
  *   always
  *   AND combinations
  *
@@ -267,6 +271,26 @@ function evaluateCondition(
         (Date.now() - new Date(last).getTime()) /
         (30.44 * 24 * 60 * 60 * 1000);
       return compareNumber(months, operator, threshold);
+    }
+
+    case "external_policy_expiring_within_days": {
+      // Matches when the customer has at least one Policy sourced from
+      // Har HaBituach whose endDate sits in the window (0, N] days from
+      // now. Already-expired policies (diff < 0) don't count — Rafi's
+      // "golden window" concept is strictly forward-looking.
+      const threshold = parseFloat(value);
+      if (isNaN(threshold)) return false;
+      const now = Date.now();
+      return profile.activePolicies.some((p) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const anyP = p as any;
+        if (anyP.externalSource !== "HAR_HABITUACH") return false;
+        if (!p.endDate) return false;
+        const daysLeft =
+          (new Date(p.endDate).getTime() - now) / (24 * 60 * 60 * 1000);
+        if (daysLeft <= 0) return false;
+        return compareNumber(daysLeft, operator, threshold);
+      });
     }
 
     default:

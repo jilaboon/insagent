@@ -262,6 +262,10 @@ export async function persistHarHabituach(
                 generatedBy: "HAR_HABITUACH_IMPORT",
                 strengthScore: 70,
                 status: "NEW",
+                // Externally-held products are the strongest commercial
+                // opportunity we can surface — product exists, competitor
+                // holds it, there's a clear ask (consolidation/transfer).
+                kind: "commercial",
               },
             });
             result.insightsCreated += 1;

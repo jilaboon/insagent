@@ -63,6 +63,7 @@ export async function GET(request: NextRequest) {
             strengthScore: true,
             urgencyLevel: true,
             linkedRuleId: true,
+            kind: true,
           },
         },
       },

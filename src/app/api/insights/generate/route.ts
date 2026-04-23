@@ -57,7 +57,8 @@ export async function POST(request: NextRequest) {
       ? await prisma.$queryRawUnsafe(
           `SELECT id, "customerId", "policyNumber", insurer, category, "subType", status,
                   "premiumMonthly", "premiumAnnual", "accumulatedSavings",
-                  "startDate", "endDate", "vehicleYear", "vehiclePlate", "propertyAddress"
+                  "startDate", "endDate", "vehicleYear", "vehiclePlate", "propertyAddress",
+                  "externalSource"
            FROM policies WHERE "customerId" = ANY($1)`,
           customerIds
         )
@@ -93,6 +94,7 @@ export async function POST(request: NextRequest) {
       evidenceJson: string;
       generatedBy: string;
       linkedRuleId: string;
+      kind: string;
     }> = [];
 
     for (const custRow of customerRows) {
@@ -137,6 +139,10 @@ export async function POST(request: NextRequest) {
             }),
             generatedBy: "RULE",
             linkedRuleId: rule.id,
+            // Stage A: insights inherit kind from their source rule so the UI
+            // can segment commercial opportunities from service tips without
+            // a second lookup.
+            kind: rule.kind ?? "commercial",
           });
         } catch {
           // Skip failed rules
@@ -152,13 +158,13 @@ export async function POST(request: NextRequest) {
         const values = batch
           .map(
             (ins) =>
-              `(gen_random_uuid(), ${esc(ins.customerId)}, ${esc(ins.category)}::"InsightCategory", ${esc(ins.title)}, ${esc(ins.summary)}, ${esc(ins.explanation)}, ${esc(ins.whyNow)}, ${ins.urgencyLevel}, ${ins.dataFreshness}, ${ins.profileCompleteness}, ${ins.strengthScore}, ${esc(ins.branch)}, ${esc(ins.evidenceJson)}::jsonb, 'NEW'::"InsightStatus", ${esc(ins.generatedBy)}, ${esc(ins.linkedRuleId)}, NOW(), NOW())`
+              `(gen_random_uuid(), ${esc(ins.customerId)}, ${esc(ins.category)}::"InsightCategory", ${esc(ins.title)}, ${esc(ins.summary)}, ${esc(ins.explanation)}, ${esc(ins.whyNow)}, ${ins.urgencyLevel}, ${ins.dataFreshness}, ${ins.profileCompleteness}, ${ins.strengthScore}, ${esc(ins.branch)}, ${esc(ins.evidenceJson)}::jsonb, 'NEW'::"InsightStatus", ${esc(ins.generatedBy)}, ${esc(ins.linkedRuleId)}, ${esc(ins.kind)}, NOW(), NOW())`
           )
           .join(",\n");
 
         try {
           await prisma.$executeRawUnsafe(`
-            INSERT INTO insights (id, "customerId", category, title, summary, explanation, "whyNow", "urgencyLevel", "dataFreshness", "profileCompleteness", "strengthScore", branch, "evidenceJson", status, "generatedBy", "linkedRuleId", "createdAt", "updatedAt")
+            INSERT INTO insights (id, "customerId", category, title, summary, explanation, "whyNow", "urgencyLevel", "dataFreshness", "profileCompleteness", "strengthScore", branch, "evidenceJson", status, "generatedBy", "linkedRuleId", kind, "createdAt", "updatedAt")
             VALUES ${values}
             ON CONFLICT DO NOTHING
           `);
@@ -295,6 +301,7 @@ function buildProfileFromRawRows(customerRow: any, policyRows: any[]): CustomerP
     vehicleYear: r.vehicleYear,
     vehiclePlate: r.vehiclePlate,
     propertyAddress: r.propertyAddress,
+    externalSource: r.externalSource ?? null,
     managementFees: [],
     coverages: [],
     investmentTracks: [],

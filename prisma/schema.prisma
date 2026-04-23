@@ -278,6 +278,10 @@ model Insight {
   branch        String?         // "LIFE" or "ELEMENTARY"
   generatedBy   String          @default("DETERMINISTIC") // DETERMINISTIC / RULE / AI
   linkedRuleId  String?
+  // Inherited from OfficeRule.kind at generation time.
+  // "commercial" = money-on-floor sales opportunity
+  // "service_tip" = advisory/relationship-building
+  kind          String          @default("commercial")
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
@@ -514,6 +518,9 @@ model OfficeRule {
   triggerCondition String? // structured: "age >= 60", "policy_category = LIFE AND policy_age > 3"
   triggerHint     String?  // human-readable: "לקוחות מעל גיל 60"
   source          String   @default("MANUAL") // MANUAL / AI_DATA / AI_KNOWLEDGE
+  // "commercial" = data-driven opportunity, money-on-floor (leads a sales call)
+  // "service_tip" = data-driven but advisory, relationship-building
+  kind            String   @default("commercial")
   isActive        Boolean  @default(true)
   createdBy       String?
   createdAt       DateTime @default(now())

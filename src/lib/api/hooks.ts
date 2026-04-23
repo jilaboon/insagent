@@ -141,10 +141,10 @@ export interface CustomerDetail {
     createdAt: string;
     /**
      * Stage A field — distinguishes commercial opportunities from
-     * service tips. Missing values default to "commercial" at render
-     * time so older cached payloads still surface as opportunities.
+     * service tips. The server always defaults missing values to
+     * "commercial" before serializing, so this is never null.
      */
-    kind?: "commercial" | "service_tip" | null;
+    kind: string;
     messageDraft: {
       id: string;
       body: string;
@@ -741,6 +741,11 @@ export interface QueueSupportingInsight {
   summary: string;
   category: string;
   strengthScore: number | null;
+  /**
+   * Stage A — inherited from the source rule. Missing = "commercial"
+   * (default for pre-migration rows).
+   */
+  kind?: string;
 }
 
 export interface QueuePrimaryInsight {
@@ -754,6 +759,11 @@ export interface QueuePrimaryInsight {
   linkedRuleId?: string | null;
   evidenceJson?: unknown;
   generatedBy?: string | null;
+  /**
+   * Stage A — inherited from the source rule. Missing = "commercial"
+   * (default for pre-migration rows).
+   */
+  kind?: string;
 }
 
 export interface QueueEntryWithRelations {

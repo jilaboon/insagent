@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
           linkedRuleId: true,
           evidenceJson: true,
           generatedBy: true,
+          kind: true,
         },
       },
     },
@@ -75,6 +76,7 @@ export async function GET(request: NextRequest) {
             summary: true,
             category: true,
             strengthScore: true,
+            kind: true,
           },
         })
       : [];
