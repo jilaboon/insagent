@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { OfficeBucket } from "@/lib/queue/buckets";
 import {
   BucketTabsStrip,
+  filterEntriesByTab,
   type BucketTabValue,
 } from "@/components/queue/bucket-tabs";
 import {
@@ -45,12 +45,7 @@ export default function DashboardPage() {
   const totalCustomers = dashboardStats.data?.totalCustomers ?? 0;
   const totalInsights = dashboardStats.data?.totalInsights ?? 0;
 
-  const entries =
-    activeTab === "all"
-      ? allEntries
-      : allEntries.filter(
-          (e) => (e.bucket ?? "general") === (activeTab as OfficeBucket)
-        );
+  const entries = filterEntriesByTab(allEntries, activeTab);
 
   async function handleRebuild() {
     try {

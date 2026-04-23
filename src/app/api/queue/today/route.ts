@@ -42,6 +42,8 @@ export async function GET(request: NextRequest) {
           phone: true,
           email: true,
           age: true,
+          source: true,
+          lastHarHabituachImportAt: true,
         },
       },
       primaryInsight: {
@@ -107,6 +109,22 @@ export async function GET(request: NextRequest) {
     policyCounts.map((p) => [p.customerId, p._count._all])
   );
 
+  // External (Har HaBituach) policy counts per customer
+  const externalPolicyCounts =
+    customerIds.length > 0
+      ? await prisma.policy.groupBy({
+          by: ["customerId"],
+          where: {
+            customerId: { in: customerIds },
+            externalSource: "HAR_HABITUACH",
+          },
+          _count: { _all: true },
+        })
+      : [];
+  const externalPolicyCountByCustomer = new Map(
+    externalPolicyCounts.map((p) => [p.customerId, p._count._all])
+  );
+
   const items = entries.map((e) => {
     const ctx =
       e.debugContext && typeof e.debugContext === "object"
@@ -148,6 +166,8 @@ export async function GET(request: NextRequest) {
         ...e.customer,
         fullName: `${e.customer.firstName} ${e.customer.lastName}`,
         activePolicyCount: policyCountByCustomer.get(e.customerId) ?? 0,
+        externalPolicyCount:
+          externalPolicyCountByCustomer.get(e.customerId) ?? 0,
       },
       primaryInsight: e.primaryInsight,
       supportingInsights: e.supportingInsightIds

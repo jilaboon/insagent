@@ -5,12 +5,22 @@ import { cn } from "@/lib/utils";
 import { OFFICE_BUCKET_LABELS, type OfficeBucket } from "@/lib/queue/buckets";
 import type { QueueEntryWithRelations } from "@/lib/api/hooks";
 
-export type BucketTabValue = OfficeBucket | "all";
+// "all" = every entry; an OfficeBucket filters to that bucket;
+// "potential" = entries whose customer has Har HaBituach external data.
+export type BucketTabValue = OfficeBucket | "all" | "potential";
 
 interface BucketTabsStripProps {
   entries: QueueEntryWithRelations[];
   active: BucketTabValue;
   onChange: (next: BucketTabValue) => void;
+}
+
+function isPotential(entry: QueueEntryWithRelations): boolean {
+  const c = entry.customer;
+  return (
+    c.source === "HAR_HABITUACH_ONLY" ||
+    (typeof c.externalPolicyCount === "number" && c.externalPolicyCount > 0)
+  );
 }
 
 export function BucketTabsStrip({
@@ -26,11 +36,13 @@ export function BucketTabsStrip({
       general: 0,
       renewal: 0,
     };
+    let potential = 0;
     for (const e of entries) {
       const b = e.bucket ?? "general";
       c[b] = (c[b] ?? 0) + 1;
+      if (isPotential(e)) potential += 1;
     }
-    return c;
+    return { byBucket: c, potential };
   }, [entries]);
 
   if (entries.length === 0) return null;
@@ -48,12 +60,21 @@ export function BucketTabsStrip({
         <Tab
           key={b}
           label={OFFICE_BUCKET_LABELS[b]}
-          count={counts[b]}
+          count={counts.byBucket[b]}
           active={active === b}
           onClick={() => onChange(b)}
           tone={b}
         />
       ))}
+      {counts.potential > 0 && (
+        <Tab
+          label="📂 פוטנציאל"
+          count={counts.potential}
+          active={active === "potential"}
+          onClick={() => onChange("potential")}
+          tone="potential"
+        />
+      )}
     </div>
   );
 }
@@ -69,7 +90,13 @@ function Tab({
   count: number;
   active: boolean;
   onClick: () => void;
-  tone: "all" | "coverage" | "savings" | "service" | "general";
+  tone:
+    | "all"
+    | "coverage"
+    | "savings"
+    | "service"
+    | "general"
+    | "potential";
 }) {
   const activeTone =
     tone === "coverage"
@@ -80,7 +107,9 @@ function Tab({
           ? "bg-violet-500/15 text-violet-700 border-violet-300/60"
           : tone === "general"
             ? "bg-rose-500/15 text-rose-700 border-rose-300/60"
-            : "bg-surface-900 text-white border-surface-900";
+            : tone === "potential"
+              ? "bg-violet-500/15 text-violet-700 border-violet-300/60"
+              : "bg-surface-900 text-white border-surface-900";
 
   return (
     <button
@@ -108,4 +137,18 @@ function Tab({
       </span>
     </button>
   );
+}
+
+/**
+ * Filter entries by the active bucket tab. Kept alongside the strip so
+ * every consumer applies the same semantics (handles "all" / "potential"
+ * / bucket alike).
+ */
+export function filterEntriesByTab<T extends QueueEntryWithRelations>(
+  entries: T[],
+  tab: BucketTabValue
+): T[] {
+  if (tab === "all") return entries;
+  if (tab === "potential") return entries.filter(isPotential);
+  return entries.filter((e) => (e.bucket ?? "general") === tab);
 }

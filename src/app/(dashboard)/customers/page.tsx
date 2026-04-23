@@ -29,12 +29,17 @@ interface CustomerItem {
   address: string | null;
   phone: string | null;
   email: string | null;
+  source: string | null;
+  lastHarHabituachImportAt: string | null;
   lastImportDate: string | null;
   policyCount: number;
   activePolicyCount: number;
+  externalPolicyCount: number;
   insightCount: number;
   latestInsightScore: number | null;
 }
+
+type SourceFilter = "all" | "office" | "har_habituach_only" | "has_external";
 
 interface CustomersResponse {
   items: CustomerItem[];
@@ -48,6 +53,7 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
 
   const handleSearch = useCallback(
@@ -64,12 +70,13 @@ export default function CustomersPage() {
   );
 
   const { data, isLoading } = useQuery<CustomersResponse>({
-    queryKey: ["customers", debouncedSearch, page],
+    queryKey: ["customers", debouncedSearch, sourceFilter, page],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set("page", String(page));
       params.set("limit", "50");
       if (debouncedSearch) params.set("search", debouncedSearch);
+      if (sourceFilter !== "all") params.set("source", sourceFilter);
       const res = await fetch(`/api/customers?${params}`);
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
@@ -92,6 +99,46 @@ export default function CustomersPage() {
             className="h-10 w-full rounded-lg border border-white/80 bg-white/80 pr-10 pl-4 text-sm text-surface-900 placeholder:text-surface-500 backdrop-blur-md transition-colors focus:border-violet-400/60 focus:bg-white/90 focus:outline-none focus:ring-2 focus:ring-violet-400/25"
           />
         </div>
+      </div>
+
+      {/* Source filter tabs */}
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-surface-200/80 bg-white/55 p-1.5 backdrop-blur-md">
+        <SourceTabButton
+          label="כל הלקוחות"
+          active={sourceFilter === "all"}
+          onClick={() => {
+            setSourceFilter("all");
+            setPage(1);
+          }}
+          tone="neutral"
+        />
+        <SourceTabButton
+          label="מהמשרד"
+          active={sourceFilter === "office"}
+          onClick={() => {
+            setSourceFilter("office");
+            setPage(1);
+          }}
+          tone="neutral"
+        />
+        <SourceTabButton
+          label="📂 עם פוטנציאל חיצוני"
+          active={sourceFilter === "has_external"}
+          onClick={() => {
+            setSourceFilter("has_external");
+            setPage(1);
+          }}
+          tone="violet"
+        />
+        <SourceTabButton
+          label="ללא תיק פעיל במשרד"
+          active={sourceFilter === "har_habituach_only"}
+          onClick={() => {
+            setSourceFilter("har_habituach_only");
+            setPage(1);
+          }}
+          tone="amber"
+        />
       </div>
 
       {/* Results count */}
@@ -159,9 +206,23 @@ export default function CustomersPage() {
 
                     {/* Name & ID */}
                     <div className="min-w-0">
-                      <h3 className="text-sm font-semibold text-surface-900">
-                        {customer.firstName} {customer.lastName}
-                      </h3>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-semibold text-surface-900">
+                          {customer.firstName} {customer.lastName}
+                        </h3>
+                        {customer.source === "HAR_HABITUACH_ONLY" ? (
+                          <span className="inline-flex items-center rounded-full border border-amber-300/60 bg-amber-50/70 px-2 py-0.5 text-[10px] font-medium text-amber-700 backdrop-blur-md">
+                            ללא תיק פעיל במשרד
+                          </span>
+                        ) : customer.externalPolicyCount > 0 ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-violet-300/50 bg-violet-500/10 px-2 py-0.5 text-[10px] font-medium text-violet-700 backdrop-blur-md">
+                            <span aria-hidden>📂</span>
+                            <span>
+                              {customer.externalPolicyCount} חיצוניות
+                            </span>
+                          </span>
+                        ) : null}
+                      </div>
                       <p className="text-xs text-surface-600 number">
                         ת.ז. {customer.israeliId}
                       </p>
@@ -250,5 +311,38 @@ export default function CustomersPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function SourceTabButton({
+  label,
+  active,
+  onClick,
+  tone,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  tone: "neutral" | "violet" | "amber";
+}) {
+  const activeClass =
+    tone === "violet"
+      ? "bg-violet-500/15 text-violet-700 border-violet-300/60"
+      : tone === "amber"
+        ? "bg-amber-500/15 text-amber-700 border-amber-300/60"
+        : "bg-surface-900 text-white border-surface-900";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
+        active
+          ? activeClass
+          : "border-transparent bg-transparent text-surface-600 hover:bg-white/65 hover:text-surface-800"
+      )}
+    >
+      {label}
+    </button>
   );
 }

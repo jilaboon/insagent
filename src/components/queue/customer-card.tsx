@@ -200,6 +200,10 @@ export function CustomerCard({
                 </Badge>
               )}
               <BucketTag bucket={bucket} label={bucketLabel} />
+              <CustomerSourceBadge
+                source={customer.source ?? null}
+                externalPolicyCount={customer.externalPolicyCount ?? 0}
+              />
             </div>
 
             {/* Why now — single Hebrew sentence, no competing scores */}
@@ -457,6 +461,43 @@ export function CustomerCard({
 // ============================================================
 // Bucket tag — the single visible category on a queue card
 // ============================================================
+
+// ============================================================
+// Customer source badge — flags external-data state
+// ============================================================
+// Three states:
+//   - Office customer, no external data → no badge (cleanest default)
+//   - Office customer with external data → "📂 פוטנציאל (N)" (violet, informational)
+//   - Prospect from Har HaBituach, not in office book → "ללא תיק פעיל"
+//     (amber, requires attention)
+
+function CustomerSourceBadge({
+  source,
+  externalPolicyCount,
+}: {
+  source: string | null;
+  externalPolicyCount: number;
+}) {
+  if (source === "HAR_HABITUACH_ONLY") {
+    return (
+      <span className="inline-flex items-center rounded-full border border-amber-300/60 bg-amber-50/70 px-2.5 py-0.5 text-[11px] font-medium text-amber-700 backdrop-blur-md">
+        ללא תיק פעיל במשרד
+      </span>
+    );
+  }
+  if (externalPolicyCount > 0) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-violet-300/50 bg-violet-500/10 px-2.5 py-0.5 text-[11px] font-medium text-violet-700 backdrop-blur-md">
+        <span aria-hidden>📂</span>
+        <span>
+          פוטנציאל{" "}
+          <span className="number">({externalPolicyCount})</span>
+        </span>
+      </span>
+    );
+  }
+  return null;
+}
 
 function BucketTag({ bucket, label }: { bucket: OfficeBucket; label: string }) {
   const tone =

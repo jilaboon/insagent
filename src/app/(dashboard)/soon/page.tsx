@@ -15,9 +15,9 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { CustomerCard } from "@/components/queue/customer-card";
 import {
   BucketTabsStrip,
+  filterEntriesByTab,
   type BucketTabValue,
 } from "@/components/queue/bucket-tabs";
-import type { OfficeBucket } from "@/lib/queue/buckets";
 import {
   useQueueSoon,
   useQueueAction,
@@ -35,12 +35,7 @@ export default function SoonPage() {
   const total = data?.total ?? 0;
   const totalPages = data?.totalPages ?? 1;
 
-  const items =
-    activeTab === "all"
-      ? allItems
-      : allItems.filter(
-          (e) => (e.bucket ?? "general") === (activeTab as OfficeBucket)
-        );
+  const items = filterEntriesByTab(allItems, activeTab);
 
   async function handlePromote(entry: QueueEntryWithRelations) {
     // Promote = mark current SOON entry as COMPLETED so backend can rebuild with it in TODAY,

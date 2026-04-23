@@ -778,6 +778,9 @@ export interface QueueEntryWithRelations {
     email: string | null;
     age: number | null;
     activePolicyCount?: number;
+    externalPolicyCount?: number;
+    source?: string | null;
+    lastHarHabituachImportAt?: string | null;
   };
   primaryInsight: QueuePrimaryInsight | null;
   supportingInsights?: QueueSupportingInsight[];
