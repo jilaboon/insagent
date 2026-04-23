@@ -85,11 +85,19 @@ export async function GET(
     status: { not: "NEW" as const },
   };
 
-  const [openTotal, handledTotal] = await Promise.all([
-    prisma.insight.count({ where: openWhere }),
-    prisma.insight.count({ where: handledWhere }),
-  ]);
-
+  // Single groupBy instead of two counts — covered by the
+  // (linkedRuleId, status) index so the query is a quick index scan.
+  const statusGroups = await prisma.insight.groupBy({
+    by: ["status"],
+    where: { linkedRuleId: ruleId },
+    _count: { _all: true },
+  });
+  let openTotal = 0;
+  let handledTotal = 0;
+  for (const g of statusGroups) {
+    if (g.status === "NEW") openTotal += g._count._all;
+    else handledTotal += g._count._all;
+  }
   const total = openTotal + handledTotal;
 
   // Slice the requested page across the two groups (open first, handled

@@ -315,6 +315,8 @@ model Insight {
   @@index([category])
   @@index([status])
   @@index([strengthScore])
+  @@index([linkedRuleId])
+  @@index([linkedRuleId, status])
   @@map("insights")
 }
 
