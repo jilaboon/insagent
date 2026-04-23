@@ -12,6 +12,7 @@ import {
   CompletenessIndicator,
 } from "@/components/ui/indicators";
 import { DataCoverageBanner } from "@/components/ui/data-coverage-banner";
+import { CustomerNotes } from "@/components/customers/customer-notes";
 import { ScoreBadge } from "@/components/shared/score-badge";
 import { MessageComposer } from "@/components/shared/message-composer";
 import { SkeletonCard, Skeleton } from "@/components/ui/skeleton";
@@ -218,6 +219,11 @@ export default function CustomerProfilePage() {
           </div>
         </div>
       </Card>
+
+      {/* Conversation journal — before insurance map so the agent sees
+          context ("what did we already talk about") before drilling into
+          the insurance picture. */}
+      <CustomerNotes customerId={customer.id} />
 
       {/* Insurance map */}
       <Card>

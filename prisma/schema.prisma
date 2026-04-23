@@ -35,6 +35,7 @@ model User {
   auditEntries      AuditEntry[]
   recommendations   Recommendation[] @relation("ReviewedBy")
   assignedQueue     QueueEntry[]     @relation("AssignedQueue")
+  customerNotes     CustomerNote[]
 
   @@map("users")
 }
@@ -79,12 +80,33 @@ model Customer {
   importLinks      ImportJobCustomer[]
   messageDrafts    MessageDraft[]
   queueEntries     QueueEntry[]
+  notes            CustomerNote[]
 
   @@index([israeliId])
   @@index([assignedManagerId])
   @@index([lastName, firstName])
   @@index([source])
   @@map("customers")
+}
+
+// ============================================================
+// Customer conversation journal — running log of agent notes
+// (calls placed, offers made, return-date commitments, etc).
+// Multi-row log (not a single text field) so we preserve history.
+// ============================================================
+
+model CustomerNote {
+  id         String   @id @default(uuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  authorId   String?
+  author     User?    @relation(fields: [authorId], references: [id])
+  body       String   @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([customerId, createdAt])
+  @@map("customer_notes")
 }
 
 enum FamilyMemberSource {
