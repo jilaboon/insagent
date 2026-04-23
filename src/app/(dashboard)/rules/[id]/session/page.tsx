@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  useQuery,
+  useInfiniteQuery,
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
@@ -75,11 +75,23 @@ interface SessionRule {
   isActive: boolean;
 }
 
+interface SessionPagination {
+  offset: number;
+  limit: number;
+  returned: number;
+  total: number;
+  hasMore: boolean;
+  nextOffset: number | null;
+}
+
 interface SessionResponse {
   rule: SessionRule;
   stats: { total: number; open: number; handled: number };
   items: SessionItem[];
+  pagination: SessionPagination;
 }
+
+const PAGE_SIZE = 50;
 
 const categoryVariant: Record<
   string,
@@ -96,8 +108,13 @@ const categoryVariant: Record<
 // Data helpers
 // ============================================================
 
-async function fetchSession(ruleId: string): Promise<SessionResponse> {
-  const res = await fetch(`/api/rules/${ruleId}/session`);
+async function fetchSession(
+  ruleId: string,
+  offset: number
+): Promise<SessionResponse> {
+  const res = await fetch(
+    `/api/rules/${ruleId}/session?offset=${offset}&limit=${PAGE_SIZE}`
+  );
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `טעינת הסשן נכשלה (${res.status})`);
@@ -130,9 +147,18 @@ export default function RuleSessionPage() {
   const ruleId = params?.id ?? "";
   const queryClient = useQueryClient();
 
-  const { data, isLoading, error } = useQuery({
+  const {
+    data,
+    isLoading,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ["rule-session", ruleId],
-    queryFn: () => fetchSession(ruleId),
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => fetchSession(ruleId, pageParam as number),
+    getNextPageParam: (lastPage) => lastPage.pagination.nextOffset ?? undefined,
     enabled: !!ruleId,
   });
 
@@ -199,18 +225,15 @@ export default function RuleSessionPage() {
     );
   }
 
-  if (!data) return null;
+  if (!data || data.pages.length === 0) return null;
 
-  const { rule, stats, items } = data;
+  const firstPage = data.pages[0];
+  const { rule, stats } = firstPage;
 
-  // Sort: open items first, handled after. Within each group preserve
-  // the API's strengthScore desc ordering.
-  const sorted = [...items].sort((a, b) => {
-    const aOpen = a.status === "NEW" ? 0 : 1;
-    const bOpen = b.status === "NEW" ? 0 : 1;
-    if (aOpen !== bOpen) return aOpen - bOpen;
-    return 0; // keep API order
-  });
+  // The API already returns items open-first, then handled, each group
+  // ordered by strengthScore desc. We preserve that order across pages.
+  const sorted: SessionItem[] = data.pages.flatMap((page) => page.items);
+  const loadedCount = sorted.length;
 
   const percent = stats.total > 0 ? Math.round((stats.handled / stats.total) * 100) : 0;
 
@@ -509,6 +532,31 @@ export default function RuleSessionPage() {
               </Card>
             );
           })}
+
+          {/* Load more / end-of-list footer */}
+          <div className="flex flex-col items-center gap-2 pt-2">
+            <p className="text-xs text-surface-500">
+              מציג <span className="number">{loadedCount}</span> מתוך{" "}
+              <span className="number">{stats.total}</span>
+            </p>
+            {hasNextPage ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={isFetchingNextPage}
+                onClick={() => fetchNextPage()}
+              >
+                {isFetchingNextPage ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : null}
+                טען עוד {Math.min(PAGE_SIZE, stats.total - loadedCount)}
+              </Button>
+            ) : (
+              loadedCount > PAGE_SIZE && (
+                <p className="text-xs text-surface-400">— סוף הרשימה —</p>
+              )
+            )}
+          </div>
         </div>
       )}
     </div>

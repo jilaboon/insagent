@@ -3,25 +3,62 @@ import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 
 /**
- * GET /api/rules/[id]/session
+ * GET /api/rules/[id]/session?offset=0&limit=50
  *
- * Returns every customer who currently has an active insight linked to
- * this rule, plus a status breakdown so the UI can show progress
- * ("14 טופלו, 28 נשארו"). Ordered by insight.strengthScore desc —
- * strongest/most relevant at the top.
+ * Paginated: returns at most `limit` items (capped at 100, default 50).
+ * Ordered open-first (status=NEW), then handled, each group by
+ * strengthScore desc. Stats stay global across the whole rule so the
+ * progress bar is accurate.
  *
- * Used by /rules/[id]/session — the focused-work surface where Rafi
- * sits for a couple of hours and plows through one rule at a time.
+ * Used by /rules/[id]/session — Rafi plows through one rule at a time,
+ * and some rules match thousands of customers. We never want to dump
+ * all of them into one response.
  */
 
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 100;
+
+const insightSelect = {
+  id: true,
+  status: true,
+  strengthScore: true,
+  title: true,
+  summary: true,
+  whyNow: true,
+  customer: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      israeliId: true,
+      phone: true,
+      email: true,
+      age: true,
+      source: true,
+    },
+  },
+} as const;
+
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { response: authResponse } = await requireAuth();
   if (authResponse) return authResponse;
 
   const { id: ruleId } = await params;
+
+  const url = new URL(request.url);
+  const rawOffset = Number.parseInt(url.searchParams.get("offset") ?? "0", 10);
+  const rawLimit = Number.parseInt(
+    url.searchParams.get("limit") ?? String(DEFAULT_LIMIT),
+    10
+  );
+  const offset = Number.isFinite(rawOffset) && rawOffset > 0 ? rawOffset : 0;
+  const limit = Math.min(
+    Math.max(Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : DEFAULT_LIMIT, 1),
+    MAX_LIMIT
+  );
 
   const rule = await prisma.officeRule.findUnique({
     where: { id: ruleId },
@@ -42,42 +79,55 @@ export async function GET(
     return NextResponse.json({ error: "חוק לא נמצא" }, { status: 404 });
   }
 
-  const insights = await prisma.insight.findMany({
-    where: { linkedRuleId: ruleId },
-    orderBy: [{ strengthScore: "desc" }, { createdAt: "desc" }],
-    select: {
-      id: true,
-      status: true,
-      strengthScore: true,
-      title: true,
-      summary: true,
-      whyNow: true,
-      customer: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          israeliId: true,
-          phone: true,
-          email: true,
-          age: true,
-          source: true,
-        },
-      },
-    },
-  });
+  const openWhere = { linkedRuleId: ruleId, status: "NEW" as const };
+  const handledWhere = {
+    linkedRuleId: ruleId,
+    status: { not: "NEW" as const },
+  };
 
-  // Progress breakdown. "Handled" = any action was taken;
-  // "open" = still NEW.
-  let open = 0;
-  let handled = 0;
-  for (const i of insights) {
-    if (i.status === "NEW") open += 1;
-    else handled += 1;
-  }
+  const [openTotal, handledTotal] = await Promise.all([
+    prisma.insight.count({ where: openWhere }),
+    prisma.insight.count({ where: handledWhere }),
+  ]);
 
-  // Optional: for each matching customer, pull their active external
-  // policy count so the UI can flag "📂 פוטנציאל" like the queue card.
+  const total = openTotal + handledTotal;
+
+  // Slice the requested page across the two groups (open first, handled
+  // after). If offset falls past the open set, skip into the handled set.
+  const openSkip = Math.min(offset, openTotal);
+  const openTake = Math.max(0, Math.min(openTotal - openSkip, limit));
+  const handledSkip = Math.max(0, offset - openTotal);
+  const handledTake = Math.max(0, limit - openTake);
+
+  const orderBy = [
+    { strengthScore: "desc" as const },
+    { createdAt: "desc" as const },
+  ];
+
+  const [openRows, handledRows] = await Promise.all([
+    openTake > 0
+      ? prisma.insight.findMany({
+          where: openWhere,
+          orderBy,
+          skip: openSkip,
+          take: openTake,
+          select: insightSelect,
+        })
+      : Promise.resolve([]),
+    handledTake > 0
+      ? prisma.insight.findMany({
+          where: handledWhere,
+          orderBy,
+          skip: handledSkip,
+          take: handledTake,
+          select: insightSelect,
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const insights = [...openRows, ...handledRows];
+
+  // External-policy count for the customers we're actually returning.
   const customerIds = insights.map((i) => i.customer.id);
   const externalCounts =
     customerIds.length > 0
@@ -108,13 +158,24 @@ export async function GET(
     },
   }));
 
+  const returned = offset + items.length;
+  const hasMore = returned < total;
+
   return NextResponse.json({
     rule,
     stats: {
-      total: insights.length,
-      open,
-      handled,
+      total,
+      open: openTotal,
+      handled: handledTotal,
     },
     items,
+    pagination: {
+      offset,
+      limit,
+      returned: items.length,
+      total,
+      hasMore,
+      nextOffset: hasMore ? returned : null,
+    },
   });
 }
