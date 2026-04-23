@@ -421,21 +421,44 @@ function deriveUrgency(rule: OfficeRule, profile: CustomerProfile): number {
 }
 
 function deriveScore(rule: OfficeRule, profile: CustomerProfile): number {
-  let score = 50; // base score
+  // Start from the rule-author-assigned base strength. Rafi knows which
+  // rules matter more — "dmei nihul on 300K savings" is structurally
+  // stronger than "customer has one branch of insurance".
+  const base = (rule as OfficeRule & { baseStrength?: number | null })
+    .baseStrength;
+  let score = typeof base === "number" ? base : 60;
 
-  // Boost for data richness
-  if (profile.activePolicies.length >= 3) score += 10;
-  if (profile.totalAccumulatedSavings > 100000) score += 10;
+  // Context boosts ONLY apply to commercial insights. Service tips stay
+  // at their base regardless of customer context — they're advice, not
+  // opportunities that get sharper with certain customer profiles.
+  const kind = (rule as OfficeRule & { kind?: string | null }).kind;
+  if (kind !== "service_tip") {
+    // Under-served customer: small office book. An insight on a customer
+    // with 2 policies total is WAY more actionable than the same insight
+    // on a customer with 10 — there's room to grow, and this is probably
+    // the only angle to reach them.
+    if (profile.activePolicies.length <= 3) score += 10;
 
-  // Boost for urgency-related rules
+    // Has external (Har HaBituach) data: a concrete hook exists. Even a
+    // mid-strength rule becomes compelling when we can tell the customer
+    // "we noticed you hold X elsewhere" — it's a credibility anchor.
+    const hasExternal = profile.activePolicies.some(
+      (p: { externalSource?: string | null }) =>
+        p.externalSource === "HAR_HABITUACH"
+    );
+    if (hasExternal) score += 15;
+
+    // Portfolio value: customers with meaningful savings deserve priority
+    // within the same rule — more at stake.
+    if (profile.totalAccumulatedSavings > 100000) score += 5;
+  }
+
+  // Rule-signal boosts. These reflect URGENCY-of-action, not strength of
+  // opportunity — a customer whose external policy expires in 30 days
+  // is a time-critical call regardless of portfolio size.
   const condition = rule.triggerCondition || "";
-  if (condition.includes("has_expiring_policy")) score += 20;
-  if (condition.includes("management_fee >")) score += 15;
-  if (condition.includes("age >= 60")) score += 15;
-  if (condition.includes("policy_age_years")) score += 10;
-
-  // Boost for MANUAL source (Rafi's personal tips)
-  if (rule.source === "MANUAL") score += 5;
+  if (condition.includes("has_expiring_policy")) score += 10;
+  if (condition.includes("external_policy_expiring")) score += 15;
 
   return Math.max(1, Math.min(100, score));
 }
