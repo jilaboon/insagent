@@ -191,21 +191,48 @@ export async function persistHarHabituach(
             policies: newExternalPolicies.slice(0, 10), // cap for size
           };
 
-          await tx.insight.create({
-            data: {
+          // Dedup on re-import: if a "held elsewhere" insight already
+          // exists for this customer (generatedBy = HAR_HABITUACH_IMPORT)
+          // and is still actionable (NEW / REVIEWED), update it in place.
+          // Otherwise create a fresh one. Prevents a second card appearing
+          // every time Rafi imports a fresh weekly file.
+          const existingInsight = await tx.insight.findFirst({
+            where: {
               customerId,
-              category: "CROSS_SELL_OPPORTUNITY",
-              title: "מוצר קיים מחוץ למשרד — הזדמנות לריכוז",
-              summary,
-              explanation: summary,
-              whyNow: "זוהתה דאטה חדשה מהר הביטוח",
-              evidenceJson,
               generatedBy: "HAR_HABITUACH_IMPORT",
-              strengthScore: 70,
-              status: "NEW",
+              status: { in: ["NEW", "REVIEWED"] },
             },
+            select: { id: true },
           });
-          result.insightsCreated += 1;
+
+          if (existingInsight) {
+            await tx.insight.update({
+              where: { id: existingInsight.id },
+              data: {
+                summary,
+                explanation: summary,
+                whyNow: "עודכנה דאטה מהר הביטוח",
+                evidenceJson,
+                strengthScore: 70,
+              },
+            });
+          } else {
+            await tx.insight.create({
+              data: {
+                customerId,
+                category: "CROSS_SELL_OPPORTUNITY",
+                title: "מוצר קיים מחוץ למשרד — הזדמנות לריכוז",
+                summary,
+                explanation: summary,
+                whyNow: "זוהתה דאטה חדשה מהר הביטוח",
+                evidenceJson,
+                generatedBy: "HAR_HABITUACH_IMPORT",
+                strengthScore: 70,
+                status: "NEW",
+              },
+            });
+            result.insightsCreated += 1;
+          }
         }
       });
     } catch (err) {

@@ -80,14 +80,16 @@ export async function POST(request: NextRequest) {
   }
 
   // MIME + extension validation
+  // Require a valid extension. If MIME is also present, it must be in the
+  // allowed set — unless MIME is empty (some browsers strip it, acceptable).
+  // This is stricter than checking "extension OR MIME" — a binary named
+  // evil.exe with MIME application/octet-stream previously slipped through.
   const fileName = (file.name || "").toLowerCase();
   const hasAllowedExt = ALLOWED_EXTENSIONS.some((ext) =>
     fileName.endsWith(ext)
   );
-  const hasAllowedMime = file.type ? ALLOWED_MIME_TYPES.has(file.type) : true;
-  // Require at least ONE signal (extension or MIME) to be valid. Some
-  // browsers strip MIME; most modern ones don't.
-  if (!hasAllowedExt && !hasAllowedMime) {
+  const hasBadMime = !!file.type && !ALLOWED_MIME_TYPES.has(file.type);
+  if (!hasAllowedExt || hasBadMime) {
     return NextResponse.json(
       { error: "סוג קובץ לא נתמך. יש להעלות xlsx או xls." },
       { status: 415 }
@@ -104,6 +106,24 @@ export async function POST(request: NextRequest) {
     },
     update: {},
   });
+
+  // In-flight import lock: refuse to start a new import if this operator
+  // already has a PROCESSING job. Prevents accidental double-uploads,
+  // runaway concurrent imports that exhaust DB connections, and a trivial
+  // DoS vector from a single authenticated user.
+  const inFlight = await prisma.importJob.findFirst({
+    where: { operatorId: operator.id, status: "PROCESSING" },
+    select: { id: true, fileName: true, createdAt: true },
+  });
+  if (inFlight) {
+    return NextResponse.json(
+      {
+        error: "ייבוא קודם עדיין בעיבוד",
+        detail: `קובץ ${inFlight.fileName} נטען כרגע. יש להמתין לסיום לפני העלאת קובץ נוסף.`,
+      },
+      { status: 409 }
+    );
+  }
 
   // Run the pipeline
   try {
@@ -136,12 +156,15 @@ export async function POST(request: NextRequest) {
     if (err instanceof HarHabituachParseError) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     }
-    const fallback =
-      err instanceof Error ? err.message : "אירעה שגיאה בלתי צפויה";
-    // Don't expose raw error messages that may include table names or paths
-    return NextResponse.json(
-      { error: "הייבוא נכשל", detail: fallback.slice(0, 120) },
-      { status: 500 }
-    );
+    // Don't expose raw error messages — they can include Prisma constraint
+    // names, table names, or field values. In non-prod we surface a short
+    // detail for debugging; in production we return a generic message only.
+    const body: Record<string, string> = { error: "הייבוא נכשל" };
+    if (process.env.NODE_ENV !== "production") {
+      const fallback =
+        err instanceof Error ? err.message : "אירעה שגיאה בלתי צפויה";
+      body.detail = fallback.slice(0, 120);
+    }
+    return NextResponse.json(body, { status: 500 });
   }
 }
