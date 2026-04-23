@@ -56,7 +56,13 @@ export function BucketTabsStrip({
         onClick={() => onChange("all")}
         tone="all"
       />
-      {(["coverage", "savings", "service", "general"] as const).map((b) => (
+      {/* The "general" bucket is intentionally NOT rendered as a tab.
+          In practice it's a catch-all for CROSS_SELL-only customers,
+          which the reason-builder almost never assigns because coverage
+          gaps / high value / stale contact catch customers first.
+          General customers still appear under "הכל" — just not as a
+          dedicated tab that would always show 0-2. */}
+      {(["coverage", "savings", "service"] as const).map((b) => (
         <Tab
           key={b}
           label={OFFICE_BUCKET_LABELS[b]}
