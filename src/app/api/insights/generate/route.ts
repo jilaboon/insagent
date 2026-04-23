@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
           const insightCategory = mapRuleCategoryToInsight(rule);
           const branch = deriveBranch(rule, profile);
           const urgency = deriveUrgency(rule, profile);
-          const score = deriveScore(rule, profile);
+          const scoreResult = deriveScore(rule, profile);
 
           insightsToCreate.push({
             customerId: custId,
@@ -130,12 +130,13 @@ export async function POST(request: NextRequest) {
                 : profile.activePolicies.length >= 1
                   ? 1
                   : 0,
-            strengthScore: score,
+            strengthScore: scoreResult.score,
             branch,
             evidenceJson: JSON.stringify({
               ruleId: rule.id,
               ruleSource: rule.source,
               triggerCondition: rule.triggerCondition,
+              scoreBreakdown: scoreResult.breakdown,
             }),
             generatedBy: "RULE",
             linkedRuleId: rule.id,
@@ -420,13 +421,31 @@ function deriveUrgency(rule: OfficeRule, profile: CustomerProfile): number {
   return 0;
 }
 
-function deriveScore(rule: OfficeRule, profile: CustomerProfile): number {
+type ScoreBoost = { label: string; delta: number };
+
+type ScoreBreakdown = {
+  base: number;
+  contextBoosts: ScoreBoost[];
+  urgencyBoosts: ScoreBoost[];
+  finalScore: number;
+};
+
+type ScoreResult = {
+  score: number;
+  breakdown: ScoreBreakdown;
+};
+
+function deriveScore(rule: OfficeRule, profile: CustomerProfile): ScoreResult {
   // Start from the rule-author-assigned base strength. Rafi knows which
   // rules matter more — "dmei nihul on 300K savings" is structurally
   // stronger than "customer has one branch of insurance".
-  const base = (rule as OfficeRule & { baseStrength?: number | null })
+  const baseValue = (rule as OfficeRule & { baseStrength?: number | null })
     .baseStrength;
-  let score = typeof base === "number" ? base : 60;
+  const base = typeof baseValue === "number" ? baseValue : 60;
+  let score = base;
+
+  const contextBoosts: ScoreBoost[] = [];
+  const urgencyBoosts: ScoreBoost[] = [];
 
   // Context boosts ONLY apply to commercial insights. Service tips stay
   // at their base regardless of customer context — they're advice, not
@@ -437,7 +456,13 @@ function deriveScore(rule: OfficeRule, profile: CustomerProfile): number {
     // with 2 policies total is WAY more actionable than the same insight
     // on a customer with 10 — there's room to grow, and this is probably
     // the only angle to reach them.
-    if (profile.activePolicies.length <= 3) score += 10;
+    if (profile.activePolicies.length <= 3) {
+      score += 10;
+      contextBoosts.push({
+        label: "לקוח לא־מוטה (פחות מ־4 פוליסות)",
+        delta: 10,
+      });
+    }
 
     // Has external (Har HaBituach) data: a concrete hook exists. Even a
     // mid-strength rule becomes compelling when we can tell the customer
@@ -446,21 +471,46 @@ function deriveScore(rule: OfficeRule, profile: CustomerProfile): number {
       (p: { externalSource?: string | null }) =>
         p.externalSource === "HAR_HABITUACH"
     );
-    if (hasExternal) score += 15;
+    if (hasExternal) {
+      score += 15;
+      contextBoosts.push({ label: "יש נתון מהר הביטוח", delta: 15 });
+    }
 
     // Portfolio value: customers with meaningful savings deserve priority
     // within the same rule — more at stake.
-    if (profile.totalAccumulatedSavings > 100000) score += 5;
+    if (profile.totalAccumulatedSavings > 100000) {
+      score += 5;
+      contextBoosts.push({
+        label: "תיק בעל ערך (חיסכון מעל ₪100K)",
+        delta: 5,
+      });
+    }
   }
 
   // Rule-signal boosts. These reflect URGENCY-of-action, not strength of
   // opportunity — a customer whose external policy expires in 30 days
   // is a time-critical call regardless of portfolio size.
   const condition = rule.triggerCondition || "";
-  if (condition.includes("has_expiring_policy")) score += 10;
-  if (condition.includes("external_policy_expiring")) score += 15;
+  if (condition.includes("has_expiring_policy")) {
+    score += 10;
+    urgencyBoosts.push({ label: "פוליסה פנימית מתחדשת", delta: 10 });
+  }
+  if (condition.includes("external_policy_expiring")) {
+    score += 15;
+    urgencyBoosts.push({ label: "פוליסה חיצונית מתחדשת", delta: 15 });
+  }
 
-  return Math.max(1, Math.min(100, score));
+  const finalScore = Math.max(1, Math.min(100, score));
+
+  return {
+    score: finalScore,
+    breakdown: {
+      base,
+      contextBoosts,
+      urgencyBoosts,
+      finalScore,
+    },
+  };
 }
 
 // ============================================================

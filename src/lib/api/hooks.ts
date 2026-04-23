@@ -145,6 +145,18 @@ export interface CustomerDetail {
      * "commercial" before serializing, so this is never null.
      */
     kind: string;
+    /**
+     * Optional structured breakdown of how `strengthScore` was derived.
+     * Older insights (generated before the breakdown feature) will have
+     * this as `null` — the UI should degrade to the plain ScoreBadge in
+     * that case.
+     */
+    scoreBreakdown?: {
+      base: number;
+      contextBoosts: Array<{ label: string; delta: number }>;
+      urgencyBoosts: Array<{ label: string; delta: number }>;
+      finalScore: number;
+    } | null;
     messageDraft: {
       id: string;
       body: string;

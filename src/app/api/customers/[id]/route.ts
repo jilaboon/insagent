@@ -2,6 +2,58 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 
+type ScoreBoost = { label: string; delta: number };
+
+type ScoreBreakdown = {
+  base: number;
+  contextBoosts: ScoreBoost[];
+  urgencyBoosts: ScoreBoost[];
+  finalScore: number;
+};
+
+/**
+ * Extract the stored score breakdown from an insight's evidenceJson.
+ *
+ * `evidenceJson` is a JSONB column, so Prisma returns it already parsed
+ * (object / array / null). Older insights — generated before the
+ * breakdown feature — won't have `scoreBreakdown` on the object, so we
+ * return `null` and let the UI fall back to the plain score badge.
+ */
+function extractScoreBreakdown(
+  evidenceJson: unknown
+): ScoreBreakdown | null {
+  if (!evidenceJson || typeof evidenceJson !== "object") return null;
+  const record = evidenceJson as Record<string, unknown>;
+  const raw = record.scoreBreakdown;
+  if (!raw || typeof raw !== "object") return null;
+
+  const obj = raw as Record<string, unknown>;
+  const base = typeof obj.base === "number" ? obj.base : null;
+  const finalScore =
+    typeof obj.finalScore === "number" ? obj.finalScore : null;
+  if (base === null || finalScore === null) return null;
+
+  const normBoosts = (value: unknown): ScoreBoost[] => {
+    if (!Array.isArray(value)) return [];
+    return value
+      .filter(
+        (b): b is ScoreBoost =>
+          !!b &&
+          typeof b === "object" &&
+          typeof (b as ScoreBoost).label === "string" &&
+          typeof (b as ScoreBoost).delta === "number"
+      )
+      .map((b) => ({ label: b.label, delta: b.delta }));
+  };
+
+  return {
+    base,
+    contextBoosts: normBoosts(obj.contextBoosts),
+    urgencyBoosts: normBoosts(obj.urgencyBoosts),
+    finalScore,
+  };
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -205,6 +257,11 @@ export async function GET(
       kind: i.kind ?? "commercial",
       status: i.status,
       createdAt: i.createdAt.toISOString(),
+      // Score breakdown — extracted defensively from evidenceJson.
+      // Older insights (generated before the breakdown feature) won't
+      // have this field, so we return null and the UI degrades to the
+      // plain ScoreBadge.
+      scoreBreakdown: extractScoreBreakdown(i.evidenceJson),
       messageDraft: i.messageDrafts[0]
         ? {
             id: i.messageDrafts[0].id,
