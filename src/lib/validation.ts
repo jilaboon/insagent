@@ -100,6 +100,14 @@ export const insightsGenerateSchema = z.object({
 });
 
 // ============================================================
+// Insight Action (rule-session handling)
+// ============================================================
+
+export const insightActionSchema = z.object({
+  status: z.enum(["NEW", "REVIEWED", "DISMISSED"]),
+});
+
+// ============================================================
 // Pattern Suggest
 // ============================================================
 

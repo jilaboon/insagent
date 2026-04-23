@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import {
   Sparkles,
   Check,
   Info,
+  Target,
 } from "lucide-react";
 import {
   useRules,
@@ -417,6 +419,14 @@ export default function RulesPage() {
 
                 <div className="flex items-center justify-between pt-1 border-t border-surface-100">
                   <div className="flex items-center gap-2">
+                    <Link
+                      href={`/rules/${rule.id}/session`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-violet-300/60 bg-violet-500/10 px-2.5 py-1 text-xs font-semibold text-violet-700 backdrop-blur-sm transition-colors hover:border-violet-400/80 hover:bg-violet-500/15 hover:text-violet-800"
+                      title="פתח סשן ממוקד על החוק הזה"
+                    >
+                      <Target className="h-3 w-3" />
+                      🎯 התחל סשן
+                    </Link>
                     <Button
                       variant="ghost"
                       size="sm"
