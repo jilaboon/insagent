@@ -46,6 +46,39 @@ export async function persistHarHabituach(
   };
 
   const now = new Date();
+  const total = merged.length;
+
+  // Seed totalRows on the job so the UI can compute percentage immediately
+  await prisma.importJob
+    .update({
+      where: { id: importJobId },
+      data: { totalRows: total },
+    })
+    .catch(() => {
+      /* best-effort; don't fail the import if the progress write fails */
+    });
+
+  // Flush progress to the ImportJob every N customers. Lets the UI poll
+  // the row and show a live progress bar. Small enough to feel real-time,
+  // big enough not to hammer the DB.
+  const PROGRESS_FLUSH_EVERY = 25;
+  let processedSinceLastFlush = 0;
+  let processedTotal = 0;
+
+  async function flushProgress() {
+    await prisma.importJob
+      .update({
+        where: { id: importJobId },
+        data: {
+          importedRows: processedTotal,
+          newCustomers: result.customersCreated,
+          updatedCustomers: result.customersExisting,
+        },
+      })
+      .catch(() => {
+        /* best-effort */
+      });
+  }
 
   for (const mc of merged) {
     try {
@@ -243,7 +276,17 @@ export async function persistHarHabituach(
         error: msg.slice(0, 200),
       });
     }
+
+    processedTotal += 1;
+    processedSinceLastFlush += 1;
+    if (processedSinceLastFlush >= PROGRESS_FLUSH_EVERY) {
+      processedSinceLastFlush = 0;
+      await flushProgress();
+    }
   }
+
+  // Final flush
+  await flushProgress();
 
   return result;
 }
