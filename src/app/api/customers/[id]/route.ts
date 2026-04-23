@@ -174,6 +174,11 @@ export async function GET(
       vehiclePlate: p.vehiclePlate,
       vehicleModel: p.vehicleModel,
       dataFreshness: p.dataFreshnessDate?.toISOString() ?? null,
+      externalSource: p.externalSource,
+      harHabituachFirstSeenAt:
+        p.harHabituachFirstSeenAt?.toISOString() ?? null,
+      harHabituachLastSeenAt:
+        p.harHabituachLastSeenAt?.toISOString() ?? null,
       investmentTracks: p.investmentTracks.map((t) => ({
         name: t.name,
         amount: t.accumulatedAmount,

@@ -303,48 +303,98 @@ export default function CustomerProfilePage() {
 
         {/* Right column (1/3) — Policies */}
         <div className="space-y-6">
-          {/* Policies summary */}
+          {/* Policies summary — external (Har HaBituach) policies pinned
+              to the top with a clear violet treatment so the agent can
+              immediately see what the customer holds outside the office. */}
           <Card>
             <CardHeader>
               <CardTitle>פוליסות</CardTitle>
-              <Badge variant="muted">{customer.policies.length}</Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="muted">{customer.policies.length}</Badge>
+                {(() => {
+                  const externalCount = customer.policies.filter(
+                    (p) => p.externalSource === "HAR_HABITUACH"
+                  ).length;
+                  if (externalCount === 0) return null;
+                  return (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-violet-300/50 bg-violet-500/10 px-2 py-0.5 text-[11px] font-medium text-violet-700">
+                      <span aria-hidden>📂</span>
+                      <span className="number">{externalCount}</span> מחוץ למשרד
+                    </span>
+                  );
+                })()}
+              </div>
             </CardHeader>
             {customer.policies.length > 0 ? (
               <div className="space-y-2">
-                {customer.policies.map((policy) => (
-                  <div
-                    key={policy.id}
-                    className="flex items-center justify-between rounded-lg border border-surface-100 p-3"
-                  >
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-surface-800">
-                        {policy.subType || policy.category}
-                      </p>
-                      <div className="flex items-center gap-2 text-xs text-surface-500">
-                        <span>{policy.insurer}</span>
-                        <span className="number">{policy.policyNumber}</span>
+                {[...customer.policies]
+                  .sort((a, b) => {
+                    // External policies first
+                    const ax = a.externalSource === "HAR_HABITUACH" ? 0 : 1;
+                    const bx = b.externalSource === "HAR_HABITUACH" ? 0 : 1;
+                    if (ax !== bx) return ax - bx;
+                    return 0;
+                  })
+                  .map((policy) => {
+                    const isExternal =
+                      policy.externalSource === "HAR_HABITUACH";
+                    return (
+                      <div
+                        key={policy.id}
+                        className={
+                          isExternal
+                            ? "flex items-center justify-between rounded-lg border border-violet-300/50 bg-violet-500/5 p-3"
+                            : "flex items-center justify-between rounded-lg border border-surface-100 p-3"
+                        }
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-surface-800">
+                              {policy.subType || policy.category}
+                            </p>
+                            {isExternal && (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-violet-300/60 bg-violet-500/15 px-2 py-0.5 text-[10px] font-medium text-violet-700">
+                                <span aria-hidden>📂</span>
+                                <span>מחוץ למשרד</span>
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-2 text-xs text-surface-500">
+                            <span>{policy.insurer}</span>
+                            <span className="number">
+                              {policy.policyNumber}
+                            </span>
+                          </div>
+                          {isExternal && policy.harHabituachLastSeenAt && (
+                            <p className="mt-1 text-[11px] text-violet-700/70">
+                              זוהה בהר הביטוח{" "}
+                              {new Date(
+                                policy.harHabituachLastSeenAt
+                              ).toLocaleDateString("he-IL")}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-left">
+                          {policy.premiumAnnual ? (
+                            <p className="text-sm font-medium text-surface-800 number">
+                              {formatCurrency(policy.premiumAnnual)}
+                              <span className="text-xs text-surface-400">
+                                {" "}
+                                /שנה
+                              </span>
+                            </p>
+                          ) : policy.accumulatedSavings ? (
+                            <p className="text-sm font-medium text-surface-800 number">
+                              {formatCurrency(policy.accumulatedSavings)}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-surface-400">₪0</p>
+                          )}
+                          <DataFreshness date={policy.dataFreshness} />
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-left">
-                      {policy.premiumAnnual ? (
-                        <p className="text-sm font-medium text-surface-800 number">
-                          {formatCurrency(policy.premiumAnnual)}
-                          <span className="text-xs text-surface-400">
-                            {" "}
-                            /שנה
-                          </span>
-                        </p>
-                      ) : policy.accumulatedSavings ? (
-                        <p className="text-sm font-medium text-surface-800 number">
-                          {formatCurrency(policy.accumulatedSavings)}
-                        </p>
-                      ) : (
-                        <p className="text-xs text-surface-400">₪0</p>
-                      )}
-                      <DataFreshness date={policy.dataFreshness} />
-                    </div>
-                  </div>
-                ))}
+                    );
+                  })}
               </div>
             ) : (
               <p className="py-6 text-center text-sm text-surface-400">

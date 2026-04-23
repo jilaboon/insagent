@@ -22,6 +22,9 @@ export interface CustomerProfilePolicy {
   vehicleModel: string | null;
   propertyAddress: string | null;
   dataFreshnessDate: string | null;
+  externalSource: string | null;
+  harHabituachFirstSeenAt: string | null;
+  harHabituachLastSeenAt: string | null;
   investmentTracks: {
     id: string;
     name: string;
