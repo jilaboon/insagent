@@ -203,15 +203,43 @@ type SortKey =
   | "lastName"
   | "age"
   | "externalPolicies"
+  | "premium"
   | "status";
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "strength", label: "חוזק" },
+  { value: "premium", label: "פרמיה שעונה על החוק" },
   { value: "lastName", label: "שם משפחה" },
   { value: "age", label: "גיל" },
   { value: "externalPolicies", label: "פוליסות חיצוניות 📂" },
   { value: "status", label: "סטטוס" },
 ];
+
+/**
+ * Total monthly premium across the policies that triggered this rule
+ * for this customer. Annual premiums are folded in as /12. Returns
+ * null when there are no triggering policies — those rows sort to the
+ * bottom.
+ */
+function triggeringMonthlyPremium(item: SessionItem): number | null {
+  const policies = item.triggeringPolicies ?? [];
+  if (policies.length === 0) return null;
+  let total = 0;
+  let any = false;
+  for (const p of policies) {
+    const monthly =
+      (p.premiumMonthly ?? null) !== null
+        ? (p.premiumMonthly as number)
+        : p.premiumAnnual != null
+          ? p.premiumAnnual / 12
+          : null;
+    if (monthly != null) {
+      total += monthly;
+      any = true;
+    }
+  }
+  return any ? total : null;
+}
 
 /**
  * Compare two items by the selected primary sort key. Returns the
@@ -246,6 +274,16 @@ function comparePrimary(a: SessionItem, b: SessionItem, key: SortKey): number {
       // Higher first — externalPolicyCount is always a number (0+),
       // so no null handling needed here.
       return b.customer.externalPolicyCount - a.customer.externalPolicyCount;
+    }
+    case "premium": {
+      // Higher monthly premium first. Customers without triggering
+      // policy data (older insights) drop to the bottom.
+      const ap = triggeringMonthlyPremium(a);
+      const bp = triggeringMonthlyPremium(b);
+      if (ap == null && bp == null) return 0;
+      if (ap == null) return 1;
+      if (bp == null) return -1;
+      return bp - ap;
     }
     case "status": {
       // Open first is the primary intent of this sort; secondary by
