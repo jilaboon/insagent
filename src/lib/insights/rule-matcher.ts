@@ -195,6 +195,15 @@ interface ClauseResult {
 
 const CLAUSE_FAIL: ClauseResult = { matched: false, contributingIds: [] };
 
+// Har HaBituach policies belong to the customer but not to the office.
+// Default office rules ignore them — only the explicit external_*
+// clauses opt back in. Without this filter, "single elementary product"
+// or "tenure with us" rules would count policies that the office never
+// sold or renewed.
+function isOffice(p: { externalSource?: string | null }): boolean {
+  return p.externalSource !== "HAR_HABITUACH";
+}
+
 function evaluateCondition(
   clause: string,
   profile: CustomerProfile
@@ -202,9 +211,15 @@ function evaluateCondition(
   // Pre-filter once per clause invocation. Premium-style filtering
   // drops FROZEN/PAID_UP/ARREARS — those policies aren't billable
   // engagement targets anymore. Savings-style retains PAID_UP because
-  // the accumulated money is still parked in the account.
-  const premiumPolicies = profile.activePolicies.filter(isActiveForPremium);
-  const savingsPolicies = profile.activePolicies.filter(isActiveForSavings);
+  // the accumulated money is still parked in the account. Both views
+  // exclude Har HaBituach entries; the explicit external clause
+  // re-opens them below.
+  const premiumPolicies = profile.activePolicies
+    .filter(isActiveForPremium)
+    .filter(isOffice);
+  const savingsPolicies = profile.activePolicies
+    .filter(isActiveForSavings)
+    .filter(isOffice);
 
   // Boolean flags (no operator)
   if (clause === "has_expiring_policy") {
@@ -435,16 +450,19 @@ function evaluateCondition(
     }
 
     case "customer_tenure_years": {
-      // How long the customer has been with the office, computed from
-      // the OLDEST policy startDate across all policies — including
-      // CANCELLED and EXPIRED. Renewals create fresh policy records, so
-      // looking only at active policies would miss long-tenured
-      // customers whose current policy started recently. No specific
-      // policies "contribute" — this is a pure customer-level signal.
+      // How long the customer has been with the OFFICE, computed from
+      // the oldest policy startDate across all OFFICE policies —
+      // including CANCELLED and EXPIRED. Renewals create fresh policy
+      // records, so looking only at active policies would miss
+      // long-tenured customers whose current policy started recently.
+      // Har HaBituach policies are excluded — they're not the office's
+      // history with the customer. No specific policies "contribute"
+      // — this is a pure customer-level signal.
       const threshold = parseFloat(value);
       if (isNaN(threshold)) return CLAUSE_FAIL;
       let oldest: Date | null = null;
       for (const p of profile.customer.policies) {
+        if (!isOffice(p)) continue;
         if (!p.startDate) continue;
         const d = new Date(p.startDate);
         if (!oldest || d < oldest) oldest = d;
@@ -488,13 +506,18 @@ function evaluateCondition(
       // Har HaBituach whose endDate sits in the window (0, N] days from
       // now. Already-expired policies (diff < 0) don't count — Rafi's
       // "golden window" concept is strictly forward-looking.
+      // This is the one clause that explicitly opts INTO Har HaBituach
+      // — the default office filter is bypassed here.
       const threshold = parseFloat(value);
       if (isNaN(threshold)) return CLAUSE_FAIL;
       const now = Date.now();
-      const hits = premiumPolicies.filter((p) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const anyP = p as any;
-        if (anyP.externalSource !== "HAR_HABITUACH") return false;
+      const externalActive = profile.activePolicies
+        .filter(isActiveForPremium)
+        .filter(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (p) => (p as any).externalSource === "HAR_HABITUACH"
+        );
+      const hits = externalActive.filter((p) => {
         if (!p.endDate) return false;
         const daysLeft =
           (new Date(p.endDate).getTime() - now) / (24 * 60 * 60 * 1000);
