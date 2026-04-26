@@ -22,6 +22,9 @@
  *   savings > 100000                         — customer-wide
  *   management_fee > 1.5                     — customer-wide
  *   months_since_review > 18                 — customer-wide (null → ∞)
+ *   customer_tenure_years > 3                — customer-wide
+ *       (oldest startDate across ALL policies — including cancelled
+ *        and expired — so renewals don't reset tenure)
  *   has_life_and_elementary                  — customer-wide
  *   travel_season                            — customer-wide
  *   external_policy_expiring_within_days < 90 — customer-wide
@@ -428,6 +431,30 @@ function evaluateCondition(
       return {
         matched,
         contributingIds: matched ? contributing : [],
+      };
+    }
+
+    case "customer_tenure_years": {
+      // How long the customer has been with the office, computed from
+      // the OLDEST policy startDate across all policies — including
+      // CANCELLED and EXPIRED. Renewals create fresh policy records, so
+      // looking only at active policies would miss long-tenured
+      // customers whose current policy started recently. No specific
+      // policies "contribute" — this is a pure customer-level signal.
+      const threshold = parseFloat(value);
+      if (isNaN(threshold)) return CLAUSE_FAIL;
+      let oldest: Date | null = null;
+      for (const p of profile.customer.policies) {
+        if (!p.startDate) continue;
+        const d = new Date(p.startDate);
+        if (!oldest || d < oldest) oldest = d;
+      }
+      if (!oldest) return CLAUSE_FAIL;
+      const years =
+        (Date.now() - oldest.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+      return {
+        matched: compareNumber(years, operator, threshold),
+        contributingIds: [],
       };
     }
 
