@@ -7,7 +7,6 @@ import type {
   Policy,
   Coverage,
   InvestmentTrack,
-  ManagementFee,
   InsightCategory,
 } from "@prisma/client";
 
@@ -20,7 +19,6 @@ export interface CustomerProfile {
     policies: (Policy & {
       coverages: Coverage[];
       investmentTracks: InvestmentTrack[];
-      managementFees: ManagementFee[];
     })[];
   };
   // Computed aggregates
@@ -31,7 +29,6 @@ export interface CustomerProfile {
   activePolicies: (Policy & {
     coverages: Coverage[];
     investmentTracks: InvestmentTrack[];
-    managementFees: ManagementFee[];
   })[];
   nearestExpiry: Date | null;
   oldestPolicyStartDate: Date | null;

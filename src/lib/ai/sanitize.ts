@@ -96,7 +96,8 @@ export function sanitizePolicyForAI(policy: {
   startDate: string | null;
   endDate: string | null;
   vehicleYear: number | null;
-  managementFees: Array<{ feeType: string; ratePercent: number | null }>;
+  feeOnAccumulationPct: number | null;
+  feeOnPremiumPct: number | null;
 }): Record<string, unknown> {
   return {
     category: policy.category,
@@ -111,10 +112,8 @@ export function sanitizePolicyForAI(policy: {
     startDate: policy.startDate,
     endDate: policy.endDate,
     vehicleYear: policy.vehicleYear,
-    managementFees: policy.managementFees.map((f) => ({
-      feeType: f.feeType,
-      ratePercent: f.ratePercent,
-    })),
+    feeOnAccumulationPct: policy.feeOnAccumulationPct,
+    feeOnPremiumPct: policy.feeOnPremiumPct,
   };
 }
 

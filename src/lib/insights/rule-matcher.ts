@@ -405,27 +405,23 @@ function evaluateCondition(
     }
 
     case "management_fee": {
-      // Take the max ratePercent across savings-active policies. PAID_UP
-      // policies still incur fees on the accumulated balance, so they
-      // count for this rule. Contributing IDs are the policies whose
-      // managementFees include a ratePercent that itself satisfies the
-      // threshold — those are the policies Rafi should investigate.
+      // Compares the higher of the two fee fields on each policy.
+      // PAID_UP policies still incur fees on the accumulated balance,
+      // so they remain in scope. Contributing IDs are the specific
+      // policies whose own fee crosses the threshold.
       const threshold = parseFloat(value);
       if (isNaN(threshold)) return CLAUSE_FAIL;
       let maxFee: number | null = null;
       const contributing: string[] = [];
       for (const p of savingsPolicies) {
-        let policyMatchesThreshold = false;
-        for (const fee of p.managementFees ?? []) {
-          if (fee.ratePercent == null) continue;
-          if (maxFee == null || fee.ratePercent > maxFee) {
-            maxFee = fee.ratePercent;
-          }
-          if (compareNumber(fee.ratePercent, operator, threshold)) {
-            policyMatchesThreshold = true;
-          }
+        const candidates = [p.feeOnAccumulationPct, p.feeOnPremiumPct]
+          .filter((x): x is number => x != null);
+        if (candidates.length === 0) continue;
+        const policyMax = Math.max(...candidates);
+        if (maxFee == null || policyMax > maxFee) maxFee = policyMax;
+        if (compareNumber(policyMax, operator, threshold)) {
+          contributing.push(p.id);
         }
-        if (policyMatchesThreshold) contributing.push(p.id);
       }
       if (maxFee == null) return CLAUSE_FAIL;
       const matched = compareNumber(maxFee, operator, threshold);

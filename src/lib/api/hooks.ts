@@ -125,7 +125,8 @@ export interface CustomerDetail {
     harHabituachFirstSeenAt: string | null;
     harHabituachLastSeenAt: string | null;
     investmentTracks: { name: string; amount: number | null; ytdReturn: number | null }[];
-    managementFees: { type: string; rate: number | null; amount: number | null }[];
+    feeOnAccumulationPct: number | null;
+    feeOnPremiumPct: number | null;
   }[];
   insights: {
     id: string;

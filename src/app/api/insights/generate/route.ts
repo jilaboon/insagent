@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
       ? await prisma.$queryRawUnsafe(
           `SELECT id, "customerId", "policyNumber", insurer, category, "subType", status,
                   "premiumMonthly", "premiumAnnual", "accumulatedSavings",
+                  "feeOnAccumulationPct", "feeOnPremiumPct",
                   "startDate", "endDate", "vehicleYear", "vehiclePlate", "propertyAddress",
                   "externalSource"
            FROM policies WHERE "customerId" = ANY($1)`,
@@ -303,13 +304,14 @@ function buildProfileFromRawRows(customerRow: any, policyRows: any[]): CustomerP
     premiumMonthly: r.premiumMonthly ? Number(r.premiumMonthly) : null,
     premiumAnnual: r.premiumAnnual ? Number(r.premiumAnnual) : null,
     accumulatedSavings: r.accumulatedSavings ? Number(r.accumulatedSavings) : null,
+    feeOnAccumulationPct: r.feeOnAccumulationPct ? Number(r.feeOnAccumulationPct) : null,
+    feeOnPremiumPct: r.feeOnPremiumPct ? Number(r.feeOnPremiumPct) : null,
     startDate: r.startDate,
     endDate: r.endDate,
     vehicleYear: r.vehicleYear,
     vehiclePlate: r.vehiclePlate,
     propertyAddress: r.propertyAddress,
     externalSource: r.externalSource ?? null,
-    managementFees: [],
     coverages: [],
     investmentTracks: [],
   }));

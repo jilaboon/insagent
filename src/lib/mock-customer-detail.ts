@@ -116,9 +116,8 @@ export const mockCustomerDetail = {
         { name: "עוקב מדדים-גמיש", amount: 405289, ytdReturn: 0.11 },
         { name: "כללי", amount: 429562, ytdReturn: 16.35 },
       ],
-      managementFees: [
-        { type: "דמי ניהול מצבירה", rate: 0.69 },
-      ],
+      feeOnAccumulationPct: 0.69,
+      feeOnPremiumPct: null,
     },
     {
       id: "p6",

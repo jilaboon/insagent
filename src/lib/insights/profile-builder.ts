@@ -14,7 +14,6 @@ export async function buildCustomerProfile(customerId: string): Promise<Customer
         include: {
           coverages: true,
           investmentTracks: true,
-          managementFees: true,
         },
       },
     },
@@ -32,7 +31,6 @@ export async function buildAllProfiles(): Promise<CustomerProfile[]> {
         include: {
           coverages: true,
           investmentTracks: true,
-          managementFees: true,
         },
       },
     },
@@ -47,7 +45,6 @@ function computeProfile(
       Awaited<ReturnType<typeof prisma.policy.findFirst>> & {
         coverages: Awaited<ReturnType<typeof prisma.coverage.findMany>>;
         investmentTracks: Awaited<ReturnType<typeof prisma.investmentTrack.findMany>>;
-        managementFees: Awaited<ReturnType<typeof prisma.managementFee.findMany>>;
       }
     >;
   }
@@ -108,12 +105,15 @@ function computeProfile(
       if (!oldestPolicyStartDate || start < oldestPolicyStartDate) oldestPolicyStartDate = start;
     }
 
-    // Check management fees
-    for (const fee of p.managementFees || []) {
-      if (fee.ratePercent != null) {
-        if (maxManagementFeePercent == null || fee.ratePercent > maxManagementFeePercent) {
-          maxManagementFeePercent = fee.ratePercent;
-        }
+    // Highest fee on this policy (we keep two columns: accumulation /
+    // premium). PAID_UP-status filter is applied per-clause in the
+    // matcher, not here.
+    const policyFees = [p.feeOnAccumulationPct, p.feeOnPremiumPct]
+      .filter((x: number | null | undefined): x is number => x != null);
+    if (policyFees.length > 0) {
+      const policyMax = Math.max(...policyFees);
+      if (maxManagementFeePercent == null || policyMax > maxManagementFeePercent) {
+        maxManagementFeePercent = policyMax;
       }
     }
 

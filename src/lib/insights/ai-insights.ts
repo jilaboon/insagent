@@ -57,10 +57,8 @@ export async function generateAIInsights(
       startDate: p.startDate?.toISOString().split("T")[0] || null,
       endDate: p.endDate?.toISOString().split("T")[0] || null,
       vehicleYear: p.vehicleYear,
-      managementFees: (p.managementFees || []).map((f) => ({
-        feeType: f.feeType,
-        ratePercent: f.ratePercent,
-      })),
+      feeOnAccumulationPct: p.feeOnAccumulationPct,
+      feeOnPremiumPct: p.feeOnPremiumPct,
     })),
     existingInsights: existingInsightTitles,
   });

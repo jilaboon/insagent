@@ -111,6 +111,7 @@ export async function buildQueue(
   const policyRows = (await prisma.$queryRawUnsafe(
     `SELECT id, "customerId", category, status, "endDate",
             "premiumMonthly", "premiumAnnual", "accumulatedSavings",
+            "feeOnAccumulationPct", "feeOnPremiumPct",
             "externalSource"
      FROM policies WHERE "customerId" = ANY($1)`,
     customerIds
@@ -123,6 +124,8 @@ export async function buildQueue(
     premiumMonthly: number | null;
     premiumAnnual: number | null;
     accumulatedSavings: number | null;
+    feeOnAccumulationPct: number | null;
+    feeOnPremiumPct: number | null;
     externalSource: string | null;
   }>;
 
@@ -134,30 +137,12 @@ export async function buildQueue(
     }
   }
 
-  const mgmtFeeRows = (await prisma.$queryRawUnsafe(
-    `SELECT mf."policyId", mf."ratePercent", p."customerId"
-     FROM management_fees mf
-     JOIN policies p ON p.id = mf."policyId"
-     WHERE p."customerId" = ANY($1)`,
-    customerIds
-  )) as Array<{
-    policyId: string;
-    ratePercent: number | null;
-    customerId: string;
-  }>;
-
-  // Map max management fee per policy
-  const maxFeeByPolicy = new Map<string, number>();
-  for (const mf of mgmtFeeRows) {
-    if (mf.ratePercent == null) continue;
-    const cur = maxFeeByPolicy.get(mf.policyId) ?? 0;
-    if (mf.ratePercent > cur) maxFeeByPolicy.set(mf.policyId, mf.ratePercent);
-  }
-
   // Group policies by customer
   const policyByCustomer = new Map<string, ReasonPolicy[]>();
   for (const p of policyRows) {
     const arr = policyByCustomer.get(p.customerId) ?? [];
+    const fees = [p.feeOnAccumulationPct, p.feeOnPremiumPct]
+      .filter((x): x is number => x != null);
     arr.push({
       id: p.id,
       category: p.category,
@@ -168,7 +153,7 @@ export async function buildQueue(
       accumulatedSavings: p.accumulatedSavings
         ? Number(p.accumulatedSavings)
         : null,
-      managementFeePercent: maxFeeByPolicy.get(p.id) ?? null,
+      managementFeePercent: fees.length > 0 ? Math.max(...fees) : null,
     });
     policyByCustomer.set(p.customerId, arr);
   }

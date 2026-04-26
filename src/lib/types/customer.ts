@@ -31,11 +31,8 @@ export interface CustomerProfilePolicy {
     accumulatedAmount: number | null;
     ytdReturn: number | null;
   }[];
-  managementFees: {
-    id: string;
-    feeType: string;
-    ratePercent: number | null;
-  }[];
+  feeOnAccumulationPct: number | null;
+  feeOnPremiumPct: number | null;
 }
 
 export interface CustomerProfileAggregates {

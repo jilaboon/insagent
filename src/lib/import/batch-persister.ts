@@ -141,6 +141,8 @@ async function upsertCustomerBatch(
         ${esc(p.employer)},
         ${escNum(p.accumulatedSavings)},
         ${escNum(p.redemptionValue)},
+        ${escNum(p.managementFeeFromAccumulation)},
+        ${escNum(p.managementFeeFromPremium)},
         ${escDate(p.dataFreshnessDate)},
         ${escInt(p.vehicleYear)},
         ${esc(p.vehiclePlate)},
@@ -155,7 +157,7 @@ async function upsertCustomerBatch(
 
   if (policyValues.length > 0) {
     const policySql = `
-      INSERT INTO policies (id, "customerId", "policyNumber", insurer, category, "subType", status, "productName", "startDate", "endDate", "premiumMonthly", "premiumAnnual", "accountType", employer, "accumulatedSavings", "redemptionValue", "dataFreshnessDate", "vehicleYear", "vehiclePlate", "vehicleModel", "propertyAddress", "importJobId", "createdAt", "updatedAt")
+      INSERT INTO policies (id, "customerId", "policyNumber", insurer, category, "subType", status, "productName", "startDate", "endDate", "premiumMonthly", "premiumAnnual", "accountType", employer, "accumulatedSavings", "redemptionValue", "feeOnAccumulationPct", "feeOnPremiumPct", "dataFreshnessDate", "vehicleYear", "vehiclePlate", "vehicleModel", "propertyAddress", "importJobId", "createdAt", "updatedAt")
       VALUES ${policyValues.join(",\n")}
       ON CONFLICT ("customerId", "policyNumber", insurer) DO UPDATE SET
         category = EXCLUDED.category,
@@ -170,6 +172,8 @@ async function upsertCustomerBatch(
         employer = COALESCE(EXCLUDED.employer, policies.employer),
         "accumulatedSavings" = COALESCE(EXCLUDED."accumulatedSavings", policies."accumulatedSavings"),
         "redemptionValue" = COALESCE(EXCLUDED."redemptionValue", policies."redemptionValue"),
+        "feeOnAccumulationPct" = COALESCE(EXCLUDED."feeOnAccumulationPct", policies."feeOnAccumulationPct"),
+        "feeOnPremiumPct" = COALESCE(EXCLUDED."feeOnPremiumPct", policies."feeOnPremiumPct"),
         "dataFreshnessDate" = COALESCE(EXCLUDED."dataFreshnessDate", policies."dataFreshnessDate"),
         "vehicleYear" = COALESCE(EXCLUDED."vehicleYear", policies."vehicleYear"),
         "vehiclePlate" = COALESCE(EXCLUDED."vehiclePlate", policies."vehiclePlate"),

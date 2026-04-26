@@ -97,7 +97,6 @@ export async function GET(
         include: {
           coverages: true,
           investmentTracks: true,
-          managementFees: true,
         },
         orderBy: { category: "asc" },
       },
@@ -276,11 +275,8 @@ export async function GET(
         amount: t.accumulatedAmount,
         ytdReturn: t.ytdReturn,
       })),
-      managementFees: p.managementFees.map((f) => ({
-        type: f.feeType,
-        rate: f.ratePercent,
-        amount: f.amount,
-      })),
+      feeOnAccumulationPct: p.feeOnAccumulationPct,
+      feeOnPremiumPct: p.feeOnPremiumPct,
     })),
     insights: customer.insights.map((i) => ({
       id: i.id,

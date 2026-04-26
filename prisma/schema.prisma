@@ -173,6 +173,11 @@ model Policy {
   lastDeposit     Float?
   redemptionValue Float?
   accumulatedSavings Float?
+  // Management fees as percentage. Each policy has at most one of each
+  // (אחוז דמי ניהול מצבירה / מפרמיה). Stored directly on Policy instead
+  // of a separate table so rule matching becomes a single field check.
+  feeOnAccumulationPct Float?
+  feeOnPremiumPct Float?
   dataFreshnessDate DateTime?    // נכונות המידע
   importJobId     String?
   importJob       ImportJob?     @relation(fields: [importJobId], references: [id])
@@ -197,7 +202,6 @@ model Policy {
 
   coverages        Coverage[]
   investmentTracks InvestmentTrack[]
-  managementFees   ManagementFee[]
 
   @@unique([customerId, policyNumber, insurer])
   @@index([customerId])
@@ -235,20 +239,6 @@ model InvestmentTrack {
 
   @@index([policyId])
   @@map("investment_tracks")
-}
-
-model ManagementFee {
-  id            String  @id @default(uuid())
-  policyId      String
-  policy        Policy  @relation(fields: [policyId], references: [id], onDelete: Cascade)
-  characteristic String? // מאפייני מסלול
-  feeType       String   // דמי ניהול מצבירה / מהפקדה
-  ratePercent   Float?
-  amount        Float?
-  otherAmount   Float?
-
-  @@index([policyId])
-  @@map("management_fees")
 }
 
 // ============================================================

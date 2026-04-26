@@ -68,7 +68,8 @@ export function buildInsightUserPrompt(params: {
     startDate: string | null;
     endDate: string | null;
     vehicleYear: number | null;
-    managementFees: Array<{ feeType: string; ratePercent: number | null }>;
+    feeOnAccumulationPct: number | null;
+    feeOnPremiumPct: number | null;
   }>;
   existingInsights: string[];
 }): string {
@@ -92,10 +93,11 @@ export function buildInsightUserPrompt(params: {
     // Data minimization: policy age in years instead of exact dates
     if (p.startDate) prompt += ` | ותק פוליסה: ${policyAgeYears(p.startDate)}`;
     if (p.vehicleYear) prompt += ` | שנת רכב: ${p.vehicleYear}`;
-    if (p.managementFees.length > 0) {
-      for (const fee of p.managementFees) {
-        if (fee.ratePercent) prompt += ` | ${fee.feeType}: ${fee.ratePercent}%`;
-      }
+    if (p.feeOnAccumulationPct != null) {
+      prompt += ` | דמי ניהול מצבירה: ${p.feeOnAccumulationPct}%`;
+    }
+    if (p.feeOnPremiumPct != null) {
+      prompt += ` | דמי ניהול מפרמיה: ${p.feeOnPremiumPct}%`;
     }
     prompt += "\n";
   }
