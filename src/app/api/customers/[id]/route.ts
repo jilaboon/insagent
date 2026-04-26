@@ -2,6 +2,32 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 
+// ============================================================
+// Status buckets — kept in sync with src/lib/insights/rule-matcher.ts.
+// CANCELLED / EXPIRED policies must never appear in aggregates.
+// FROZEN / PAID_UP / ARREARS are inactive for premium / count
+// purposes; PAID_UP still holds savings so it counts there.
+// ============================================================
+const ACTIVE_FOR_PREMIUM = new Set([
+  "ACTIVE",
+  "PROPOSAL",
+  "UNKNOWN",
+]);
+const ACTIVE_FOR_SAVINGS = new Set([
+  "ACTIVE",
+  "PROPOSAL",
+  "UNKNOWN",
+  "PAID_UP",
+]);
+
+function isActiveForPremium(p: { status: string }): boolean {
+  return ACTIVE_FOR_PREMIUM.has(p.status);
+}
+
+function isActiveForSavings(p: { status: string }): boolean {
+  return ACTIVE_FOR_SAVINGS.has(p.status);
+}
+
 type ScoreBoost = { label: string; delta: number };
 
 type ScoreBreakdown = {
@@ -132,8 +158,19 @@ export async function GET(
   > = {};
 
   for (const cat of categories) {
-    const catPolicies = customer.policies.filter((p) => p.category === cat);
-    if (catPolicies.length === 0) {
+    // The aggregates that drive the dashboard cards must exclude
+    // CANCELLED / EXPIRED policies (and FROZEN/PAID_UP/ARREARS for
+    // premium-based metrics). Savings-based aggregates keep PAID_UP
+    // — that money is still in the account.
+    const allCatPolicies = customer.policies.filter((p) => p.category === cat);
+    const premiumCatPolicies = allCatPolicies.filter(isActiveForPremium);
+    const savingsCatPolicies = allCatPolicies.filter(isActiveForSavings);
+
+    // The card "exists" iff there is at least one policy in any state
+    // for this category — even an inactive one is worth surfacing in
+    // the UI list. Aggregates are zeroed when all premium-active
+    // counterparts are gone.
+    if (allCatPolicies.length === 0) {
       insuranceMap[cat] = {
         exists: false,
         policyCount: 0,
@@ -147,35 +184,38 @@ export async function GET(
       continue;
     }
 
-    const insurers = [...new Set(catPolicies.map((p) => p.insurer))];
-    const totalAnnualPremium = catPolicies.reduce(
+    const insurers = [...new Set(premiumCatPolicies.map((p) => p.insurer))];
+    const totalAnnualPremium = premiumCatPolicies.reduce(
       (sum, p) => sum + (p.premiumAnnual ?? 0),
       0
     );
-    const totalMonthlyPremium = catPolicies.reduce(
+    const totalMonthlyPremium = premiumCatPolicies.reduce(
       (sum, p) => sum + (p.premiumMonthly ?? 0),
       0
     );
-    const totalAccumulated = catPolicies.reduce(
+    const totalAccumulated = savingsCatPolicies.reduce(
       (sum, p) => sum + (p.accumulatedSavings ?? 0),
       0
     );
 
-    // Nearest expiry among active policies with an end date
-    const expiryDates = catPolicies
+    // Nearest expiry among ACTIVE policies with an end date.
+    // Inactive (CANCELLED / EXPIRED) policies have no meaningful
+    // future expiry — don't report them as upcoming.
+    const expiryDates = premiumCatPolicies
       .filter((p) => p.endDate && p.status === "ACTIVE")
       .map((p) => p.endDate!)
       .sort((a, b) => a.getTime() - b.getTime());
 
-    // Latest data freshness date
-    const freshnessDates = catPolicies
+    // Latest data freshness — keep all policies. Even an inactive
+    // policy's freshness signals when we last saw the customer.
+    const freshnessDates = allCatPolicies
       .filter((p) => p.dataFreshnessDate)
       .map((p) => p.dataFreshnessDate!)
       .sort((a, b) => b.getTime() - a.getTime());
 
     insuranceMap[cat] = {
-      exists: true,
-      policyCount: catPolicies.length,
+      exists: premiumCatPolicies.length > 0,
+      policyCount: premiumCatPolicies.length,
       totalAnnualPremium,
       totalMonthlyPremium,
       totalAccumulated,

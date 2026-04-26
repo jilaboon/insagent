@@ -55,6 +55,34 @@ const PER_POLICY_FIELDS = new Set([
 
 const CLAUSE_PATTERN = /^(\w+)\s*(>=|<=|!=|>|<|=)\s*(.+)$/;
 
+// ============================================================
+// Status buckets
+// ------------------------------------------------------------
+// CANCELLED / EXPIRED → never count anywhere.
+// FROZEN / PAID_UP / ARREARS → "needs attention". For premium /
+//   category / count clauses these are inactive (the customer isn't
+//   paying premium). For savings + management_fee they DO count —
+//   the money is still parked in the account.
+// ACTIVE / PROPOSAL / UNKNOWN → fully active. PROPOSAL & UNKNOWN are
+//   treated as default-active so we don't drop policies whose status
+//   field wasn't populated by the importer.
+// ============================================================
+const ACTIVE_FOR_PREMIUM = ["ACTIVE", "PROPOSAL", "UNKNOWN"] as const;
+const ACTIVE_FOR_SAVINGS = [
+  "ACTIVE",
+  "PROPOSAL",
+  "UNKNOWN",
+  "PAID_UP",
+] as const;
+
+function isActiveForPremium(p: { status: string }): boolean {
+  return (ACTIVE_FOR_PREMIUM as readonly string[]).includes(p.status);
+}
+
+function isActiveForSavings(p: { status: string }): boolean {
+  return (ACTIVE_FOR_SAVINGS as readonly string[]).includes(p.status);
+}
+
 /**
  * Check if a single rule matches a customer profile.
  * Returns false on any parsing error (defensive).
@@ -94,12 +122,17 @@ export function matchRuleToCustomer(
 
     // Per-policy: at least one ACTIVE policy must satisfy ALL
     // per-policy clauses simultaneously. Empty per-policy set = pass.
+    // Per-policy clauses (category / subtype / age / vehicle / premium)
+    // never apply to FROZEN/PAID_UP/ARREARS — those policies aren't a
+    // live engagement target.
     if (perPolicyClauses.length === 0) return true;
-    return profile.activePolicies.some((policy) =>
-      perPolicyClauses.every((c) =>
-        evaluatePolicyCondition(c, policy, profile)
-      )
-    );
+    return profile.activePolicies
+      .filter(isActiveForPremium)
+      .some((policy) =>
+        perPolicyClauses.every((c) =>
+          evaluatePolicyCondition(c, policy, profile)
+        )
+      );
   } catch {
     // Defensive: bad condition = no match
     return false;
@@ -114,9 +147,16 @@ function evaluateCondition(
   clause: string,
   profile: CustomerProfile
 ): boolean {
+  // Pre-filter once per clause invocation. Premium-style filtering
+  // drops FROZEN/PAID_UP/ARREARS — those policies aren't billable
+  // engagement targets anymore. Savings-style retains PAID_UP because
+  // the accumulated money is still parked in the account.
+  const premiumPolicies = profile.activePolicies.filter(isActiveForPremium);
+  const savingsPolicies = profile.activePolicies.filter(isActiveForSavings);
+
   // Boolean flags (no operator)
   if (clause === "has_expiring_policy") {
-    return profile.activePolicies.some((p) => {
+    return premiumPolicies.some((p) => {
       if (!p.endDate) return false;
       const daysLeft =
         (new Date(p.endDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000);
@@ -154,16 +194,16 @@ function evaluateCondition(
     }
 
     case "policy_category": {
-      return profile.activePolicies.some((p) => p.category === value);
+      return premiumPolicies.some((p) => p.category === value);
     }
 
     case "no_policy_category": {
-      if (profile.activePolicies.length === 0) return false;
-      return !profile.activePolicies.some((p) => p.category === value);
+      if (premiumPolicies.length === 0) return false;
+      return !premiumPolicies.some((p) => p.category === value);
     }
 
     case "policy_subtype": {
-      return profile.activePolicies.some(
+      return premiumPolicies.some(
         (p) =>
           p.subType === value ||
           p.subType?.includes(value) ||
@@ -174,7 +214,7 @@ function evaluateCondition(
     case "policy_age_years": {
       const threshold = parseFloat(value);
       if (isNaN(threshold)) return false;
-      return profile.activePolicies.some((p) => {
+      return premiumPolicies.some((p) => {
         if (!p.startDate) return false;
         const years =
           (Date.now() - new Date(p.startDate).getTime()) /
@@ -187,7 +227,7 @@ function evaluateCondition(
       const maxAge = parseFloat(value);
       if (isNaN(maxAge)) return false;
       const currentYear = new Date().getFullYear();
-      return profile.activePolicies.some((p) => {
+      return premiumPolicies.some((p) => {
         if (!p.vehicleYear) return false;
         const vehicleAge = currentYear - p.vehicleYear;
         return compareNumber(vehicleAge, operator, maxAge);
@@ -197,20 +237,20 @@ function evaluateCondition(
     case "policy_count": {
       const target = parseFloat(value);
       if (isNaN(target)) return false;
-      return compareNumber(profile.activePolicies.length, operator, target);
+      return compareNumber(premiumPolicies.length, operator, target);
     }
 
     case "category_count": {
       const target = parseFloat(value);
       if (isNaN(target)) return false;
-      const categories = new Set(profile.activePolicies.map((p) => p.category));
+      const categories = new Set(premiumPolicies.map((p) => p.category));
       return compareNumber(categories.size, operator, target);
     }
 
     case "property_policy_count": {
       const target = parseFloat(value);
       if (isNaN(target)) return false;
-      const propCount = profile.activePolicies.filter(
+      const propCount = premiumPolicies.filter(
         (p) => p.category === "PROPERTY"
       ).length;
       return compareNumber(propCount, operator, target);
@@ -223,7 +263,7 @@ function evaluateCondition(
       // "customer has a rented flat" fire for every normal car+home owner.
       const target = parseFloat(value);
       if (isNaN(target)) return false;
-      const homeCount = profile.activePolicies.filter((p) => {
+      const homeCount = premiumPolicies.filter((p) => {
         if (p.category !== "PROPERTY") return false;
         const sub = (p.subType || "").toLowerCase();
         return sub.includes("דירה") || sub.includes("מבנה");
@@ -234,7 +274,7 @@ function evaluateCondition(
     case "car_policy_count": {
       const target = parseFloat(value);
       if (isNaN(target)) return false;
-      const carCount = profile.activePolicies.filter((p) => {
+      const carCount = premiumPolicies.filter((p) => {
         if (p.category !== "PROPERTY") return false;
         const sub = (p.subType || "").toLowerCase();
         return sub.includes("רכב");
@@ -243,19 +283,36 @@ function evaluateCondition(
     }
 
     case "savings": {
+      // Sums accumulatedSavings across savings-active policies. PAID_UP
+      // policies still hold the money so they're included; CANCELLED
+      // and EXPIRED never are. The profile's pre-computed
+      // totalAccumulatedSavings is built from the upstream activePolicies
+      // bucket which excludes CANCELLED/EXPIRED — but to enforce the
+      // savings-bucket rule independently we recompute here.
       const threshold = parseFloat(value);
       if (isNaN(threshold)) return false;
-      return compareNumber(
-        profile.totalAccumulatedSavings,
-        operator,
-        threshold
+      const total = savingsPolicies.reduce(
+        (sum, p) => sum + (p.accumulatedSavings ?? 0),
+        0
       );
+      return compareNumber(total, operator, threshold);
     }
 
     case "management_fee": {
+      // Take the max ratePercent across savings-active policies. PAID_UP
+      // policies still incur fees on the accumulated balance, so they
+      // count for this rule.
       const threshold = parseFloat(value);
       if (isNaN(threshold)) return false;
-      const maxFee = profile.maxManagementFeePercent;
+      let maxFee: number | null = null;
+      for (const p of savingsPolicies) {
+        for (const fee of p.managementFees ?? []) {
+          if (fee.ratePercent == null) continue;
+          if (maxFee == null || fee.ratePercent > maxFee) {
+            maxFee = fee.ratePercent;
+          }
+        }
+      }
       if (maxFee == null) return false;
       return compareNumber(maxFee, operator, threshold);
     }
@@ -281,7 +338,7 @@ function evaluateCondition(
       const threshold = parseFloat(value);
       if (isNaN(threshold)) return false;
       const now = Date.now();
-      return profile.activePolicies.some((p) => {
+      return premiumPolicies.some((p) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const anyP = p as any;
         if (anyP.externalSource !== "HAR_HABITUACH") return false;

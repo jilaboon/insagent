@@ -56,8 +56,15 @@ function computeProfile(
   const c = customer as any;
   const policies = c.policies || [];
 
+  // CANCELLED / EXPIRED policies are never considered "active". The
+  // matcher applies finer per-clause filtering (savings rules re-add
+  // PAID_UP, premium rules drop FROZEN / PAID_UP / ARREARS) on top of
+  // this set — see src/lib/insights/rule-matcher.ts.
   const activePolicies = policies.filter(
-    (p: { status: string }) => p.status === "ACTIVE" || p.status === "FROZEN" || p.status === "ARREARS"
+    (p: { status: string }) =>
+      p.status === "ACTIVE" ||
+      p.status === "PROPOSAL" ||
+      p.status === "UNKNOWN"
   );
 
   // Category breakdown

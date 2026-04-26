@@ -310,8 +310,16 @@ function buildProfileFromRawRows(customerRow: any, policyRows: any[]): CustomerP
 
   customer.policies = policies;
 
+  // Active for premium / count purposes. CANCELLED / EXPIRED never
+  // count anywhere; FROZEN / PAID_UP / ARREARS are handled inside
+  // the matcher per-clause (savings rules re-include PAID_UP). For
+  // top-level signals like profileCompleteness and the "under-served"
+  // boost, only true ACTIVE / PROPOSAL / UNKNOWN policies count.
   const activePolicies = policies.filter(
-    (p) => p.status === "ACTIVE" || p.status === "FROZEN" || p.status === "ARREARS"
+    (p) =>
+      p.status === "ACTIVE" ||
+      p.status === "PROPOSAL" ||
+      p.status === "UNKNOWN"
   );
 
   const categoryBreakdown = new Map<string, CategoryInfo>();
