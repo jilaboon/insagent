@@ -25,6 +25,10 @@ const insightSelect = {
   title: true,
   summary: true,
   whyNow: true,
+  // evidenceJson holds both the score breakdown (so Rafi can hover the
+  // strength badge and see how it was computed) and the matchedPolicyIds
+  // (so we can attach the actual triggering policies to each row).
+  evidenceJson: true,
   customer: {
     select: {
       id: true,
@@ -38,6 +42,104 @@ const insightSelect = {
     },
   },
 } as const;
+
+// ============================================================
+// Score breakdown extraction — kept in sync with the helper in
+// src/app/api/customers/[id]/route.ts. evidenceJson is JSONB so Prisma
+// hands back a parsed object/array/null. Older insights pre-dating the
+// breakdown feature simply return null and the UI falls back to the
+// plain badge.
+// ============================================================
+type ScoreBoost = { label: string; delta: number };
+type ScoreBreakdown = {
+  base: number;
+  contextBoosts: ScoreBoost[];
+  urgencyBoosts: ScoreBoost[];
+  finalScore: number;
+};
+
+function extractScoreBreakdown(evidenceJson: unknown): ScoreBreakdown | null {
+  if (!evidenceJson || typeof evidenceJson !== "object") return null;
+  const record = evidenceJson as Record<string, unknown>;
+  const raw = record.scoreBreakdown;
+  if (!raw || typeof raw !== "object") return null;
+
+  const obj = raw as Record<string, unknown>;
+  const base = typeof obj.base === "number" ? obj.base : null;
+  const finalScore =
+    typeof obj.finalScore === "number" ? obj.finalScore : null;
+  if (base === null || finalScore === null) return null;
+
+  const normBoosts = (value: unknown): ScoreBoost[] => {
+    if (!Array.isArray(value)) return [];
+    return value
+      .filter(
+        (b): b is ScoreBoost =>
+          !!b &&
+          typeof b === "object" &&
+          typeof (b as ScoreBoost).label === "string" &&
+          typeof (b as ScoreBoost).delta === "number"
+      )
+      .map((b) => ({ label: b.label, delta: b.delta }));
+  };
+
+  return {
+    base,
+    contextBoosts: normBoosts(obj.contextBoosts),
+    urgencyBoosts: normBoosts(obj.urgencyBoosts),
+    finalScore,
+  };
+}
+
+// ============================================================
+// matchedPolicyIds extraction — defensive against missing field on
+// older insights generated before the matcher started recording
+// triggering policies.
+// ============================================================
+function extractMatchedPolicyIds(evidenceJson: unknown): string[] {
+  if (!evidenceJson || typeof evidenceJson !== "object") return [];
+  const record = evidenceJson as Record<string, unknown>;
+  const raw = record.matchedPolicyIds;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((x): x is string => typeof x === "string");
+}
+
+// ============================================================
+// Response item types — exposed to the page.tsx consumer
+// ============================================================
+export interface SessionTriggeringPolicy {
+  id: string;
+  policyNumber: string;
+  insurer: string;
+  startDate: string | null;
+  premiumMonthly: number | null;
+  premiumAnnual: number | null;
+  category: string;
+  status: string;
+}
+
+export interface SessionItemPayload {
+  insightId: string;
+  status: string;
+  strengthScore: number;
+  insightTitle: string;
+  insightSummary: string;
+  whyNow: string | null;
+  customer: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    fullName: string;
+    israeliId: string;
+    phone: string | null;
+    email: string | null;
+    age: number | null;
+    source: string | null;
+    externalPolicyCount: number;
+  };
+  scoreBreakdown: ScoreBreakdown | null;
+  triggeringPolicies: SessionTriggeringPolicy[];
+}
 
 export async function GET(
   request: NextRequest,
@@ -152,19 +254,68 @@ export async function GET(
     externalCounts.map((p) => [p.customerId, p._count._all])
   );
 
-  const items = insights.map((i) => ({
+  // Collect the union of all triggering policy IDs across the page so
+  // we can fetch them in ONE round trip rather than N. Older insights
+  // that lack the field contribute nothing — the section just won't
+  // render for them on the UI.
+  const insightMatchedIds = insights.map((i) => ({
     insightId: i.id,
-    status: i.status,
-    strengthScore: i.strengthScore ?? 0,
-    insightTitle: i.title,
-    insightSummary: i.summary,
-    whyNow: i.whyNow,
-    customer: {
-      ...i.customer,
-      fullName: `${i.customer.firstName} ${i.customer.lastName}`.trim(),
-      externalPolicyCount: externalMap.get(i.customer.id) ?? 0,
-    },
+    matchedPolicyIds: extractMatchedPolicyIds(i.evidenceJson),
   }));
+  const allPolicyIds = Array.from(
+    new Set(insightMatchedIds.flatMap((x) => x.matchedPolicyIds))
+  );
+
+  const policyRows =
+    allPolicyIds.length > 0
+      ? await prisma.policy.findMany({
+          where: { id: { in: allPolicyIds } },
+          select: {
+            id: true,
+            policyNumber: true,
+            insurer: true,
+            startDate: true,
+            premiumMonthly: true,
+            premiumAnnual: true,
+            category: true,
+            status: true,
+          },
+        })
+      : [];
+  const policyMap = new Map(policyRows.map((p) => [p.id, p]));
+
+  const items: SessionItemPayload[] = insights.map((i) => {
+    const matchedIds = extractMatchedPolicyIds(i.evidenceJson);
+    const triggeringPolicies: SessionTriggeringPolicy[] = matchedIds
+      .map((pid) => policyMap.get(pid))
+      .filter((p): p is NonNullable<typeof p> => Boolean(p))
+      .map((p) => ({
+        id: p.id,
+        policyNumber: p.policyNumber,
+        insurer: p.insurer,
+        startDate: p.startDate ? p.startDate.toISOString() : null,
+        premiumMonthly: p.premiumMonthly ?? null,
+        premiumAnnual: p.premiumAnnual ?? null,
+        category: p.category,
+        status: p.status,
+      }));
+
+    return {
+      insightId: i.id,
+      status: i.status,
+      strengthScore: i.strengthScore ?? 0,
+      insightTitle: i.title,
+      insightSummary: i.summary,
+      whyNow: i.whyNow,
+      customer: {
+        ...i.customer,
+        fullName: `${i.customer.firstName} ${i.customer.lastName}`.trim(),
+        externalPolicyCount: externalMap.get(i.customer.id) ?? 0,
+      },
+      scoreBreakdown: extractScoreBreakdown(i.evidenceJson),
+      triggeringPolicies,
+    };
+  });
 
   const returned = offset + items.length;
   const hasMore = returned < total;

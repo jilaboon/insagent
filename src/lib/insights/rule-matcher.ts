@@ -83,21 +83,45 @@ function isActiveForSavings(p: { status: string }): boolean {
   return (ACTIVE_FOR_SAVINGS as readonly string[]).includes(p.status);
 }
 
+// ============================================================
+// Match result
+// ------------------------------------------------------------
+// Callers can use the `matched` boolean for the binary decision and
+// `matchedPolicyIds` for "which policies actually triggered this rule".
+// The IDs are deduplicated. For pure customer-wide rules with no
+// specific policy contribution (e.g. "age > 60"), the array is empty.
+// Per-policy clauses contribute the policies that satisfied them;
+// count / sum clauses contribute the policies that were counted /
+// summed; absence clauses (no_policy_category) contribute nothing.
+// ============================================================
+export interface RuleMatchResult {
+  matched: boolean;
+  matchedPolicyIds: string[];
+}
+
 /**
  * Check if a single rule matches a customer profile.
- * Returns false on any parsing error (defensive).
+ *
+ * Returns a `{ matched, matchedPolicyIds }` object so callers that need
+ * the binary decision can read `.matched`, while callers that need to
+ * surface the triggering policies (UI, evidence persistence) can read
+ * `.matchedPolicyIds`. On any parsing error the result is
+ * `{ matched: false, matchedPolicyIds: [] }`.
  */
 export function matchRuleToCustomer(
   rule: OfficeRule,
   profile: CustomerProfile
-): boolean {
+): RuleMatchResult {
+  const NO_MATCH: RuleMatchResult = { matched: false, matchedPolicyIds: [] };
   const condition = rule.triggerCondition?.trim();
 
   // No condition or empty = don't match
-  if (!condition) return false;
+  if (!condition) return NO_MATCH;
 
-  // Special: always matches everyone
-  if (condition === "always") return true;
+  // Special: always matches everyone, no specific policies trigger it.
+  if (condition === "always") {
+    return { matched: true, matchedPolicyIds: [] };
+  }
 
   try {
     const parts = condition.split(/\s+AND\s+/).map((p) => p.trim());
@@ -114,39 +138,64 @@ export function matchRuleToCustomer(
       }
     }
 
-    // Customer-wide: every clause must hold independently.
-    const customerOk = customerClauses.every((c) =>
-      evaluateCondition(c, profile)
-    );
-    if (!customerOk) return false;
+    // Customer-wide: every clause must hold independently. Each
+    // evaluator returns the IDs that contributed (count / sum / set
+    // membership). If any clause fails we bail out early.
+    const customerContribIds: string[] = [];
+    for (const clause of customerClauses) {
+      const res = evaluateCondition(clause, profile);
+      if (!res.matched) return NO_MATCH;
+      customerContribIds.push(...res.contributingIds);
+    }
 
-    // Per-policy: at least one ACTIVE policy must satisfy ALL
-    // per-policy clauses simultaneously. Empty per-policy set = pass.
-    // Per-policy clauses (category / subtype / age / vehicle / premium)
-    // never apply to FROZEN/PAID_UP/ARREARS — those policies aren't a
-    // live engagement target.
-    if (perPolicyClauses.length === 0) return true;
-    return profile.activePolicies
-      .filter(isActiveForPremium)
-      .some((policy) =>
-        perPolicyClauses.every((c) =>
-          evaluatePolicyCondition(c, policy, profile)
-        )
-      );
+    // Per-policy: at least one policy from the premium-active bucket
+    // must satisfy ALL per-policy clauses simultaneously. Empty
+    // per-policy set ⇒ pass with no contribution.
+    const perPolicyContribIds: string[] = [];
+    if (perPolicyClauses.length > 0) {
+      const perPolicyHits = profile.activePolicies
+        .filter(isActiveForPremium)
+        .filter((policy) =>
+          perPolicyClauses.every((c) =>
+            evaluatePolicyCondition(c, policy, profile)
+          )
+        );
+      if (perPolicyHits.length === 0) return NO_MATCH;
+      for (const p of perPolicyHits) perPolicyContribIds.push(p.id);
+    }
+
+    const dedup = Array.from(
+      new Set([...customerContribIds, ...perPolicyContribIds])
+    );
+
+    return { matched: true, matchedPolicyIds: dedup };
   } catch {
     // Defensive: bad condition = no match
-    return false;
+    return NO_MATCH;
   }
 }
 
 // ============================================================
 // Internal: evaluate a single condition clause
+// ------------------------------------------------------------
+// Returns the boolean match plus the IDs of any policies that
+// contributed to the truthiness of the clause. For pure customer-level
+// signals (age, has_life_and_elementary, travel_season,
+// months_since_review) `contributingIds` stays empty — the clause is
+// true because of the customer record itself, not specific policies.
 // ============================================================
+
+interface ClauseResult {
+  matched: boolean;
+  contributingIds: string[];
+}
+
+const CLAUSE_FAIL: ClauseResult = { matched: false, contributingIds: [] };
 
 function evaluateCondition(
   clause: string,
   profile: CustomerProfile
-): boolean {
+): ClauseResult {
   // Pre-filter once per clause invocation. Premium-style filtering
   // drops FROZEN/PAID_UP/ARREARS — those policies aren't billable
   // engagement targets anymore. Savings-style retains PAID_UP because
@@ -156,32 +205,39 @@ function evaluateCondition(
 
   // Boolean flags (no operator)
   if (clause === "has_expiring_policy") {
-    return premiumPolicies.some((p) => {
+    const hits = premiumPolicies.filter((p) => {
       if (!p.endDate) return false;
       const daysLeft =
         (new Date(p.endDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000);
       return daysLeft > 0 && daysLeft <= 90;
     });
+    return {
+      matched: hits.length > 0,
+      contributingIds: hits.map((p) => p.id),
+    };
   }
 
   if (clause === "has_life_and_elementary") {
-    return profile.hasLifeBranch && profile.hasElementaryBranch;
+    return {
+      matched: profile.hasLifeBranch && profile.hasElementaryBranch,
+      contributingIds: [],
+    };
   }
 
   if (clause === "travel_season") {
     const month = new Date().getMonth();
-    return month >= 3 && month <= 8; // March-August
+    return { matched: month >= 3 && month <= 8, contributingIds: [] };
   }
 
   if (clause === "always") {
-    return true;
+    return { matched: true, contributingIds: [] };
   }
 
   // Pattern: field operator value
   const match = clause.match(
     /^(\w+)\s*(>=|<=|!=|>|<|=)\s*(.+)$/
   );
-  if (!match) return false;
+  if (!match) return CLAUSE_FAIL;
 
   const [, field, operator, rawValue] = match;
   const value = rawValue.trim();
@@ -189,71 +245,106 @@ function evaluateCondition(
   switch (field) {
     case "age": {
       const age = profile.customer.age;
-      if (age == null) return false;
-      return compareNumber(age, operator, parseFloat(value));
+      if (age == null) return CLAUSE_FAIL;
+      return {
+        matched: compareNumber(age, operator, parseFloat(value)),
+        contributingIds: [],
+      };
     }
 
     case "policy_category": {
-      return premiumPolicies.some((p) => p.category === value);
+      const hits = premiumPolicies.filter((p) => p.category === value);
+      return {
+        matched: hits.length > 0,
+        contributingIds: hits.map((p) => p.id),
+      };
     }
 
     case "no_policy_category": {
-      if (premiumPolicies.length === 0) return false;
-      return !premiumPolicies.some((p) => p.category === value);
+      // Absence clause: true means "the customer has at least one
+      // policy AND none of them are of this category". No policies
+      // trigger this; it's the gap that matters, so contribIds = [].
+      if (premiumPolicies.length === 0) return CLAUSE_FAIL;
+      const matched = !premiumPolicies.some((p) => p.category === value);
+      return { matched, contributingIds: [] };
     }
 
     case "policy_subtype": {
-      return premiumPolicies.some(
+      const hits = premiumPolicies.filter(
         (p) =>
           p.subType === value ||
           p.subType?.includes(value) ||
           p.productName?.includes(value)
       );
+      return {
+        matched: hits.length > 0,
+        contributingIds: hits.map((p) => p.id),
+      };
     }
 
     case "policy_age_years": {
       const threshold = parseFloat(value);
-      if (isNaN(threshold)) return false;
-      return premiumPolicies.some((p) => {
+      if (isNaN(threshold)) return CLAUSE_FAIL;
+      const hits = premiumPolicies.filter((p) => {
         if (!p.startDate) return false;
         const years =
           (Date.now() - new Date(p.startDate).getTime()) /
           (365.25 * 24 * 60 * 60 * 1000);
         return compareNumber(years, operator, threshold);
       });
+      return {
+        matched: hits.length > 0,
+        contributingIds: hits.map((p) => p.id),
+      };
     }
 
     case "vehicle_age": {
       const maxAge = parseFloat(value);
-      if (isNaN(maxAge)) return false;
+      if (isNaN(maxAge)) return CLAUSE_FAIL;
       const currentYear = new Date().getFullYear();
-      return premiumPolicies.some((p) => {
+      const hits = premiumPolicies.filter((p) => {
         if (!p.vehicleYear) return false;
         const vehicleAge = currentYear - p.vehicleYear;
         return compareNumber(vehicleAge, operator, maxAge);
       });
+      return {
+        matched: hits.length > 0,
+        contributingIds: hits.map((p) => p.id),
+      };
     }
 
     case "policy_count": {
       const target = parseFloat(value);
-      if (isNaN(target)) return false;
-      return compareNumber(premiumPolicies.length, operator, target);
+      if (isNaN(target)) return CLAUSE_FAIL;
+      const matched = compareNumber(premiumPolicies.length, operator, target);
+      return {
+        matched,
+        contributingIds: matched ? premiumPolicies.map((p) => p.id) : [],
+      };
     }
 
     case "category_count": {
       const target = parseFloat(value);
-      if (isNaN(target)) return false;
+      if (isNaN(target)) return CLAUSE_FAIL;
       const categories = new Set(premiumPolicies.map((p) => p.category));
-      return compareNumber(categories.size, operator, target);
+      const matched = compareNumber(categories.size, operator, target);
+      return {
+        matched,
+        contributingIds: matched ? premiumPolicies.map((p) => p.id) : [],
+      };
     }
 
     case "property_policy_count": {
       const target = parseFloat(value);
-      if (isNaN(target)) return false;
-      const propCount = premiumPolicies.filter(
+      if (isNaN(target)) return CLAUSE_FAIL;
+      const propPolicies = premiumPolicies.filter(
         (p) => p.category === "PROPERTY"
-      ).length;
-      return compareNumber(propCount, operator, target);
+      );
+      const matched = compareNumber(propPolicies.length, operator, target);
+      return {
+        matched,
+        contributingIds: matched ? propPolicies.map((p) => p.id) : [],
+      };
     }
 
     case "home_policy_count": {
@@ -262,24 +353,32 @@ function evaluateCondition(
       // is too loose because it also includes car policies, which makes
       // "customer has a rented flat" fire for every normal car+home owner.
       const target = parseFloat(value);
-      if (isNaN(target)) return false;
-      const homeCount = premiumPolicies.filter((p) => {
+      if (isNaN(target)) return CLAUSE_FAIL;
+      const homePolicies = premiumPolicies.filter((p) => {
         if (p.category !== "PROPERTY") return false;
         const sub = (p.subType || "").toLowerCase();
         return sub.includes("דירה") || sub.includes("מבנה");
-      }).length;
-      return compareNumber(homeCount, operator, target);
+      });
+      const matched = compareNumber(homePolicies.length, operator, target);
+      return {
+        matched,
+        contributingIds: matched ? homePolicies.map((p) => p.id) : [],
+      };
     }
 
     case "car_policy_count": {
       const target = parseFloat(value);
-      if (isNaN(target)) return false;
-      const carCount = premiumPolicies.filter((p) => {
+      if (isNaN(target)) return CLAUSE_FAIL;
+      const carPolicies = premiumPolicies.filter((p) => {
         if (p.category !== "PROPERTY") return false;
         const sub = (p.subType || "").toLowerCase();
         return sub.includes("רכב");
-      }).length;
-      return compareNumber(carCount, operator, target);
+      });
+      const matched = compareNumber(carPolicies.length, operator, target);
+      return {
+        matched,
+        contributingIds: matched ? carPolicies.map((p) => p.id) : [],
+      };
     }
 
     case "savings": {
@@ -290,44 +389,75 @@ function evaluateCondition(
       // bucket which excludes CANCELLED/EXPIRED — but to enforce the
       // savings-bucket rule independently we recompute here.
       const threshold = parseFloat(value);
-      if (isNaN(threshold)) return false;
-      const total = savingsPolicies.reduce(
+      if (isNaN(threshold)) return CLAUSE_FAIL;
+      const contributing = savingsPolicies.filter(
+        (p) => (p.accumulatedSavings ?? 0) > 0
+      );
+      const total = contributing.reduce(
         (sum, p) => sum + (p.accumulatedSavings ?? 0),
         0
       );
-      return compareNumber(total, operator, threshold);
+      const matched = compareNumber(total, operator, threshold);
+      return {
+        matched,
+        contributingIds: matched ? contributing.map((p) => p.id) : [],
+      };
     }
 
     case "management_fee": {
       // Take the max ratePercent across savings-active policies. PAID_UP
       // policies still incur fees on the accumulated balance, so they
-      // count for this rule.
+      // count for this rule. Contributing IDs are the policies whose
+      // managementFees include a ratePercent that itself satisfies the
+      // threshold — those are the policies Rafi should investigate.
       const threshold = parseFloat(value);
-      if (isNaN(threshold)) return false;
+      if (isNaN(threshold)) return CLAUSE_FAIL;
       let maxFee: number | null = null;
+      const contributing: string[] = [];
       for (const p of savingsPolicies) {
+        let policyMatchesThreshold = false;
         for (const fee of p.managementFees ?? []) {
           if (fee.ratePercent == null) continue;
           if (maxFee == null || fee.ratePercent > maxFee) {
             maxFee = fee.ratePercent;
           }
+          if (compareNumber(fee.ratePercent, operator, threshold)) {
+            policyMatchesThreshold = true;
+          }
         }
+        if (policyMatchesThreshold) contributing.push(p.id);
       }
-      if (maxFee == null) return false;
-      return compareNumber(maxFee, operator, threshold);
+      if (maxFee == null) return CLAUSE_FAIL;
+      const matched = compareNumber(maxFee, operator, threshold);
+      return {
+        matched,
+        contributingIds: matched ? contributing : [],
+      };
     }
 
     case "months_since_review": {
       // Null lastReviewDate = treat as "never reviewed" = infinity.
       // Lets us write "months_since_review > 18" as "never or > 18mo ago".
       const threshold = parseFloat(value);
-      if (isNaN(threshold)) return false;
+      if (isNaN(threshold)) return CLAUSE_FAIL;
       const last = profile.customer.lastReviewDate;
-      if (!last) return compareNumber(Number.POSITIVE_INFINITY, operator, threshold);
+      if (!last) {
+        return {
+          matched: compareNumber(
+            Number.POSITIVE_INFINITY,
+            operator,
+            threshold
+          ),
+          contributingIds: [],
+        };
+      }
       const months =
         (Date.now() - new Date(last).getTime()) /
         (30.44 * 24 * 60 * 60 * 1000);
-      return compareNumber(months, operator, threshold);
+      return {
+        matched: compareNumber(months, operator, threshold),
+        contributingIds: [],
+      };
     }
 
     case "external_policy_expiring_within_days": {
@@ -336,9 +466,9 @@ function evaluateCondition(
       // now. Already-expired policies (diff < 0) don't count — Rafi's
       // "golden window" concept is strictly forward-looking.
       const threshold = parseFloat(value);
-      if (isNaN(threshold)) return false;
+      if (isNaN(threshold)) return CLAUSE_FAIL;
       const now = Date.now();
-      return premiumPolicies.some((p) => {
+      const hits = premiumPolicies.filter((p) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const anyP = p as any;
         if (anyP.externalSource !== "HAR_HABITUACH") return false;
@@ -348,11 +478,15 @@ function evaluateCondition(
         if (daysLeft <= 0) return false;
         return compareNumber(daysLeft, operator, threshold);
       });
+      return {
+        matched: hits.length > 0,
+        contributingIds: hits.map((p) => p.id),
+      };
     }
 
     default:
       // Unknown field = no match
-      return false;
+      return CLAUSE_FAIL;
   }
 }
 

@@ -106,8 +106,8 @@ export async function POST(request: NextRequest) {
         // Skip if already exists
 
         try {
-          const matches = matchRuleToCustomer(rule, profile);
-          if (!matches) continue;
+          const matchResult = matchRuleToCustomer(rule, profile);
+          if (!matchResult.matched) continue;
 
           // Derive insight metadata from the rule
           const insightCategory = mapRuleCategoryToInsight(rule);
@@ -137,6 +137,12 @@ export async function POST(request: NextRequest) {
               ruleSource: rule.source,
               triggerCondition: rule.triggerCondition,
               scoreBreakdown: scoreResult.breakdown,
+              // Policies that triggered this rule for this customer.
+              // Empty array for pure customer-level rules (e.g. age > 60)
+              // and absence rules (no_policy_category). Older insights
+              // generated before this field was added won't have it —
+              // downstream readers must default to [] / hide the section.
+              matchedPolicyIds: matchResult.matchedPolicyIds,
             }),
             generatedBy: "RULE",
             linkedRuleId: rule.id,

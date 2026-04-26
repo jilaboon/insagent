@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -22,13 +22,17 @@ import {
   UserX,
   AlertCircle,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ScoreWithBreakdown,
+  type ScoreBreakdown,
+} from "@/components/shared/score-with-breakdown";
 
 // ============================================================
 // Types — mirrors the shape returned by GET /api/rules/[id]/session
@@ -54,6 +58,21 @@ interface SessionCustomer {
   externalPolicyCount: number;
 }
 
+interface TriggeringPolicy {
+  id: string;
+  policyNumber: string;
+  insurer: string;
+  // ISO string from the API; may be null when the source policy has no
+  // recorded start date.
+  startDate: string | null;
+  premiumMonthly: number | null;
+  premiumAnnual: number | null;
+  // Prisma PolicyCategory enum, surfaced as a string. We use this to
+  // pick monthly vs annual periodicity in the UI.
+  category: string;
+  status: string;
+}
+
 interface SessionItem {
   insightId: string;
   status: InsightStatus;
@@ -62,6 +81,42 @@ interface SessionItem {
   insightSummary: string;
   whyNow: string | null;
   customer: SessionCustomer;
+  // Optional: older insights generated before the breakdown / matched-
+  // policies fields were added won't carry these. The UI degrades to
+  // the plain badge / hides the section.
+  scoreBreakdown: ScoreBreakdown | null;
+  triggeringPolicies: TriggeringPolicy[];
+}
+
+// ============================================================
+// Premium periodicity by category — same convention used on the
+// customer detail card. LIFE/HEALTH/PENSION/SAVINGS/RISK bill monthly
+// (we display monthly), PROPERTY/VEHICLE/BUSINESS bill annually (we
+// display annual). When only the "wrong" side of the pair is
+// populated we synthesize the other (annual = monthly * 12, etc.).
+// ============================================================
+const MONTHLY_CATEGORIES = new Set([
+  "LIFE",
+  "HEALTH",
+  "PENSION",
+  "SAVINGS",
+  "RISK",
+]);
+
+function premiumDisplay(p: TriggeringPolicy): {
+  amount: number | null;
+  suffix: string;
+} {
+  if (MONTHLY_CATEGORIES.has(p.category)) {
+    const amount =
+      p.premiumMonthly ??
+      (p.premiumAnnual != null ? p.premiumAnnual / 12 : null);
+    return { amount, suffix: "לחודש" };
+  }
+  const amount =
+    p.premiumAnnual ??
+    (p.premiumMonthly != null ? p.premiumMonthly * 12 : null);
+  return { amount, suffix: "לשנה" };
 }
 
 interface SessionRule {
@@ -529,10 +584,15 @@ export default function RuleSessionPage() {
                         </Badge>
                       )}
                       <span
-                        className="inline-flex items-center gap-1 rounded-full border border-violet-300/50 bg-violet-500/10 px-2 py-0.5 text-[11px] font-medium text-violet-700"
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-violet-700"
                         title="חוזק התובנה"
                       >
-                        חוזק <span className="number">{item.strengthScore}</span>
+                        <span>חוזק</span>
+                        <ScoreWithBreakdown
+                          score={item.strengthScore}
+                          title={item.insightTitle}
+                          breakdown={item.scoreBreakdown}
+                        />
                       </span>
                       {isHandled && (
                         <Badge variant="success">
@@ -552,6 +612,11 @@ export default function RuleSessionPage() {
                       <p className="text-xs text-surface-400">
                         למה עכשיו: {item.whyNow}
                       </p>
+                    )}
+                    {item.triggeringPolicies.length > 0 && (
+                      <TriggeringPoliciesList
+                        policies={item.triggeringPolicies}
+                      />
                     )}
                   </div>
 
@@ -672,6 +737,81 @@ export default function RuleSessionPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================================================
+// Triggering policies — small inline list under each insight.
+// Renders as a quiet section ("פוליסות שהפעילו את הכלל") that lets
+// Rafi see exactly which policies the matcher used to fire the rule.
+// Older insights without matched-policy data don't reach this
+// component (the parent guards with .length > 0).
+// ============================================================
+
+function TriggeringPoliciesList({
+  policies,
+}: {
+  policies: TriggeringPolicy[];
+}) {
+  return (
+    <div className="mt-1.5 rounded-md border border-surface-100 bg-surface-50/40 px-2.5 py-2">
+      <p className="mb-1 text-[11px] font-semibold text-surface-600">
+        פוליסות שהפעילו את הכלל
+      </p>
+      <ul className="space-y-0.5">
+        {policies.map((p) => {
+          const { amount, suffix } = premiumDisplay(p);
+          // Build the segments and join with " · ", omitting any
+          // segment that has no data (e.g. missing startDate). This
+          // keeps the line tidy without leaving stranded separators.
+          const segments: ReactNode[] = [
+            <span
+              key="num"
+              className="number font-mono text-[11px] text-surface-700"
+            >
+              {p.policyNumber}
+            </span>,
+            <span key="ins" className="text-[11px] text-surface-500">
+              {p.insurer}
+            </span>,
+          ];
+          if (p.startDate) {
+            segments.push(
+              <span key="date" className="text-[11px] text-surface-500">
+                {formatDate(p.startDate)}
+              </span>
+            );
+          }
+          if (amount != null) {
+            segments.push(
+              <span key="prem" className="text-[11px] text-surface-500">
+                <span className="number">{formatCurrency(amount)}</span>
+                <span> </span>
+                <span>{suffix}</span>
+              </span>
+            );
+          }
+          return (
+            <li
+              key={p.id}
+              className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5"
+            >
+              {segments.map((seg, idx) => (
+                <span
+                  key={idx}
+                  className="inline-flex items-baseline gap-1.5"
+                >
+                  {seg}
+                  {idx < segments.length - 1 && (
+                    <span className="text-surface-300">·</span>
+                  )}
+                </span>
+              ))}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
