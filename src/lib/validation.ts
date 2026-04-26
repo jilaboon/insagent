@@ -12,7 +12,11 @@ import { NextResponse } from "next/server";
 export const importUploadSchema = z.object({
   fileName: z.string().min(1, "שם הקובץ חובה"),
   headers: z.array(z.string()).min(1, "חסרות כותרות"),
-  rows: z.array(z.record(z.string(), z.string())).min(1, "לא נמצאו שורות"),
+  // Cell values can be null when the CSV cell is empty. Downstream
+  // parsers already coalesce null and "" identically.
+  rows: z
+    .array(z.record(z.string(), z.string().nullable()))
+    .min(1, "לא נמצאו שורות"),
   jobId: z.string().uuid().optional(),
 });
 

@@ -37,7 +37,17 @@ export async function POST(request: NextRequest) {
     const rawBody = await request.json();
     const validation = validateBody(importUploadSchema, rawBody);
     if (!validation.success) return validation.response;
-    const { fileName, headers, rows, jobId: existingJobId } = validation.data;
+    const { fileName, headers, rows: rawRows, jobId: existingJobId } =
+      validation.data;
+
+    // Empty cells arrive as null from the browser parser. Downstream
+    // mappers expect string everywhere and already treat "" as no-value,
+    // so coerce here once.
+    const rows: Record<string, string>[] = rawRows.map((row) => {
+      const out: Record<string, string> = {};
+      for (const [k, v] of Object.entries(row)) out[k] = v ?? "";
+      return out;
+    });
 
     // Create or reuse import job
     let jobId = existingJobId;
