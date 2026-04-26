@@ -78,6 +78,44 @@ function insightKind(
   return insight.kind === "service_tip" ? "service_tip" : "commercial";
 }
 
+// ============================================================
+// Policy grouping helpers
+// ============================================================
+
+// Categories that bill monthly and use startDate as the primary date.
+// (LIFE, HEALTH, PENSION, SAVINGS, RISK)
+const MONTHLY_CATEGORIES = new Set([
+  "LIFE",
+  "HEALTH",
+  "PENSION",
+  "SAVINGS",
+  "RISK",
+]);
+
+// Statuses that appear in the "needs attention" bucket and the
+// human-readable Hebrew label for each.
+const NEEDS_ATTENTION_STATUSES: Record<string, string> = {
+  FROZEN: "מוקפאת",
+  PAID_UP: "מסולקת",
+  ARREARS: "בפיגור",
+};
+
+// Statuses that appear in the "inactive" bucket and the
+// human-readable Hebrew label for each.
+const INACTIVE_STATUSES: Record<string, string> = {
+  CANCELLED: "מבוטל",
+  EXPIRED: "פג תוקף",
+};
+
+type PolicyBucket = "active" | "attention" | "inactive";
+
+function policyBucket(status: string): PolicyBucket {
+  if (status in NEEDS_ATTENTION_STATUSES) return "attention";
+  if (status in INACTIVE_STATUSES) return "inactive";
+  // ACTIVE, PROPOSAL, UNKNOWN, and anything else fall into "active".
+  return "active";
+}
+
 const STRONG_SCORE_THRESHOLD = 70;
 const STRONG_SEGMENT_LIMIT = 2;
 
@@ -479,14 +517,40 @@ export default function CustomerProfilePage() {
 
         {/* Right column (1/3) — Policies */}
         <div className="space-y-6">
-          {/* Policies summary — external (Har HaBituach) policies pinned
-              to the top with a clear violet treatment so the agent can
-              immediately see what the customer holds outside the office. */}
+          {/* Policies summary — grouped into three buckets so the agent
+              can immediately see what's live, what needs attention, and
+              what's history. External (Har HaBituach) policies still
+              sort to the top within each bucket. */}
           <Card>
             <CardHeader>
               <CardTitle>פוליסות</CardTitle>
               <div className="flex items-center gap-2">
-                <Badge variant="muted">{customer.policies.length}</Badge>
+                {(() => {
+                  const buckets = customer.policies.reduce(
+                    (acc, p) => {
+                      acc[policyBucket(p.status)]++;
+                      return acc;
+                    },
+                    { active: 0, attention: 0, inactive: 0 } as Record<
+                      PolicyBucket,
+                      number
+                    >
+                  );
+                  const liveCount = buckets.active + buckets.attention;
+                  return (
+                    <>
+                      <Badge variant="muted">
+                        <span className="number">{liveCount}</span>
+                      </Badge>
+                      {buckets.inactive > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-surface-200 bg-surface-50 px-2 py-0.5 text-[11px] font-medium text-surface-500">
+                          <span className="number">{buckets.inactive}</span>
+                          <span>לא פעילות</span>
+                        </span>
+                      )}
+                    </>
+                  );
+                })()}
                 {(() => {
                   const externalCount = customer.policies.filter(
                     (p) => p.externalSource === "HAR_HABITUACH"
@@ -495,98 +559,114 @@ export default function CustomerProfilePage() {
                   return (
                     <span className="inline-flex items-center gap-1 rounded-full border border-violet-300/50 bg-violet-500/10 px-2 py-0.5 text-[11px] font-medium text-violet-700">
                       <span aria-hidden>📂</span>
-                      <span className="number">{externalCount}</span> מחוץ למשרד
+                      <span className="number">{externalCount}</span>
+                      <span>מחוץ למשרד</span>
                     </span>
                   );
                 })()}
               </div>
             </CardHeader>
             {customer.policies.length > 0 ? (
-              <div className="space-y-3">
-                {[...customer.policies]
-                  .sort((a, b) => {
-                    // External policies first
-                    const ax = a.externalSource === "HAR_HABITUACH" ? 0 : 1;
-                    const bx = b.externalSource === "HAR_HABITUACH" ? 0 : 1;
-                    if (ax !== bx) return ax - bx;
-                    return 0;
-                  })
-                  .map((policy) => {
-                    const isExternal =
-                      policy.externalSource === "HAR_HABITUACH";
-                    return (
-                      <div
-                        key={policy.id}
-                        className={
-                          isExternal
-                            ? "flex items-start justify-between gap-4 rounded-lg border border-violet-300/50 bg-violet-500/5 p-4"
-                            : "flex items-start justify-between gap-4 rounded-lg border border-surface-100 p-4"
-                        }
-                      >
-                        <div className="flex-1 space-y-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-sm font-medium text-surface-800">
-                              {policy.subType || policy.category}
-                            </p>
-                            {isExternal && (
-                              <span className="inline-flex items-center gap-1 rounded-full border border-violet-300/60 bg-violet-500/15 px-2 py-0.5 text-[10px] font-medium text-violet-700">
-                                <span aria-hidden>📂</span>
-                                <span>מחוץ למשרד</span>
-                              </span>
-                            )}
-                            {isExternal && (
-                              <ExternalExpiryTag endDate={policy.endDate} />
-                            )}
-                          </div>
-                          <div className="flex flex-wrap items-center gap-x-2 text-xs text-surface-500">
-                            <span>{policy.insurer}</span>
-                            <span className="number">
-                              {policy.policyNumber}
-                            </span>
-                          </div>
-                          {isExternal && policy.startDate && policy.endDate && (
-                            <p className="text-[11px] text-violet-700/80 number">
-                              תקופת ביטוח:{" "}
-                              {new Date(policy.startDate).toLocaleDateString(
-                                "he-IL"
-                              )}
-                              {" – "}
-                              {new Date(policy.endDate).toLocaleDateString(
-                                "he-IL"
-                              )}
-                            </p>
-                          )}
-                          {isExternal && policy.harHabituachLastSeenAt && (
-                            <p className="text-[11px] text-violet-700/70">
-                              זוהה בהר הביטוח{" "}
-                              {new Date(
-                                policy.harHabituachLastSeenAt
-                              ).toLocaleDateString("he-IL")}
-                            </p>
-                          )}
+              (() => {
+                // Sort comparator: external (Har HaBituach) first within
+                // each bucket, then preserve original order.
+                const externalFirst = (
+                  a: (typeof customer.policies)[number],
+                  b: (typeof customer.policies)[number]
+                ) => {
+                  const ax = a.externalSource === "HAR_HABITUACH" ? 0 : 1;
+                  const bx = b.externalSource === "HAR_HABITUACH" ? 0 : 1;
+                  return ax - bx;
+                };
+
+                const grouped = {
+                  active: [...customer.policies]
+                    .filter((p) => policyBucket(p.status) === "active")
+                    .sort(externalFirst),
+                  attention: [...customer.policies]
+                    .filter((p) => policyBucket(p.status) === "attention")
+                    .sort(externalFirst),
+                  inactive: [...customer.policies]
+                    .filter((p) => policyBucket(p.status) === "inactive")
+                    .sort(externalFirst),
+                };
+
+                return (
+                  <div className="space-y-5">
+                    {/* Bucket 1 — Active */}
+                    {grouped.active.length > 0 && (
+                      <section aria-labelledby="policies-active-heading">
+                        <h3
+                          id="policies-active-heading"
+                          className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-700"
+                        >
+                          <span>פעילות</span>
+                          <span className="text-surface-400 number">
+                            ({grouped.active.length})
+                          </span>
+                        </h3>
+                        <div className="space-y-3">
+                          {grouped.active.map((policy) => (
+                            <PolicyRow
+                              key={policy.id}
+                              policy={policy}
+                              tone="active"
+                            />
+                          ))}
                         </div>
-                        <div className="text-left">
-                          {policy.premiumAnnual ? (
-                            <p className="text-sm font-medium text-surface-800 number">
-                              {formatCurrency(policy.premiumAnnual)}
-                              <span className="text-xs text-surface-400">
-                                {" "}
-                                /שנה
-                              </span>
-                            </p>
-                          ) : policy.accumulatedSavings ? (
-                            <p className="text-sm font-medium text-surface-800 number">
-                              {formatCurrency(policy.accumulatedSavings)}
-                            </p>
-                          ) : (
-                            <p className="text-xs text-surface-400">₪0</p>
-                          )}
-                          <DataFreshness date={policy.dataFreshness} />
+                      </section>
+                    )}
+
+                    {/* Bucket 2 — Needs attention */}
+                    {grouped.attention.length > 0 && (
+                      <section aria-labelledby="policies-attention-heading">
+                        <h3
+                          id="policies-attention-heading"
+                          className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-800"
+                        >
+                          <span>דורשות התייחסות</span>
+                          <span className="text-surface-400 number">
+                            ({grouped.attention.length})
+                          </span>
+                        </h3>
+                        <div className="space-y-3">
+                          {grouped.attention.map((policy) => (
+                            <PolicyRow
+                              key={policy.id}
+                              policy={policy}
+                              tone="attention"
+                            />
+                          ))}
                         </div>
-                      </div>
-                    );
-                  })}
-              </div>
+                      </section>
+                    )}
+
+                    {/* Bucket 3 — Inactive */}
+                    {grouped.inactive.length > 0 && (
+                      <section aria-labelledby="policies-inactive-heading">
+                        <h3
+                          id="policies-inactive-heading"
+                          className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-surface-500"
+                        >
+                          <span>פוליסות לא פעילות</span>
+                          <span className="text-surface-400 number">
+                            ({grouped.inactive.length})
+                          </span>
+                        </h3>
+                        <div className="space-y-3">
+                          {grouped.inactive.map((policy) => (
+                            <PolicyRow
+                              key={policy.id}
+                              policy={policy}
+                              tone="inactive"
+                            />
+                          ))}
+                        </div>
+                      </section>
+                    )}
+                  </div>
+                );
+              })()
             ) : (
               <p className="py-6 text-center text-sm text-surface-400">
                 לא נמצאו פוליסות
@@ -781,6 +861,180 @@ function InsightCard({
           />
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================================================
+// Policy Row — renders a single policy with the right styling per
+// bucket (active / attention / inactive), correct premium periodicity
+// per category, and the right primary date per category.
+// ============================================================
+
+type PolicyForRow = {
+  id: string;
+  policyNumber: string;
+  insurer: string;
+  category: string;
+  subType: string | null;
+  status: string;
+  startDate: string | null;
+  endDate: string | null;
+  premiumMonthly: number | null;
+  premiumAnnual: number | null;
+  accumulatedSavings: number | null;
+  dataFreshness: string | null;
+  externalSource: string | null;
+  harHabituachLastSeenAt: string | null;
+};
+
+function PolicyRow({
+  policy,
+  tone,
+}: {
+  policy: PolicyForRow;
+  tone: "active" | "attention" | "inactive";
+}) {
+  const isExternal = policy.externalSource === "HAR_HABITUACH";
+  const isMonthlyCategory = MONTHLY_CATEGORIES.has(policy.category);
+
+  // Container classes drive the visual differentiation between buckets.
+  // External policies keep their violet treatment, but we still apply
+  // the bucket's left-border accent + opacity so the grouping reads
+  // even on Har-HaBituach rows.
+  const containerClass = (() => {
+    const base =
+      "flex items-start justify-between gap-4 rounded-lg p-4 border-r-4";
+    if (tone === "attention") {
+      return cn(
+        base,
+        isExternal
+          ? "border border-violet-300/50 bg-violet-500/5 border-r-amber-400"
+          : "border border-surface-100 border-r-amber-400 bg-amber-50/30"
+      );
+    }
+    if (tone === "inactive") {
+      return cn(
+        base,
+        "opacity-50",
+        isExternal
+          ? "border border-violet-300/50 bg-violet-500/5 border-r-rose-400"
+          : "border border-surface-100 border-r-rose-300 bg-rose-50/20"
+      );
+    }
+    // active
+    return cn(
+      base,
+      isExternal
+        ? "border border-violet-300/50 bg-violet-500/5 border-r-violet-400"
+        : "border border-surface-100 border-r-transparent"
+    );
+  })();
+
+  // Status badge for non-active buckets — short Hebrew label only,
+  // no Hebrew/English mixing.
+  const statusLabel =
+    NEEDS_ATTENTION_STATUSES[policy.status] ??
+    INACTIVE_STATUSES[policy.status] ??
+    null;
+
+  // Premium display — monthly for life/health-style, annual for elementary.
+  const renderPremium = () => {
+    if (isMonthlyCategory) {
+      const monthly =
+        policy.premiumMonthly ??
+        (policy.premiumAnnual != null
+          ? Math.round(policy.premiumAnnual / 12)
+          : null);
+      if (monthly != null) {
+        return (
+          <p className="text-sm font-medium text-surface-800 number">
+            {formatCurrency(monthly)}
+            <span className="text-xs text-surface-400"> /חודש</span>
+          </p>
+        );
+      }
+    } else {
+      const annual =
+        policy.premiumAnnual ??
+        (policy.premiumMonthly != null ? policy.premiumMonthly * 12 : null);
+      if (annual != null) {
+        return (
+          <p className="text-sm font-medium text-surface-800 number">
+            {formatCurrency(annual)}
+            <span className="text-xs text-surface-400"> /שנה</span>
+          </p>
+        );
+      }
+    }
+    if (policy.accumulatedSavings != null) {
+      return (
+        <p className="text-sm font-medium text-surface-800 number">
+          {formatCurrency(policy.accumulatedSavings)}
+        </p>
+      );
+    }
+    return <p className="text-xs text-surface-400">₪0</p>;
+  };
+
+  return (
+    <div className={containerClass}>
+      <div className="flex-1 space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-medium text-surface-800">
+            {policy.subType || policy.category}
+          </p>
+          {isExternal && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-violet-300/60 bg-violet-500/15 px-2 py-0.5 text-[10px] font-medium text-violet-700">
+              <span aria-hidden>📂</span>
+              <span>מחוץ למשרד</span>
+            </span>
+          )}
+          {statusLabel && tone === "attention" && (
+            <span className="inline-flex items-center rounded-full border border-amber-300/60 bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-800">
+              {statusLabel}
+            </span>
+          )}
+          {statusLabel && tone === "inactive" && (
+            <span className="inline-flex items-center rounded-full border border-rose-300/60 bg-rose-500/10 px-2 py-0.5 text-[10px] font-medium text-rose-700">
+              {statusLabel}
+            </span>
+          )}
+          {isExternal && <ExternalExpiryTag endDate={policy.endDate} />}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-2 text-xs text-surface-500">
+          <span>{policy.insurer}</span>
+          <span className="number">{policy.policyNumber}</span>
+        </div>
+        {/* Primary date — start date for life/health-style policies. */}
+        {isMonthlyCategory && policy.startDate && (
+          <p className="text-[11px] text-surface-600 number">
+            תחילת ביטוח:{" "}
+            {new Date(policy.startDate).toLocaleDateString("he-IL")}
+          </p>
+        )}
+        {/* External-only secondary line: full coverage window. */}
+        {isExternal && policy.startDate && policy.endDate && (
+          <p className="text-[11px] text-violet-700/80 number">
+            תקופת ביטוח:{" "}
+            {new Date(policy.startDate).toLocaleDateString("he-IL")}
+            {" – "}
+            {new Date(policy.endDate).toLocaleDateString("he-IL")}
+          </p>
+        )}
+        {isExternal && policy.harHabituachLastSeenAt && (
+          <p className="text-[11px] text-violet-700/70">
+            זוהה בהר הביטוח{" "}
+            {new Date(policy.harHabituachLastSeenAt).toLocaleDateString(
+              "he-IL"
+            )}
+          </p>
+        )}
+      </div>
+      <div className="text-left">
+        {renderPremium()}
+        <DataFreshness date={policy.dataFreshness} />
+      </div>
     </div>
   );
 }
