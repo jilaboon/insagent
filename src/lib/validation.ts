@@ -11,7 +11,10 @@ import { NextResponse } from "next/server";
 
 export const importUploadSchema = z.object({
   fileName: z.string().min(1, "שם הקובץ חובה"),
-  headers: z.array(z.string()).min(1, "חסרות כותרות"),
+  // Empty header cells parse to null. The route trims them out before
+  // validation hits — but be permissive in the schema too in case the
+  // browser parser changes behavior.
+  headers: z.array(z.string().nullable()).min(1, "חסרות כותרות"),
   // Cell values can be null when the CSV cell is empty. Downstream
   // parsers already coalesce null and "" identically.
   rows: z
