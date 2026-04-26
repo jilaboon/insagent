@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import {
   useRules,
+  useRuleMatchCounts,
   useCreateRule,
   useUpdateRule,
   useDeleteRule,
@@ -77,6 +78,8 @@ const RULES_TABS = [
 
 export default function RulesPage() {
   const { data, isLoading } = useRules();
+  const { data: matchCountsData } = useRuleMatchCounts();
+  const matchCounts = matchCountsData?.counts ?? {};
   const createRule = useCreateRule();
   const updateRule = useUpdateRule();
   const deleteRule = useDeleteRule();
@@ -419,14 +422,43 @@ export default function RulesPage() {
 
                 <div className="flex items-center justify-between pt-1 border-t border-surface-100">
                   <div className="flex items-center gap-2">
-                    <Link
-                      href={`/rules/${rule.id}/session`}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-violet-300/60 bg-violet-500/10 px-2.5 py-1 text-xs font-semibold text-violet-700 backdrop-blur-sm transition-colors hover:border-violet-400/80 hover:bg-violet-500/15 hover:text-violet-800"
-                      title="פתח סשן ממוקד על החוק הזה"
-                    >
-                      <Target className="h-3 w-3" />
-                      🎯 התחל סשן
-                    </Link>
+                    {(() => {
+                      const counts = matchCounts[rule.id] ?? { total: 0, open: 0 };
+                      const hasMatches = counts.total > 0;
+                      const showOpenSuffix =
+                        counts.open > 0 && counts.open !== counts.total;
+
+                      if (!hasMatches) {
+                        return (
+                          <span
+                            className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-surface-200 bg-surface-100 px-2.5 py-1 text-xs font-semibold text-surface-400"
+                            title="אין כרגע לקוחות שעונים לחוק הזה"
+                            aria-disabled="true"
+                          >
+                            <Target className="h-3 w-3" />
+                            אין התאמות
+                          </span>
+                        );
+                      }
+
+                      return (
+                        <Link
+                          href={`/rules/${rule.id}/session`}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-violet-300/60 bg-violet-500/10 px-2.5 py-1 text-xs font-semibold text-violet-700 backdrop-blur-sm transition-colors hover:border-violet-400/80 hover:bg-violet-500/15 hover:text-violet-800"
+                          title="פתח סשן ממוקד על החוק הזה"
+                        >
+                          <Target className="h-3 w-3" />
+                          <span>
+                            🎯 <span className="number">{counts.total}</span> לקוחות
+                          </span>
+                          {showOpenSuffix && (
+                            <span className="text-[10px] font-medium text-violet-500">
+                              (<span className="number">{counts.open}</span> פתוחים)
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })()}
                     <Button
                       variant="ghost"
                       size="sm"

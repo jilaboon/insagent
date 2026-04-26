@@ -473,6 +473,23 @@ export function useRules() {
   });
 }
 
+export interface RuleMatchCount {
+  total: number;
+  open: number;
+}
+
+export interface RuleMatchCountsResponse {
+  counts: Record<string, RuleMatchCount>;
+}
+
+export function useRuleMatchCounts() {
+  return useQuery({
+    queryKey: ["rules", "match-counts"] as const,
+    queryFn: () =>
+      fetchJSON<RuleMatchCountsResponse>("/api/rules/match-counts"),
+  });
+}
+
 export function useCreateRule() {
   const queryClient = useQueryClient();
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -139,6 +140,72 @@ async function patchInsight(params: {
 }
 
 // ============================================================
+// Sort options
+// ============================================================
+
+type SortKey =
+  | "strength"
+  | "lastName"
+  | "age"
+  | "externalPolicies"
+  | "status";
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "strength", label: "חוזק" },
+  { value: "lastName", label: "שם משפחה" },
+  { value: "age", label: "גיל" },
+  { value: "externalPolicies", label: "פוליסות חיצוניות 📂" },
+  { value: "status", label: "סטטוס" },
+];
+
+/**
+ * Compare two items by the selected primary sort key. Returns the
+ * usual -1/0/1 sign. NULL values are pushed to the end (positive sign)
+ * regardless of direction so unknown ages / missing fields don't crowd
+ * the top of the list.
+ */
+function comparePrimary(a: SessionItem, b: SessionItem, key: SortKey): number {
+  switch (key) {
+    case "strength": {
+      // Higher first
+      return (b.strengthScore ?? 0) - (a.strengthScore ?? 0);
+    }
+    case "lastName": {
+      const al = a.customer.lastName ?? "";
+      const bl = b.customer.lastName ?? "";
+      if (!al && !bl) return 0;
+      if (!al) return 1;
+      if (!bl) return -1;
+      return al.localeCompare(bl, "he");
+    }
+    case "age": {
+      const aa = a.customer.age;
+      const ba = b.customer.age;
+      if (aa == null && ba == null) return 0;
+      if (aa == null) return 1;
+      if (ba == null) return -1;
+      // Older first
+      return ba - aa;
+    }
+    case "externalPolicies": {
+      // Higher first — externalPolicyCount is always a number (0+),
+      // so no null handling needed here.
+      return b.customer.externalPolicyCount - a.customer.externalPolicyCount;
+    }
+    case "status": {
+      // Open first is the primary intent of this sort; secondary by
+      // strength desc keeps the top of each group meaningful.
+      const ao = a.status === "NEW" ? 0 : 1;
+      const bo = b.status === "NEW" ? 0 : 1;
+      if (ao !== bo) return ao - bo;
+      return (b.strengthScore ?? 0) - (a.strengthScore ?? 0);
+    }
+    default:
+      return 0;
+  }
+}
+
+// ============================================================
 // Page
 // ============================================================
 
@@ -146,6 +213,8 @@ export default function RuleSessionPage() {
   const params = useParams<{ id: string }>();
   const ruleId = params?.id ?? "";
   const queryClient = useQueryClient();
+
+  const [sortKey, setSortKey] = useState<SortKey>("strength");
 
   const {
     data,
@@ -169,6 +238,19 @@ export default function RuleSessionPage() {
       queryClient.invalidateQueries({ queryKey: ["insights"] });
     },
   });
+
+  // Memoize the sorted item list — it depends on the loaded pages and
+  // the active sort key. Hooks must run unconditionally on every render,
+  // so we compute this BEFORE the early returns below.
+  const sortedItems = useMemo<SessionItem[]>(() => {
+    const flat: SessionItem[] =
+      data?.pages.flatMap((page) => page.items) ?? [];
+    const open = flat.filter((i) => i.status === "NEW");
+    const handled = flat.filter((i) => i.status !== "NEW");
+    open.sort((a, b) => comparePrimary(a, b, sortKey));
+    handled.sort((a, b) => comparePrimary(a, b, sortKey));
+    return [...open, ...handled];
+  }, [data, sortKey]);
 
   // -------------------- Loading --------------------
   if (isLoading) {
@@ -231,8 +313,11 @@ export default function RuleSessionPage() {
   const { rule, stats } = firstPage;
 
   // The API already returns items open-first, then handled, each group
-  // ordered by strengthScore desc. We preserve that order across pages.
-  const sorted: SessionItem[] = data.pages.flatMap((page) => page.items);
+  // ordered by strengthScore desc. We re-sort client-side based on the
+  // user's selected sort key, but always keep open items above handled
+  // items as a HARD secondary sort — handled cards stay at the bottom
+  // because Rafi works through the open queue first.
+  const sorted: SessionItem[] = sortedItems;
   const loadedCount = sorted.length;
 
   const percent = stats.total > 0 ? Math.round((stats.handled / stats.total) * 100) : 0;
@@ -373,6 +458,34 @@ export default function RuleSessionPage() {
       {/* Customer list */}
       {stats.total > 0 && (
         <div className="space-y-3">
+          {/* Sort selector — open items always stay above handled ones,
+              this controls the order WITHIN each group. */}
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-surface-200/80 bg-white/55 px-3 py-2 backdrop-blur-md">
+            <div className="flex items-center gap-2">
+              <label
+                htmlFor="session-sort"
+                className="text-xs text-surface-600"
+              >
+                מיון לפי:
+              </label>
+              <select
+                id="session-sort"
+                value={sortKey}
+                onChange={(e) => setSortKey(e.target.value as SortKey)}
+                className="rounded-lg border border-white/80 bg-white/80 px-2.5 py-1 text-xs text-surface-900 text-right backdrop-blur-sm focus:border-violet-400/60 focus:bg-white/90 focus:outline-none focus:ring-2 focus:ring-violet-400/25"
+              >
+                {SORT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <span className="text-[11px] text-surface-400">
+              טופלו תמיד בתחתית
+            </span>
+          </div>
+
           {sorted.map((item) => {
             const isHandled = item.status !== "NEW";
             const isActing = pendingId === item.insightId;
