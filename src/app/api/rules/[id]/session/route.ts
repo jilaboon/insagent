@@ -16,7 +16,11 @@ import { requireAuth } from "@/lib/auth";
  */
 
 const DEFAULT_LIMIT = 50;
-const MAX_LIMIT = 100;
+// Raised so the session UI can pull all matches in one go when the user
+// asks for cross-page sorting (e.g. by triggering premium). Triggering-
+// premium isn't sortable in SQL because it depends on policies referenced
+// inside evidenceJson — so we hand the full set to the client.
+const MAX_LIMIT = 2000;
 
 const insightSelect = {
   id: true,

@@ -166,10 +166,11 @@ const categoryVariant: Record<
 
 async function fetchSession(
   ruleId: string,
-  offset: number
+  offset: number,
+  limit: number
 ): Promise<SessionResponse> {
   const res = await fetch(
-    `/api/rules/${ruleId}/session?offset=${offset}&limit=${PAGE_SIZE}`
+    `/api/rules/${ruleId}/session?offset=${offset}&limit=${limit}`
   );
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -309,6 +310,13 @@ export default function RuleSessionPage() {
 
   const [sortKey, setSortKey] = useState<SortKey>("strength");
 
+  // For most sorts the data fits in 50-row pages and "load more" works
+  // fine. For premium-based sort we need the full match set in one shot
+  // so the client can rank correctly across pages — there's no SQL
+  // ORDER BY for premium because it depends on policies referenced
+  // inside evidenceJson.
+  const pageSize = sortKey === "premium" ? 2000 : PAGE_SIZE;
+
   const {
     data,
     isLoading,
@@ -317,10 +325,12 @@ export default function RuleSessionPage() {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["rule-session", ruleId],
+    queryKey: ["rule-session", ruleId, pageSize],
     initialPageParam: 0,
-    queryFn: ({ pageParam }) => fetchSession(ruleId, pageParam as number),
-    getNextPageParam: (lastPage) => lastPage.pagination.nextOffset ?? undefined,
+    queryFn: ({ pageParam }) =>
+      fetchSession(ruleId, pageParam as number, pageSize),
+    getNextPageParam: (lastPage) =>
+      lastPage.pagination.nextOffset ?? undefined,
     enabled: !!ruleId,
   });
 
