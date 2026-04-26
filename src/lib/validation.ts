@@ -20,7 +20,8 @@ export const importUploadSchema = z.object({
   rows: z
     .array(z.record(z.string(), z.string().nullable()))
     .min(1, "לא נמצאו שורות"),
-  jobId: z.string().uuid().optional(),
+  // Client sends null on the first chunk before a job id is assigned.
+  jobId: z.string().uuid().nullable().optional(),
 });
 
 // ============================================================
