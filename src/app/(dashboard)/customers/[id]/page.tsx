@@ -600,6 +600,32 @@ export default function CustomerProfilePage() {
                     .sort(externalFirst),
                 };
 
+                // History per policy = other office policies of the
+                // same insurer + category + subType, sorted oldest →
+                // newest. Heuristic but covers the typical renewal
+                // pattern (annual renewals get fresh policy records).
+                const historyKey = (p: typeof customer.policies[number]) =>
+                  `${p.insurer}|${p.category}|${p.subType ?? ""}`;
+                const officePolicies = customer.policies.filter(
+                  (p) => p.externalSource !== "HAR_HABITUACH"
+                );
+                const historyByPolicyId: Record<string, typeof customer.policies> =
+                  {};
+                for (const p of officePolicies) {
+                  const k = historyKey(p);
+                  historyByPolicyId[p.id] = officePolicies
+                    .filter((q) => q.id !== p.id && historyKey(q) === k)
+                    .sort((a, b) => {
+                      const ad = a.startDate
+                        ? new Date(a.startDate).getTime()
+                        : 0;
+                      const bd = b.startDate
+                        ? new Date(b.startDate).getTime()
+                        : 0;
+                      return ad - bd;
+                    });
+                }
+
                 return (
                   <div className="space-y-5">
                     {/* Bucket 1 — Active */}
@@ -620,6 +646,7 @@ export default function CustomerProfilePage() {
                               key={policy.id}
                               policy={policy}
                               tone="active"
+                              history={historyByPolicyId[policy.id] ?? []}
                             />
                           ))}
                         </div>
@@ -644,6 +671,7 @@ export default function CustomerProfilePage() {
                               key={policy.id}
                               policy={policy}
                               tone="attention"
+                              history={historyByPolicyId[policy.id] ?? []}
                             />
                           ))}
                         </div>
@@ -668,6 +696,7 @@ export default function CustomerProfilePage() {
                               key={policy.id}
                               policy={policy}
                               tone="inactive"
+                              history={historyByPolicyId[policy.id] ?? []}
                             />
                           ))}
                         </div>
@@ -683,10 +712,7 @@ export default function CustomerProfilePage() {
             )}
           </Card>
 
-          <CustomerJourneyCard
-            tenure={customer.tenure}
-            policies={customer.policies}
-          />
+          <CustomerJourneyCard tenure={customer.tenure} />
         </div>
       </div>
     </div>
@@ -742,99 +768,35 @@ function formatYearMonth(iso: string): string {
 
 function CustomerJourneyCard({
   tenure,
-  policies,
 }: {
   tenure: CustomerDetail["tenure"];
-  policies: CustomerDetail["policies"];
 }) {
-  type RowPolicy = CustomerDetail["policies"][number];
-  // Office policies only, sorted by startDate ascending so the journey
-  // reads top-to-bottom from "first became a customer" to "today".
-  const office = policies.filter(
-    (p): p is RowPolicy & { startDate: string } =>
-      p.externalSource !== "HAR_HABITUACH" && !!p.startDate
-  );
-  const sorted = [...office].sort(
-    (a, b) =>
-      new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-  );
-
-  if (sorted.length === 0) return null;
-
-  const anchorId = tenure?.anchorPolicyId ?? null;
-
+  if (typeof tenure?.years !== "number") return null;
   return (
     <Card>
       <CardHeader>
         <CardTitle>מסע הלקוח אצלנו</CardTitle>
       </CardHeader>
-
-      <div className="mb-4 rounded-lg border border-emerald-200/70 bg-emerald-50/50 p-3">
+      <div className="rounded-lg border border-emerald-200/70 bg-emerald-50/50 p-3">
         <p className="text-xs text-emerald-800">
           ותק במשרד —{" "}
           <span className="font-bold number">
-            {tenure?.years?.toFixed(1) ?? "—"}
+            {tenure.years.toFixed(1)}
           </span>{" "}
           שנים, מחושב מתאריך התחלת הפוליסה הוותיקה ביותר אצלנו
           (כולל מבוטלות ופגות תוקף, לא כולל הר הביטוח).
         </p>
-        {tenure?.oldestStartDate && (
+        {tenure.oldestStartDate && (
           <p className="mt-1 text-[11px] text-emerald-700/80">
             פוליסה ראשונה התחילה ב־
             <span className="number">
               {formatYearMonth(tenure.oldestStartDate)}
             </span>
-            .
+            . לראות את ההיסטוריה של פוליסה ספציפית — לחץ על
+            &ldquo;צפה בהיסטוריה&rdquo; בכל כרטיס פוליסה למעלה.
           </p>
         )}
       </div>
-
-      <ul className="space-y-2.5">
-        {sorted.map((p) => {
-          const tone = statusTone(p.status);
-          const isAnchor = p.id === anchorId;
-          const startLabel = formatYearMonth(p.startDate);
-          const endLabel = p.endDate ? formatYearMonth(p.endDate) : "היום";
-          return (
-            <li
-              key={p.id}
-              className={cn(
-                "flex items-start gap-3 rounded-lg border px-3 py-2",
-                isAnchor
-                  ? "border-emerald-300/70 bg-emerald-500/5"
-                  : "border-surface-100 bg-white/40"
-              )}
-            >
-              <span
-                className={cn(
-                  "mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full",
-                  tone.dot
-                )}
-                aria-hidden
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium text-surface-800">
-                    {p.subType || policyCategoryLabels[p.category] || p.category}
-                  </span>
-                  <span className="text-xs text-surface-500">{p.insurer}</span>
-                  <span className={cn("text-[11px] font-medium", tone.text)}>
-                    {STATUS_LABELS[p.status] ?? p.status}
-                  </span>
-                  {isAnchor && (
-                    <span className="rounded-full border border-emerald-300/70 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
-                      נקודת ההתחלה
-                    </span>
-                  )}
-                </div>
-                <p className="mt-0.5 text-[11px] text-surface-500 number">
-                  {startLabel} ← {endLabel}
-                </p>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
     </Card>
   );
 }
@@ -1051,10 +1013,13 @@ type PolicyForRow = {
 function PolicyRow({
   policy,
   tone,
+  history,
 }: {
   policy: PolicyForRow;
   tone: "active" | "attention" | "inactive";
+  history: PolicyForRow[];
 }) {
+  const [showHistory, setShowHistory] = useState(false);
   const isExternal = policy.externalSource === "HAR_HABITUACH";
   const isMonthlyCategory = MONTHLY_CATEGORIES.has(policy.category);
 
@@ -1064,7 +1029,7 @@ function PolicyRow({
   // even on Har-HaBituach rows.
   const containerClass = (() => {
     const base =
-      "flex items-start justify-between gap-4 rounded-lg p-4 border-r-4";
+      "flex flex-wrap items-start justify-between gap-4 rounded-lg p-4 border-r-4";
     if (tone === "attention") {
       return cn(
         base,
@@ -1194,7 +1159,64 @@ function PolicyRow({
       <div className="text-left">
         {renderPremium()}
         <DataFreshness date={policy.dataFreshness} />
+        {!isExternal && history.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowHistory((v) => !v)}
+            className="mt-2 inline-flex items-center gap-1 rounded-md border border-emerald-200/70 bg-emerald-50/40 px-2 py-0.5 text-[11px] font-medium text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50"
+          >
+            {showHistory ? "הסתר היסטוריה" : "צפה בהיסטוריה"}
+            <span className="number">({history.length})</span>
+          </button>
+        )}
       </div>
+
+      {!isExternal && showHistory && history.length > 0 && (
+        <div className="basis-full border-t border-surface-100 pt-3">
+          <p className="mb-2 text-[11px] text-surface-500">
+            פוליסות קודמות אצלנו עם אותה חברה ואותו סוג מוצר —
+            לרוב מדובר בחידושים של אותה פוליסה לאורך השנים.
+          </p>
+          <ul className="space-y-2">
+            {history.map((h) => {
+              const tone = statusTone(h.status);
+              const startLabel = h.startDate
+                ? formatYearMonth(h.startDate)
+                : "—";
+              const endLabel = h.endDate
+                ? formatYearMonth(h.endDate)
+                : "היום";
+              return (
+                <li
+                  key={h.id}
+                  className="flex items-start gap-3 rounded-md border border-surface-100 bg-white/50 px-3 py-1.5"
+                >
+                  <span
+                    className={cn(
+                      "mt-1.5 h-2 w-2 shrink-0 rounded-full",
+                      tone.dot
+                    )}
+                    aria-hidden
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                      <span className="number text-surface-700">
+                        {h.policyNumber}
+                      </span>
+                      <span className={cn("font-medium", tone.text)}>
+                        {STATUS_LABELS[h.status] ?? h.status}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-surface-500 number">
+                      {startLabel} ← {endLabel}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
