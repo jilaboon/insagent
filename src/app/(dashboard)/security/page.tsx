@@ -20,7 +20,7 @@ export default function SecurityPage() {
           אבטחה ופרטיות
         </h1>
         <p className="mt-1 text-sm text-surface-500">
-          מדיניות הגנת המידע של InsAgent
+          מדיניות הגנת המידע של זרקור
         </p>
       </div>
 

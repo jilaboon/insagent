@@ -20,7 +20,7 @@ const pageTitles: Record<string, string> = {
 function getPageTitle(pathname: string): string {
   if (pageTitles[pathname]) return pageTitles[pathname];
   if (pathname.startsWith("/customers/")) return "פרופיל לקוח";
-  return "InsAgent";
+  return "זרקור";
 }
 
 export function Topbar() {

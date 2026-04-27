@@ -26,7 +26,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "InsAgent — המוח החכם של המשרד",
+  title: "זרקור — ממקד את המשרד במה שחשוב עכשיו",
   description: "מערכת AI חכמה למשרד ביטוח",
 };
 

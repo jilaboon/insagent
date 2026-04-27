@@ -73,9 +73,9 @@ export function Sidebar() {
               color: "transparent",
             }}
           >
-            InsAgent
+            זרקור
           </h1>
-          <p className="text-[11px] text-surface-500">המוח החכם של המשרד</p>
+          <p className="text-[11px] text-surface-500">ממקד את המשרד במה שחשוב עכשיו</p>
         </div>
       </div>
 
