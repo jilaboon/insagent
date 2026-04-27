@@ -1023,6 +1023,36 @@ function PolicyRow({
   const isExternal = policy.externalSource === "HAR_HABITUACH";
   const isMonthlyCategory = MONTHLY_CATEGORIES.has(policy.category);
 
+  // Collapse history to one entry per renewal year. Insurance renews
+  // yearly, so showing every BAFI record (which can have multiple
+  // entries per year for the same policy) is noise. The earliest
+  // record in each year is the representative; duplicates surface as
+  // a count beside it.
+  const yearlyHistory = (() => {
+    const byYear = new Map<
+      number,
+      { policy: PolicyForRow; count: number }
+    >();
+    for (const h of history) {
+      if (!h.startDate) continue;
+      const year = new Date(h.startDate).getFullYear();
+      const existing = byYear.get(year);
+      if (!existing) {
+        byYear.set(year, { policy: h, count: 1 });
+        continue;
+      }
+      existing.count += 1;
+      const existingStart = new Date(existing.policy.startDate!).getTime();
+      const newStart = new Date(h.startDate).getTime();
+      if (newStart < existingStart) existing.policy = h;
+    }
+    return Array.from(byYear.values()).sort((a, b) => {
+      const ay = new Date(a.policy.startDate!).getFullYear();
+      const by = new Date(b.policy.startDate!).getFullYear();
+      return ay - by;
+    });
+  })();
+
   // Container classes drive the visual differentiation between buckets.
   // External policies keep their violet treatment, but we still apply
   // the bucket's left-border accent + opacity so the grouping reads
@@ -1130,6 +1160,24 @@ function PolicyRow({
         <div className="flex flex-wrap items-center gap-x-2 text-xs text-surface-500">
           <span>{policy.insurer}</span>
           <span className="number">{policy.policyNumber}</span>
+          {!isExternal && yearlyHistory.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowHistory((v) => !v)}
+              className="inline-flex items-center gap-1 rounded-md border border-surface-200 bg-white/60 px-1.5 py-0.5 text-[11px] font-medium text-surface-600 hover:border-violet-300 hover:text-violet-700"
+              aria-expanded={showHistory}
+              title="היסטוריית חידושים"
+            >
+              <ChevronDown
+                className={cn(
+                  "h-3 w-3 transition-transform",
+                  showHistory && "rotate-180"
+                )}
+              />
+              <span className="number">{yearlyHistory.length}</span>{" "}
+              חידושים
+            </button>
+          )}
         </div>
         {/* Primary date — start date for life/health-style policies. */}
         {isMonthlyCategory && policy.startDate && (
@@ -1159,58 +1207,43 @@ function PolicyRow({
       <div className="text-left">
         {renderPremium()}
         <DataFreshness date={policy.dataFreshness} />
-        {!isExternal && history.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowHistory((v) => !v)}
-            className="mt-2 inline-flex items-center gap-1 rounded-md border border-emerald-200/70 bg-emerald-50/40 px-2 py-0.5 text-[11px] font-medium text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50"
-          >
-            {showHistory ? "הסתר היסטוריה" : "צפה בהיסטוריה"}
-            <span className="number">({history.length})</span>
-          </button>
-        )}
       </div>
 
-      {!isExternal && showHistory && history.length > 0 && (
+      {!isExternal && showHistory && yearlyHistory.length > 0 && (
         <div className="basis-full border-t border-surface-100 pt-3">
           <p className="mb-2 text-[11px] text-surface-500">
-            פוליסות קודמות אצלנו עם אותה חברה ואותו סוג מוצר —
-            לרוב מדובר בחידושים של אותה פוליסה לאורך השנים.
+            חידושים שנתיים — כל ערך מייצג שנת חידוש אחת. אם
+            לאותה שנה יש כמה רשומות, מוצגת ספירה לצידה.
           </p>
-          <ul className="space-y-2">
-            {history.map((h) => {
-              const tone = statusTone(h.status);
-              const startLabel = h.startDate
-                ? formatYearMonth(h.startDate)
-                : "—";
-              const endLabel = h.endDate
-                ? formatYearMonth(h.endDate)
-                : "היום";
+          <ul className="space-y-1.5">
+            {yearlyHistory.map((entry) => {
+              const tone = statusTone(entry.policy.status);
+              const year = entry.policy.startDate
+                ? new Date(entry.policy.startDate).getFullYear()
+                : null;
               return (
                 <li
-                  key={h.id}
-                  className="flex items-start gap-3 rounded-md border border-surface-100 bg-white/50 px-3 py-1.5"
+                  key={entry.policy.id}
+                  className="flex items-center gap-3 rounded-md border border-surface-100 bg-white/50 px-3 py-1.5"
                 >
                   <span
                     className={cn(
-                      "mt-1.5 h-2 w-2 shrink-0 rounded-full",
+                      "h-2 w-2 shrink-0 rounded-full",
                       tone.dot
                     )}
                     aria-hidden
                   />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2 text-[11px]">
-                      <span className="number text-surface-700">
-                        {h.policyNumber}
-                      </span>
-                      <span className={cn("font-medium", tone.text)}>
-                        {STATUS_LABELS[h.status] ?? h.status}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-[11px] text-surface-500 number">
-                      {startLabel} ← {endLabel}
-                    </p>
-                  </div>
+                  <span className="number text-sm font-semibold text-surface-800">
+                    {year ?? "—"}
+                  </span>
+                  <span className={cn("text-[11px] font-medium", tone.text)}>
+                    {STATUS_LABELS[entry.policy.status] ?? entry.policy.status}
+                  </span>
+                  {entry.count > 1 && (
+                    <span className="text-[11px] text-surface-500 number">
+                      (×{entry.count})
+                    </span>
+                  )}
                 </li>
               );
             })}
