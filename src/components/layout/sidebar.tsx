@@ -12,7 +12,7 @@ import {
   ShieldCheck,
   Settings,
   RefreshCw,
-  Brain,
+  Target,
   Clock,
 } from "lucide-react";
 
@@ -49,34 +49,35 @@ export function Sidebar() {
           "-12px 0 40px -20px rgba(80,70,180,0.22)",
       }}
     >
-      {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-white/60 px-6">
+      {/* Logo — centered stack with the product mark above the name. */}
+      <div className="flex flex-col items-center gap-2 border-b border-white/60 px-6 py-5">
         <div
-          className="relative flex h-9 w-9 items-center justify-center rounded-xl text-white"
+          className="relative flex h-11 w-11 items-center justify-center rounded-2xl text-white"
           style={{
             background:
               "linear-gradient(135deg, #818CF8 0%, #A78BFA 55%, #F0ABFC 100%)",
             boxShadow:
-              "0 1px 0 rgba(255,255,255,0.5) inset, 0 6px 16px -6px rgba(167,139,250,0.7)",
+              "0 1px 0 rgba(255,255,255,0.5) inset, 0 6px 18px -6px rgba(167,139,250,0.7)",
+          }}
+          aria-hidden
+        >
+          <Target className="h-6 w-6" strokeWidth={2.25} />
+        </div>
+        <h1
+          className="text-3xl font-extrabold leading-none tracking-tight"
+          style={{
+            backgroundImage:
+              "linear-gradient(100deg, #4338CA 0%, #7C3AED 50%, #C026D3 100%)",
+            WebkitBackgroundClip: "text",
+            backgroundClip: "text",
+            color: "transparent",
           }}
         >
-          <Brain className="h-5 w-5" />
-        </div>
-        <div>
-          <h1
-            className="text-sm font-bold"
-            style={{
-              backgroundImage:
-                "linear-gradient(100deg, #4338CA 0%, #7C3AED 50%, #C026D3 100%)",
-              WebkitBackgroundClip: "text",
-              backgroundClip: "text",
-              color: "transparent",
-            }}
-          >
-            זרקור
-          </h1>
-          <p className="text-[11px] text-surface-500">ממקד את המשרד במה שחשוב עכשיו</p>
-        </div>
+          זרקור
+        </h1>
+        <p className="text-center text-[11px] leading-snug text-surface-500">
+          ממקד את המשרד במה שחשוב עכשיו
+        </p>
       </div>
 
       {/* Navigation */}
