@@ -2,6 +2,8 @@
 
 import { useMemo, useState, Fragment } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -61,16 +63,25 @@ function createColumns(): ColumnDef<InsightDetail, unknown>[] {
         </button>
       ),
     },
-    // Customer
+    // Customer — name links to the customer card so the agent can
+    // jump straight from an insight row to the full profile.
     {
       id: "customer",
       header: "לקוח",
       size: 180,
       cell: ({ row }) => (
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-surface-900">
-            {row.original.customerName}
-          </p>
+          <Link
+            href={`/customers/${row.original.customerId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="group inline-flex items-center gap-1 truncate text-sm font-medium text-surface-900 hover:text-violet-700"
+            title="פתח כרטיס לקוח"
+          >
+            <span className="truncate">{row.original.customerName}</span>
+            <ExternalLink className="h-3 w-3 shrink-0 text-surface-400 group-hover:text-violet-600" />
+          </Link>
           <p className="truncate text-xs text-surface-500 number">
             {row.original.customerIsraeliId}
           </p>
