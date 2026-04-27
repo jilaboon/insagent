@@ -282,7 +282,14 @@ export async function buildQueue(
       if (!elig.eligible) continue;
 
       const reasonCategory = determineReasonCategory(ctx, settings);
-      const whyToday = buildWhyTodayReason(ctx, settings);
+      // The headline says exactly what won — the title of the strongest
+      // matching insight (i.e. the rule that fired loudest). Falls back
+      // to the queue's narrative reason only if a primary insight title
+      // is missing, which shouldn't happen in practice but keeps the
+      // queue legible if the data is inconsistent.
+      const whyToday = ins.title?.trim()
+        ? ins.title
+        : buildWhyTodayReason(ctx, settings);
 
       // Compute days-to-expiry for sort (nearest active expiring policy)
       let daysToExpiry: number | null = null;
