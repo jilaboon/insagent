@@ -262,14 +262,21 @@ export async function GET(
   // Office tenure per customer — oldest startDate across all of THEIR
   // policies excluding Har HaBituach. Cancelled and expired count too;
   // they prove the customer was once with us.
+  //
+  // SQL "!= X" excludes NULL by default — and office policies store
+  // externalSource as NULL, so the naive `not: 'HAR_HABITUACH'` filter
+  // would drop every office row. Explicit OR with null fixes it.
   const tenureRows =
     customerIds.length > 0
       ? await prisma.policy.groupBy({
           by: ["customerId"],
           where: {
             customerId: { in: customerIds },
-            externalSource: { not: "HAR_HABITUACH" },
             startDate: { not: null },
+            OR: [
+              { externalSource: null },
+              { externalSource: { not: "HAR_HABITUACH" } },
+            ],
           },
           _min: { startDate: true },
         })
