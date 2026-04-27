@@ -596,7 +596,7 @@ export default function RuleSessionPage() {
                   id="session-sort"
                   value={sortKey}
                   onChange={(e) => setSortKey(e.target.value as SortKey)}
-                  className="rounded-lg border border-white/80 bg-white/80 px-2.5 py-1 text-xs text-surface-900 text-right backdrop-blur-sm focus:border-violet-400/60 focus:bg-white/90 focus:outline-none focus:ring-2 focus:ring-violet-400/25"
+                  className="rounded-lg border border-surface-300 bg-white px-2.5 py-1 text-xs text-surface-900 text-right shadow-sm hover:border-violet-300 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/25"
                 >
                   {SORT_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -618,7 +618,7 @@ export default function RuleSessionPage() {
                   onChange={(e) =>
                     setExternalFilter(e.target.value as ExternalFilter)
                   }
-                  className="rounded-lg border border-white/80 bg-white/80 px-2.5 py-1 text-xs text-surface-900 text-right backdrop-blur-sm focus:border-violet-400/60 focus:bg-white/90 focus:outline-none focus:ring-2 focus:ring-violet-400/25"
+                  className="rounded-lg border border-surface-300 bg-white px-2.5 py-1 text-xs text-surface-900 text-right shadow-sm hover:border-violet-300 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/25"
                 >
                   {EXTERNAL_FILTER_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
