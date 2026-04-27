@@ -1212,8 +1212,9 @@ function PolicyRow({
       {!isExternal && showHistory && yearlyHistory.length > 0 && (
         <div className="basis-full border-t border-surface-100 pt-3">
           <p className="mb-2 text-[11px] text-surface-500">
-            חידושים שנתיים — כל ערך מייצג שנת חידוש אחת. אם
-            לאותה שנה יש כמה רשומות, מוצגת ספירה לצידה.
+            חידושים שנתיים — כל ערך מייצג שנת חידוש אחת. אם BAFI שמרה
+            כמה רשומות לאותה שנה (פוליסות מקבילות, או החלפת פוליסה
+            אצל אותה חברה באמצע שנה) מוצגת ספירה לצידה.
           </p>
           <ul className="space-y-1.5">
             {yearlyHistory.map((entry) => {
