@@ -39,7 +39,7 @@ export default function SecurityPage() {
             <ul className="space-y-2 text-sm text-surface-700 leading-relaxed">
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                כל הנתונים מאוחסנים בבסיס נתונים מוצפן (PostgreSQL) בשרתי AWS באירופה (פרנקפורט)
+                כל הנתונים מאוחסנים בבסיס נתונים מוצפן (PostgreSQL) המנוהל ב־Supabase על תשתית AWS באירופה (פרנקפורט)
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
