@@ -216,6 +216,14 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "status", label: "סטטוס" },
 ];
 
+type ExternalFilter = "all" | "only" | "without";
+
+const EXTERNAL_FILTER_OPTIONS: { value: ExternalFilter; label: string }[] = [
+  { value: "all", label: "כולל הר הביטוח" },
+  { value: "only", label: "רק עם הר הביטוח" },
+  { value: "without", label: "בלי הר הביטוח" },
+];
+
 /**
  * Total monthly premium across the policies that triggered this rule
  * for this customer. Annual premiums are folded in as /12. Returns
@@ -309,6 +317,8 @@ export default function RuleSessionPage() {
   const queryClient = useQueryClient();
 
   const [sortKey, setSortKey] = useState<SortKey>("strength");
+  const [externalFilter, setExternalFilter] =
+    useState<ExternalFilter>("all");
 
   // For most sorts the data fits in 50-row pages and "load more" works
   // fine. For premium-based sort we need the full match set in one shot
@@ -348,12 +358,18 @@ export default function RuleSessionPage() {
   const sortedItems = useMemo<SessionItem[]>(() => {
     const flat: SessionItem[] =
       data?.pages.flatMap((page) => page.items) ?? [];
-    const open = flat.filter((i) => i.status === "NEW");
-    const handled = flat.filter((i) => i.status !== "NEW");
+    const filtered = flat.filter((i) => {
+      const hasExternal = i.customer.externalPolicyCount > 0;
+      if (externalFilter === "only") return hasExternal;
+      if (externalFilter === "without") return !hasExternal;
+      return true;
+    });
+    const open = filtered.filter((i) => i.status === "NEW");
+    const handled = filtered.filter((i) => i.status !== "NEW");
     open.sort((a, b) => comparePrimary(a, b, sortKey));
     handled.sort((a, b) => comparePrimary(a, b, sortKey));
     return [...open, ...handled];
-  }, [data, sortKey]);
+  }, [data, sortKey, externalFilter]);
 
   // -------------------- Loading --------------------
   if (isLoading) {
@@ -564,25 +580,49 @@ export default function RuleSessionPage() {
           {/* Sort selector — open items always stay above handled ones,
               this controls the order WITHIN each group. */}
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-surface-200/80 bg-white/55 px-3 py-2 backdrop-blur-md">
-            <div className="flex items-center gap-2">
-              <label
-                htmlFor="session-sort"
-                className="text-xs text-surface-600"
-              >
-                מיון לפי:
-              </label>
-              <select
-                id="session-sort"
-                value={sortKey}
-                onChange={(e) => setSortKey(e.target.value as SortKey)}
-                className="rounded-lg border border-white/80 bg-white/80 px-2.5 py-1 text-xs text-surface-900 text-right backdrop-blur-sm focus:border-violet-400/60 focus:bg-white/90 focus:outline-none focus:ring-2 focus:ring-violet-400/25"
-              >
-                {SORT_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="session-sort"
+                  className="text-xs text-surface-600"
+                >
+                  מיון לפי:
+                </label>
+                <select
+                  id="session-sort"
+                  value={sortKey}
+                  onChange={(e) => setSortKey(e.target.value as SortKey)}
+                  className="rounded-lg border border-white/80 bg-white/80 px-2.5 py-1 text-xs text-surface-900 text-right backdrop-blur-sm focus:border-violet-400/60 focus:bg-white/90 focus:outline-none focus:ring-2 focus:ring-violet-400/25"
+                >
+                  {SORT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="session-external-filter"
+                  className="text-xs text-surface-600"
+                >
+                  הר הביטוח:
+                </label>
+                <select
+                  id="session-external-filter"
+                  value={externalFilter}
+                  onChange={(e) =>
+                    setExternalFilter(e.target.value as ExternalFilter)
+                  }
+                  className="rounded-lg border border-white/80 bg-white/80 px-2.5 py-1 text-xs text-surface-900 text-right backdrop-blur-sm focus:border-violet-400/60 focus:bg-white/90 focus:outline-none focus:ring-2 focus:ring-violet-400/25"
+                >
+                  {EXTERNAL_FILTER_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <span className="text-[11px] text-surface-400">
               טופלו תמיד בתחתית
