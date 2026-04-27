@@ -20,7 +20,7 @@ import {
 import { MessageComposer } from "@/components/shared/message-composer";
 import { SkeletonCard, Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { useCustomerDetail, useGenerateCombinedMessage } from "@/lib/api/hooks";
+import { useCustomerDetail, useGenerateCombinedMessage, type CustomerDetail } from "@/lib/api/hooks";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { policyCategoryLabels, insightCategoryLabels } from "@/lib/constants";
 import type { MessageDraftItem } from "@/lib/types/message";
@@ -237,9 +237,23 @@ export default function CustomerProfilePage() {
               </span>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-surface-900">
-                {customer.firstName} {customer.lastName}
-              </h1>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-bold text-surface-900">
+                  {customer.firstName} {customer.lastName}
+                </h1>
+                {typeof customer.tenure?.years === "number" && (
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full border border-emerald-300/50 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700"
+                    title="ותק לקוח אצלנו — לפי הפוליסה הוותיקה ביותר"
+                  >
+                    ותק{" "}
+                    <span className="number">
+                      {customer.tenure.years.toFixed(1)}
+                    </span>{" "}
+                    שנים
+                  </span>
+                )}
+              </div>
               <div className="mt-1 flex items-center gap-4 text-sm text-surface-500">
                 <span className="flex items-center gap-1 number">
                   <User className="h-3.5 w-3.5" />
@@ -668,9 +682,160 @@ export default function CustomerProfilePage() {
               </p>
             )}
           </Card>
+
+          <CustomerJourneyCard
+            tenure={customer.tenure}
+            policies={customer.policies}
+          />
         </div>
       </div>
     </div>
+  );
+}
+
+// ============================================================
+// Customer Journey Card — explains the tenure number visually.
+// Lists every office policy on a chronological track so the agent
+// can see "this is when you started, and these are all the renewals
+// since". Har HaBituach rows are excluded — they're not the office's
+// relationship.
+// ============================================================
+const STATUS_LABELS: Record<string, string> = {
+  ACTIVE: "פעיל",
+  PROPOSAL: "הצעה",
+  UNKNOWN: "לא ידוע",
+  CANCELLED: "מבוטל",
+  EXPIRED: "פג תוקף",
+  FROZEN: "מוקפאת",
+  PAID_UP: "מסולקת",
+  ARREARS: "בפיגור",
+};
+
+function statusTone(
+  status: string
+): { dot: string; text: string; track: string } {
+  if (status === "ACTIVE" || status === "PROPOSAL" || status === "UNKNOWN") {
+    return {
+      dot: "bg-emerald-500",
+      text: "text-emerald-700",
+      track: "bg-emerald-400/30",
+    };
+  }
+  if (status === "CANCELLED" || status === "EXPIRED") {
+    return {
+      dot: "bg-rose-400",
+      text: "text-rose-600",
+      track: "bg-rose-300/30",
+    };
+  }
+  return {
+    dot: "bg-amber-500",
+    text: "text-amber-700",
+    track: "bg-amber-400/30",
+  };
+}
+
+function formatYearMonth(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString("he-IL", { year: "numeric", month: "2-digit" });
+}
+
+function CustomerJourneyCard({
+  tenure,
+  policies,
+}: {
+  tenure: CustomerDetail["tenure"];
+  policies: CustomerDetail["policies"];
+}) {
+  type RowPolicy = CustomerDetail["policies"][number];
+  // Office policies only, sorted by startDate ascending so the journey
+  // reads top-to-bottom from "first became a customer" to "today".
+  const office = policies.filter(
+    (p): p is RowPolicy & { startDate: string } =>
+      p.externalSource !== "HAR_HABITUACH" && !!p.startDate
+  );
+  const sorted = [...office].sort(
+    (a, b) =>
+      new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+  );
+
+  if (sorted.length === 0) return null;
+
+  const anchorId = tenure?.anchorPolicyId ?? null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>מסע הלקוח אצלנו</CardTitle>
+      </CardHeader>
+
+      <div className="mb-4 rounded-lg border border-emerald-200/70 bg-emerald-50/50 p-3">
+        <p className="text-xs text-emerald-800">
+          ותק במשרד —{" "}
+          <span className="font-bold number">
+            {tenure?.years?.toFixed(1) ?? "—"}
+          </span>{" "}
+          שנים, מחושב מתאריך התחלת הפוליסה הוותיקה ביותר אצלנו
+          (כולל מבוטלות ופגות תוקף, לא כולל הר הביטוח).
+        </p>
+        {tenure?.oldestStartDate && (
+          <p className="mt-1 text-[11px] text-emerald-700/80">
+            פוליסה ראשונה התחילה ב־
+            <span className="number">
+              {formatYearMonth(tenure.oldestStartDate)}
+            </span>
+            .
+          </p>
+        )}
+      </div>
+
+      <ul className="space-y-2.5">
+        {sorted.map((p) => {
+          const tone = statusTone(p.status);
+          const isAnchor = p.id === anchorId;
+          const startLabel = formatYearMonth(p.startDate);
+          const endLabel = p.endDate ? formatYearMonth(p.endDate) : "היום";
+          return (
+            <li
+              key={p.id}
+              className={cn(
+                "flex items-start gap-3 rounded-lg border px-3 py-2",
+                isAnchor
+                  ? "border-emerald-300/70 bg-emerald-500/5"
+                  : "border-surface-100 bg-white/40"
+              )}
+            >
+              <span
+                className={cn(
+                  "mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full",
+                  tone.dot
+                )}
+                aria-hidden
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium text-surface-800">
+                    {p.subType || policyCategoryLabels[p.category] || p.category}
+                  </span>
+                  <span className="text-xs text-surface-500">{p.insurer}</span>
+                  <span className={cn("text-[11px] font-medium", tone.text)}>
+                    {STATUS_LABELS[p.status] ?? p.status}
+                  </span>
+                  {isAnchor && (
+                    <span className="rounded-full border border-emerald-300/70 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                      נקודת ההתחלה
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 text-[11px] text-surface-500 number">
+                  {startLabel} ← {endLabel}
+                </p>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
   );
 }
 

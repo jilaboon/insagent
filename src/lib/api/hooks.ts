@@ -84,6 +84,11 @@ export interface CustomerDetail {
   assignedManagerId: string | null;
   lastImportDate: string | null;
   importFileCount: number;
+  tenure: {
+    years: number | null;
+    anchorPolicyId: string | null;
+    oldestStartDate: string | null;
+  };
   familyMembers: {
     id: string;
     name: string;

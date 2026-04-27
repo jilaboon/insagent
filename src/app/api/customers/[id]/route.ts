@@ -228,6 +228,29 @@ export async function GET(
   const lastImportDate =
     customer.importLinks[0]?.importJob.createdAt.toISOString() ?? null;
 
+  // Tenure with the office — derived from the oldest startDate across
+  // all OFFICE policies (Har HaBituach excluded, every status counted).
+  // The anchor policy id lets the UI highlight the row that defines
+  // the tenure number.
+  const officePoliciesWithStart = customer.policies.filter(
+    (p) => p.externalSource !== "HAR_HABITUACH" && p.startDate
+  );
+  let tenureYears: number | null = null;
+  let anchorPolicyId: string | null = null;
+  let oldestStartDate: string | null = null;
+  if (officePoliciesWithStart.length > 0) {
+    const sorted = [...officePoliciesWithStart].sort(
+      (a, b) =>
+        (a.startDate?.getTime() ?? 0) - (b.startDate?.getTime() ?? 0)
+    );
+    const oldest = sorted[0];
+    tenureYears =
+      (Date.now() - oldest.startDate!.getTime()) /
+      (365.25 * 24 * 60 * 60 * 1000);
+    anchorPolicyId = oldest.id;
+    oldestStartDate = oldest.startDate!.toISOString();
+  }
+
   return NextResponse.json({
     id: customer.id,
     firstName: customer.firstName,
@@ -240,6 +263,11 @@ export async function GET(
     assignedManagerId: customer.assignedManagerId,
     lastImportDate,
     importFileCount,
+    tenure: {
+      years: tenureYears,
+      anchorPolicyId,
+      oldestStartDate,
+    },
     familyMembers: customer.familyMembers.map((fm) => ({
       id: fm.id,
       name: fm.name,
