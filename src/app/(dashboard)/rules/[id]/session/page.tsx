@@ -56,6 +56,7 @@ interface SessionCustomer {
   age: number | null;
   source: string | null;
   externalPolicyCount: number;
+  tenureYears: number | null;
 }
 
 interface TriggeringPolicy {
@@ -654,6 +655,18 @@ export default function RuleSessionPage() {
                       {typeof item.customer.age === "number" && (
                         <span className="text-xs text-surface-500">
                           גיל <span className="number">{item.customer.age}</span>
+                        </span>
+                      )}
+                      {typeof item.customer.tenureYears === "number" && (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full border border-emerald-300/50 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700"
+                          title="ותק לקוח אצלנו — לפי הפוליסה הוותיקה ביותר"
+                        >
+                          ותק{" "}
+                          <span className="number">
+                            {item.customer.tenureYears.toFixed(1)}
+                          </span>{" "}
+                          שנים
                         </span>
                       )}
                       {item.customer.phone && (

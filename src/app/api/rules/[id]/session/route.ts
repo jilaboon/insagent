@@ -140,6 +140,7 @@ export interface SessionItemPayload {
     age: number | null;
     source: string | null;
     externalPolicyCount: number;
+    tenureYears: number | null;
   };
   scoreBreakdown: ScoreBreakdown | null;
   triggeringPolicies: SessionTriggeringPolicy[];
@@ -258,6 +259,33 @@ export async function GET(
     externalCounts.map((p) => [p.customerId, p._count._all])
   );
 
+  // Office tenure per customer — oldest startDate across all of THEIR
+  // policies excluding Har HaBituach. Cancelled and expired count too;
+  // they prove the customer was once with us.
+  const tenureRows =
+    customerIds.length > 0
+      ? await prisma.policy.groupBy({
+          by: ["customerId"],
+          where: {
+            customerId: { in: customerIds },
+            externalSource: { not: "HAR_HABITUACH" },
+            startDate: { not: null },
+          },
+          _min: { startDate: true },
+        })
+      : [];
+  const tenureMap = new Map<string, number | null>();
+  for (const row of tenureRows) {
+    if (!row._min.startDate) {
+      tenureMap.set(row.customerId, null);
+      continue;
+    }
+    const years =
+      (Date.now() - row._min.startDate.getTime()) /
+      (365.25 * 24 * 60 * 60 * 1000);
+    tenureMap.set(row.customerId, years);
+  }
+
   // Collect the union of all triggering policy IDs across the page so
   // we can fetch them in ONE round trip rather than N. Older insights
   // that lack the field contribute nothing — the section just won't
@@ -315,6 +343,7 @@ export async function GET(
         ...i.customer,
         fullName: `${i.customer.firstName} ${i.customer.lastName}`.trim(),
         externalPolicyCount: externalMap.get(i.customer.id) ?? 0,
+        tenureYears: tenureMap.get(i.customer.id) ?? null,
       },
       scoreBreakdown: extractScoreBreakdown(i.evidenceJson),
       triggeringPolicies,
