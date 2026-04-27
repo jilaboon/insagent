@@ -324,8 +324,11 @@ export default function RuleSessionPage() {
   // fine. For premium-based sort we need the full match set in one shot
   // so the client can rank correctly across pages — there's no SQL
   // ORDER BY for premium because it depends on policies referenced
-  // inside evidenceJson.
-  const pageSize = sortKey === "premium" ? 2000 : PAGE_SIZE;
+  // inside evidenceJson. Same goes for the Har HaBituach filter — a
+  // 50-row page would only filter that page, not the full set.
+  const needsFullSet =
+    sortKey === "premium" || externalFilter !== "all";
+  const pageSize = needsFullSet ? 2000 : PAGE_SIZE;
 
   const {
     data,
