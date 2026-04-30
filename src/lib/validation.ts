@@ -25,6 +25,38 @@ export const importUploadSchema = z.object({
 });
 
 // ============================================================
+// Misleka Upload (consent capture)
+// ============================================================
+
+/**
+ * Validates the non-file form fields on POST /api/import/misleka/upload.
+ * The files themselves come through multipart/form-data and are validated
+ * separately at the route level (count cap, size, extension, MIME).
+ *
+ * Hebrew messages on the enums steer the operator to fix the consent
+ * picker rather than puzzle over a generic "invalid input" string.
+ */
+export const mislekaUploadSchema = z.object({
+  customerId: z.string().uuid().optional(),
+  consentSource: z.enum(
+    ["CUSTOMER_VERBAL", "CUSTOMER_SIGNED", "AGENT_REPRESENTED", "DEMO_INTERNAL"],
+    { message: "מקור הסכמה לא תקין" }
+  ),
+  consentScope: z.enum(
+    ["MISLEKA_PRODUCTS", "FULL_360", "DEMO_INTERNAL"],
+    { message: "היקף הסכמה לא תקין" }
+  ),
+  consentDate: z
+    .string()
+    .datetime({ message: "תאריך הסכמה חייב להיות בפורמט ISO" }),
+  consentDocRef: z
+    .string()
+    .url({ message: "קישור למסמך הסכמה חייב להיות כתובת תקינה" })
+    .optional(),
+  bypassConsent: z.boolean().optional(),
+});
+
+// ============================================================
 // Messages
 // ============================================================
 

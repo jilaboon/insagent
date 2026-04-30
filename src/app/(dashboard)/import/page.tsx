@@ -5,9 +5,10 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { BafiImport } from "./_components/bafi-import";
 import { HarHabituachImport } from "./_components/har-habituach-import";
+import { MislekaImport } from "./_components/misleka-import";
 import { ImportHistory } from "./_components/import-history";
 
-type Tab = "bafi" | "har_habituach";
+type Tab = "bafi" | "har_habituach" | "misleka";
 
 export default function ImportPage() {
   const [tab, setTab] = useState<Tab>("bafi");
@@ -38,12 +39,19 @@ export default function ImportPage() {
           active={tab === "har_habituach"}
           onClick={() => setTab("har_habituach")}
         />
+        <TabButton
+          label="מסלקה (XML)"
+          sub="פנסיה, גמל, השתלמות וביטוחי חיים"
+          active={tab === "misleka"}
+          onClick={() => setTab("misleka")}
+        />
       </div>
 
       {tab === "bafi" && <BafiImport onImportComplete={bumpHistory} />}
       {tab === "har_habituach" && (
         <HarHabituachImport onImportComplete={bumpHistory} />
       )}
+      {tab === "misleka" && <MislekaImport onImportComplete={bumpHistory} />}
 
       <Card>
         <CardHeader>
