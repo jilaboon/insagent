@@ -62,43 +62,17 @@ export async function runMislekaImport(
   const { files, importJobId, operatorEmail, consent } = params;
   const start = Date.now();
 
-  // ----- Step 1: PROCESSING + audit start -----
+  // ----- Step 1: PROCESSING -----
+  // Audit `misleka_import_started` and `misleka_import_bypassed_consent`
+  // are emitted by the upload route, which has the authoritative operator
+  // and request context. Re-emitting them here would double-count under
+  // the route's call path. The pipeline is also runnable from scripts
+  // (e.g. the sanity test); those scripts should emit their own start
+  // audit if running outside the route.
   await prisma.importJob.update({
     where: { id: importJobId },
     data: { status: "PROCESSING" },
   });
-
-  await logAudit({
-    actorEmail: operatorEmail,
-    action: "misleka_import_started",
-    entityType: "ImportJob",
-    entityId: importJobId,
-    details: {
-      fileCount: files.length,
-      consentSource: consent.source,
-      consentScope: consent.scope,
-      bypassConsent: consent.bypassConsent === true,
-    },
-  });
-
-  // The bypass audit fires immediately so we have a record even if a
-  // later step throws. Only valid for DEMO_INTERNAL scope; the API route
-  // is responsible for enforcing the role gate (OWNER only).
-  if (
-    consent.bypassConsent === true &&
-    consent.scope === "DEMO_INTERNAL"
-  ) {
-    await logAudit({
-      actorEmail: operatorEmail,
-      action: "misleka_import_bypassed_consent",
-      entityType: "ImportJob",
-      entityId: importJobId,
-      details: {
-        operatorEmail,
-        importJobId,
-      },
-    });
-  }
 
   const report: MislekaImportReport = {
     importJobId,

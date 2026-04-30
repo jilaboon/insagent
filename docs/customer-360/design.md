@@ -236,8 +236,8 @@ model CustomerBalanceSnapshot {
 
   // Discriminators — together with productId+date these make the row unique.
   snapshotKind             String      // "TRACK_BALANCE" | "PRODUCT_TOTAL" | "REDEMPTION" | "BLOCK"
-  trackCode                String?     // KOD-MASLUL when applicable; null for product-wide rows
-  trackName                String?     // SHEM-MASLUL
+  trackCode                String?     // KOD-MASLUL-HASHKAA when applicable; null for product-wide rows
+  trackName                String?     // SHEM-MASLUL-HASHKAA
 
   balanceAmount            Decimal?    // SCHUM-TZVIRA-BAMASLUL
   redemptionAmount         Decimal?    // values from BlockItrot / Yitrot
