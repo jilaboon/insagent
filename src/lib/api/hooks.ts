@@ -180,6 +180,88 @@ export interface CustomerDetail {
     createdAt: string;
     updatedAt: string;
   }[];
+  /**
+   * Phase 2 additions — institutional financial products from Misleka,
+   * import history, and an enriched context summary used by the
+   * Executive Intelligence Panel and the new sections.
+   *
+   * These fields are filled by an extended customer detail API; older
+   * payloads serialize them as `undefined` / `[]`. UI components must
+   * treat them as optional and render their respective empty states.
+   */
+  financialProducts?: Array<{
+    id: string;
+    providerId: string | null;
+    providerName: string | null;
+    providerShortName: string | null;
+    providerCategory: string | null;
+    source: string;
+    sourceFileName: string | null;
+    productTypeCode: string;
+    productTypeLabel: string | null;
+    interfaceType: string | null;
+    planName: string | null;
+    policyOrAccountNumber: string | null;
+    unifiedProductCode: string | null;
+    statusCode: string | null;
+    statusLabel: string | null;
+    isActive: boolean;
+    joinDate: string | null;
+    firstJoinDate: string | null;
+    lastUpdatedDate: string | null;
+    valuationDate: string | null;
+    hasLoan: boolean;
+    hasArrears: boolean;
+    hasExternalCoverage: boolean;
+    hasBeneficiaries: boolean;
+    hasAttorney: boolean;
+    employerName: string | null;
+    employerCode: string | null;
+    latestBalance: {
+      snapshotDate: string;
+      snapshotKind: string;
+      balanceAmount: number | null;
+      redemptionAmount: number | null;
+      monthlyContribution: number | null;
+      employeeContribution: number | null;
+      employerContribution: number | null;
+      compensationComponent: number | null;
+      ytdReturn: number | null;
+    } | null;
+    totalBalanceAmount: number | null;
+    importJobId: string | null;
+  }>;
+  imports?: Array<{
+    id: string;
+    kind: string | null;
+    fileType: string;
+    fileName: string;
+    status: string;
+    createdAt: string;
+    completedAt: string | null;
+    providers: string[];
+    productCount: number;
+    policyCount: number;
+  }>;
+  contextSummary?: {
+    completenessScore: number;
+    providersCount: number;
+    hasExternalProducts: boolean;
+    hasInstitutionalProducts: boolean;
+    totalAccumulatedSavingsAllSources: number;
+    pensionBalanceTotal: number | null;
+    providentBalanceTotal: number | null;
+    monthlyContributionEstimate: number | null;
+    insuranceGaps: string[];
+    missingBalanceCount: number;
+    newProductsLast30Days: number;
+    policiesExpiringWithin90Days: number;
+    topInsightStrengthScore: number | null;
+    strongInsightsCount: number;
+    oldestProductYears: number | null;
+    productsOver5Years: number;
+    productsOver10Years: number;
+  };
 }
 
 // ============================================================
