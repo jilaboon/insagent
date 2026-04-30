@@ -13,6 +13,12 @@ import {
 } from "@/components/ui/indicators";
 import { DataCoverageBanner } from "@/components/ui/data-coverage-banner";
 import { CustomerNotes } from "@/components/customers/customer-notes";
+import { ExecutiveIntelligencePanel } from "@/components/customers/executive-intelligence-panel";
+import {
+  BankingPlaceholderSection,
+  DocumentsImportsSection,
+  PensionProvidentSection,
+} from "@/components/customers/customer-360-sections";
 import {
   ScoreWithBreakdown,
   type ScoreBreakdown,
@@ -276,6 +282,9 @@ export default function CustomerProfilePage() {
         </div>
       </Card>
 
+      {/* Executive Intelligence Panel — at-a-glance headline strip */}
+      <ExecutiveIntelligencePanel customer={customer} />
+
       {/* Insurance map */}
       <Card>
         <CardHeader>
@@ -302,6 +311,7 @@ export default function CustomerProfilePage() {
         {/* Left column (2/3) — Insights */}
         <div className="space-y-6 lg:col-span-2">
           {/* Insights */}
+          <div id="insights-section" className="scroll-mt-6">
           <Card>
             <CardHeader>
               <CardTitle>
@@ -449,6 +459,7 @@ export default function CustomerProfilePage() {
               </div>
             )}
           </Card>
+          </div>
 
           {/* Conversation journal — placed under insights so the agent
               sees commercial opportunities first, then picks up context
@@ -715,6 +726,15 @@ export default function CustomerProfilePage() {
           <CustomerJourneyCard tenure={customer.tenure} />
         </div>
       </div>
+
+      {/* Phase 2 sections — sit beneath the two-column grid as full-width
+          siblings. Order matters: institutional products first (the
+          richest signal), then the import timeline that explains where
+          the data came from, then the banking placeholder which sets
+          expectations for Phase 4. */}
+      <PensionProvidentSection products={customer.financialProducts} />
+      <DocumentsImportsSection imports={customer.imports} />
+      <BankingPlaceholderSection />
     </div>
   );
 }
