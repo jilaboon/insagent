@@ -1,8 +1,20 @@
 # Customer 360 + Misleka XML Import — Design Document
 
-**Status**: Draft for approval, 2026-04-30
+**Status**: Draft for approval — revision 2 (2026-04-30, post-review)
 **Owner**: Backend + product
 **Scope**: Phase 1 + Phase 2 + Phase 3 (banking is Phase 4, scaffolding only)
+
+**Revision 2 changes** (in response to review feedback):
+- Multi-file imports: per-file metadata moved into `ImportJob.metadataJson.files[]`; scalar provider/version fields removed from the table
+- Rollback uses `deletedAt`/`deletedBy` instead of overloading `status`
+- `CustomerBalanceSnapshot` uniqueness extended with `trackCode` + `snapshotKind`
+- `CustomerFinancialProduct` uses a deterministic `sourceStableKey` instead of nullable composite uniqueness
+- Consent is now a hard requirement at the upload route; demo bypass is explicit and audit-logged
+- Audit logging refined: page-render trail dropped, sensitive-section expansion + daily session aggregate instead
+- Role gating clarified: AGENT sees assigned customers only
+- `CustomerContext` enrichment is a batch operation (4 queries per batch, not per customer)
+- `MISLEKA_ONLY` added to `Customer.source` semantics with UI/constants impact
+- Encoding policy: detect declared encoding; UTF-8 + Windows-1255 supported; reject only when undeclared and undetectable
 
 ---
 
@@ -62,7 +74,7 @@ The existing `Policy` table is shaped around agency insurance — premium, cover
 
 ### 3.1 Extend `ImportJob`
 
-Add a typed kind enum so we don't keep growing string conventions.
+A single upload event may contain multiple files from multiple providers (the Max Segal demo ships 8 files from 5 providers under one upload). The `ImportJob` therefore represents a **batch**, with batch-level scalar fields and per-file detail in `metadataJson.files[]`. Per-file scalars are deliberately *not* added as columns — that would force one job per file, which fragments the operator's mental model of one upload.
 
 ```prisma
 enum ImportKind {
@@ -76,22 +88,45 @@ enum ImportKind {
 
 model ImportJob {
   // ... existing fields ...
-  kind            ImportKind?     // null for legacy rows; new rows always set
-  fileHash        String?         // SHA-256 of original bytes — traceability without raw storage
-  providerCode    String?         // e.g. 520004078 for Misleka
-  providerName    String?         // e.g. "הראל חברה לביטוח בע\"מ"
-  xmlVersion      String?         // MISPAR-GIRSAT-XML, e.g. "009"
-  interfaceType   String?         // SUG-MIMSHAK code: KGM / INP / ING
-  productTypes    String[]        // distinct SUG-MUTZAR codes encountered
-  executionDate   DateTime?       // TAARICH-BITZUA from header
-  warnings        Json?           // structured warnings (codes + messages)
-  metadataJson    Json?           // free-form import-specific metadata
-  consentSource     String?       // who provided consent (customer / agent / signed-doc-ref)
+  kind              ImportKind?    // null for legacy rows; new rows always set
+  warnings          Json?          // batch-level warnings (rolled up across files)
+  metadataJson      Json?          // includes files[]; see shape below
+  consentSource     String?        // "CUSTOMER_VERBAL" | "CUSTOMER_SIGNED" | "AGENT_REPRESENTED" | "DEMO_INTERNAL"
   consentDate       DateTime?
-  consentScope      String?       // e.g. "MISLEKA_PRODUCTS" or "FULL_360"
-  consentRecordedBy String?       // operator email
+  consentScope      String?        // "MISLEKA_PRODUCTS" | "FULL_360" | "DEMO_INTERNAL"
+  consentRecordedBy String?        // operator email
+  consentDocRef     String?        // optional reference / URL to signed consent doc
+  deletedAt         DateTime?      // per-import rollback marker (see §9)
+  deletedBy         String?        // operator email who initiated rollback
 }
 ```
+
+Shape of `ImportJob.metadataJson` for a Misleka import:
+
+```jsonc
+{
+  "files": [
+    {
+      "fileName": "55664098_512065202_KGM_202604231251_1.xml",
+      "fileHash": "sha256:7c4b…",         // per-file hash for traceability
+      "fileSize": 48721,
+      "providerCode": "512065202",
+      "providerName": "מיטב גמל ופנסיה בע\"מ",
+      "xmlVersion": "009",                // MISPAR-GIRSAT-XML
+      "interfaceType": "KGM",             // resolved from SUG-MIMSHAK
+      "productTypes": ["4"],              // distinct SUG-MUTZAR codes in this file
+      "executionDate": "2026-04-23T09:26:37Z",  // TAARICH-BITZUA
+      "encoding": "UTF-8",                // detected encoding
+      "warnings": [
+        { "code": "UNKNOWN_STATUS_CODE", "value": "9", "path": "Mutzar[1]/STATUS-POLISA-O-CHESHBON" }
+      ]
+    }
+    // ... one entry per file in the batch ...
+  ]
+}
+```
+
+**Why not a separate `ImportJobFile` table?** Phase 1 doesn't need to query per-file as a relational entity. If Phase 2+ requires that (e.g. "show all imports of a specific provider"), promote `metadataJson.files[]` to a real `ImportJobFile` table. The migration is straightforward and isolated.
 
 `fileType` (string) stays for backward compatibility but new code reads `kind`. Migration: backfill `kind` from `fileType` once.
 
@@ -164,12 +199,16 @@ model CustomerFinancialProduct {
 
   rawImportantFieldsJson Json?     // sanitized snapshot of high-value fields the matcher might want
 
+  // Deterministic identity for idempotent upsert. Never null. SHA-256 of:
+  //   customerId | providerCode | policyOrAccountNumber | productTypeCode | unifiedProductCode | sourceRecordPath
+  // This avoids PostgreSQL's "multiple nulls allowed" issue with composite unique keys.
+  sourceStableKey     String   @unique
+
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   balances            CustomerBalanceSnapshot[]
 
-  @@unique([customerId, providerId, policyOrAccountNumber])
   @@index([customerId])
   @@index([providerId])
   @@index([source])
@@ -180,11 +219,11 @@ model CustomerFinancialProduct {
 
 Notes:
 - `rawImportantFieldsJson` is a sanitized subset — never raw XML, never PII beyond what's already in canonical fields. Used as a debugging aid and a way for new propensity rules to read fields we didn't promote to columns.
-- Unique key `(customerId, providerId, policyOrAccountNumber)` allows safe re-import (idempotent upsert).
+- `sourceStableKey` is the single unique constraint. Computed deterministically from `customerId + providerCode + policyOrAccountNumber + productTypeCode + unifiedProductCode + sourceRecordPath`, hashed with SHA-256. Never null. Re-importing the same product produces the same key → idempotent upsert. The composite alternative (`@@unique([customerId, providerId, policyOrAccountNumber])`) was rejected because PostgreSQL allows multiple rows with NULL in the unique columns, which would silently create duplicates when account numbers are missing.
 
 ### 3.4 New table — `CustomerBalanceSnapshot`
 
-Time-series of pension / provident balances. Genuinely doesn't fit Policy.
+Time-series of pension / provident balances. A product can have multiple balances on the same date (one per investment track from `PerutMasluleiHashkaa`, plus a product-total roll-up, plus separate redemption-value entries from `BlockItrot/Yitrot`). The unique key reflects this.
 
 ```prisma
 model CustomerBalanceSnapshot {
@@ -194,6 +233,11 @@ model CustomerBalanceSnapshot {
   importJobId              String?
   importJob                ImportJob? @relation(fields: [importJobId], references: [id])
   snapshotDate             DateTime    // TAARICH-NECHONUT or TAARICH-ERECH-TZVIROT
+
+  // Discriminators — together with productId+date these make the row unique.
+  snapshotKind             String      // "TRACK_BALANCE" | "PRODUCT_TOTAL" | "REDEMPTION" | "BLOCK"
+  trackCode                String?     // KOD-MASLUL when applicable; null for product-wide rows
+  trackName                String?     // SHEM-MASLUL
 
   balanceAmount            Decimal?    // SCHUM-TZVIRA-BAMASLUL
   redemptionAmount         Decimal?    // values from BlockItrot / Yitrot
@@ -207,7 +251,12 @@ model CustomerBalanceSnapshot {
 
   createdAt                DateTime @default(now())
 
-  @@unique([productId, snapshotDate])
+  // Unique on (product, date, kind, track) — collapsing multi-track snapshots
+  // would lose the per-track detail Misleka explicitly provides.
+  // trackCode is nullable; the unique index treats NULL as a distinct value
+  // (PostgreSQL default), which is correct here because at most one
+  // (productId, date, kind, NULL) row exists per product (the roll-up).
+  @@unique([productId, snapshotDate, snapshotKind, trackCode])
   @@index([productId, snapshotDate(sort: Desc)])
 }
 ```
@@ -269,8 +318,18 @@ src/lib/import/misleka/
 | Element nesting depth | cap at 50 |
 | File extension validation | `.xml` only |
 | MIME type validation | `application/xml`, `text/xml`, or absent |
-| Encoding | UTF-8 enforced; reject if not declared or detected |
+| Encoding | Detect declared encoding from XML prolog; UTF-8 + Windows-1255 supported; reject only when undeclared and undetectable |
 | Raw content logging | never log XML bytes; only file hash + size + name + warnings |
+
+Encoding detection logic:
+
+1. Read first 1024 bytes, parse XML prolog `<?xml version="…" encoding="…" ?>`
+2. If declared encoding is UTF-8 or Windows-1255, decode with that
+3. If undeclared, attempt UTF-8 first; on failure fall back to Windows-1255
+4. If both fail, reject with Hebrew error: "קידוד הקובץ אינו נתמך — נדרש UTF-8 או Windows-1255"
+5. Record detected encoding in `ImportJob.metadataJson.files[].encoding`
+
+All 8 sample files are UTF-8 with explicit declaration. Windows-1255 support is defensive — older BAFI exports use it, and some institutional providers historically did too.
 
 We use `fast-xml-parser` (no DTD support, safe by default) instead of native DOM parsing. The parser is wrapped in a controlled sandbox function.
 
@@ -361,7 +420,27 @@ The 8 sample files share the מבנה אחיד skeleton. Quirks (xsi:nil prefixe
 - Returns the `ImportJob.id` so client can poll for status
 - Audit: `misleka_import_started` / `misleka_import_completed` / `misleka_import_failed`
 
-Client UI: drag-and-drop zone, list of files, progress bar via polling `GET /api/import/job/{id}`.
+**Required form fields beyond the files:**
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `customerId` | UUID | Required when uploading via the customer profile page; optional in admin bulk flow (then matching is the only link path) |
+| `consentSource` | enum | Yes | `CUSTOMER_VERBAL` / `CUSTOMER_SIGNED` / `AGENT_REPRESENTED` / `DEMO_INTERNAL` |
+| `consentScope` | enum | Yes | `MISLEKA_PRODUCTS` / `FULL_360` / `DEMO_INTERNAL` |
+| `consentDate` | ISO date | Yes | When consent was recorded; ≤ today |
+| `consentDocRef` | string | Optional | URL or storage reference to a signed consent document |
+| `bypassConsent` | boolean | Optional | Only OWNER role; only when `consentScope = DEMO_INTERNAL`; logs a separate `misleka_import_bypassed_consent` audit event |
+
+**Consent enforcement rules:**
+- The route rejects with 400 + Hebrew error when consent fields are missing for a real customer import.
+- `DEMO_INTERNAL` scope is allowed only when `bypassConsent = true` AND role = OWNER. Used for the Max Segal sample data and similar test/demo flows.
+- Every import — including demo — records the consent fields on the `ImportJob` row. There is no path that imports without a recorded consent decision.
+
+Hebrew error message when consent missing:
+
+> "חסר אישור הסכמה לאחסון נתונים פיננסיים — יש לציין מקור הסכמה, היקף, ותאריך."
+
+Client UI: drag-and-drop zone, list of files, consent capture form (radio for source, dropdown for scope, date picker, optional doc reference), progress bar via polling `GET /api/import/job/{id}`.
 
 ---
 
@@ -390,6 +469,20 @@ All customer matching uses normalized form. Existing `Customer.israeliId` may ne
 | `NONE` | No match | Create new `Customer` with `source = "MISLEKA_ONLY"` flag, like the Har HaBituach prospect pattern |
 
 Manual review surface: a section in the import report titled "התאמות לבדיקה ידנית" listing each LOW match with a one-click "אשר התאמה" or "צור לקוח חדש" button.
+
+**`Customer.source` semantics — full set:**
+
+| Value | Meaning |
+|-------|---------|
+| `OFFICE` | Customer is an active client of the agency (BAFI data is authoritative) |
+| `HAR_HABITUACH_ONLY` | Prospect surfaced via Har HaBituach external data; not yet a client |
+| `MISLEKA_ONLY` | Prospect surfaced via Misleka XML; not yet a client |
+
+Adding `MISLEKA_ONLY` requires updates beyond the schema:
+- `src/lib/constants.ts`: extend `customerSourceLabels` with the new value
+- `/customers` list page: filter chips and badges include the new value
+- Customer profile header: banner copy adapts (e.g. "לקוח שזוהה דרך מסלקה — לא נמצא בתיקי המשרד")
+- Queue / insight UX: new prospects from Misleka can fire the "outside-the-office" cross-sell rule the same way Har HaBituach prospects already do
 
 ### 5.3 Import report
 
@@ -590,18 +683,34 @@ Each rule below is a draft of `OfficeRule` rows to seed. Final phrasing reviewed
 
 Rules 1–8 are seeded via a script (`scripts/seed-misleka-rules.mjs`), versioned, idempotent.
 
-### 7.4 Computation timing
+### 7.4 Computation timing — batch by design
 
-`enrichCustomerProfileWithContext(customerId)` is called inside `/api/insights/generate` after the existing profile is built. It performs:
+`enrichCustomerProfilesWithContext(customerIds: string[])` is a **batch** operation. For a batch of N customers, total queries = 4 (not 4×N):
 
-1. Single query for `CustomerFinancialProduct` rows for this customer
-2. Single query for latest `CustomerBalanceSnapshot` per product (groupBy + max)
-3. Single query for Har HaBituach policies (already fetched but separated)
-4. Single query for `CustomerNote`s
+1. One query for all `CustomerFinancialProduct` rows where `customerId IN (...)`
+2. One query for latest `CustomerBalanceSnapshot` per product, scoped by the same customer set
+3. One query for Har HaBituach policies (`Policy WHERE customerId IN (...) AND externalSource = 'HAR_HABITUACH'`)
+4. One query for `CustomerNote`s scoped to the customer set
 
-Total: 4 extra round trips per customer at insight-generation time. Negligible at batch scale.
+The function returns `Map<customerId, CustomerContext>`. The `/api/insights/generate` route already loads customers in pages of 200; the context loader scales linearly with **page count**, not customer count.
 
-Phase 4 may materialize `CustomerContext` to a table if banking integration multiplies the cost. For now, lazy compute is correct.
+Caller pattern:
+
+```typescript
+const customerBatch = await fetchCustomersPage(offset, limit);
+const profileBatch = customerBatch.map(buildProfile);
+const contextMap = await enrichCustomerProfilesWithContext(
+  customerBatch.map(c => c.id)
+);
+for (const profile of profileBatch) {
+  const context = contextMap.get(profile.customer.id) ?? emptyContext();
+  evaluateRules(profile, context);
+}
+```
+
+Per-customer enrichment is explicitly **not** the API. Future call sites (e.g. the customer detail API loading a single customer) call the batch function with a one-element array — the cost is identical to a hand-rolled single fetch and the code path is unified.
+
+Phase 4 may materialize `CustomerContext` into a denormalized table if banking integration multiplies query cost. For now, batched lazy compute is correct.
 
 ---
 
@@ -630,12 +739,12 @@ Threats we design against:
 | Control | Implementation |
 |---------|----------------|
 | Parser hardening | XXE off, DTD off, no entity expansion, depth + size caps |
-| Role gating | Misleka import + view restricted to OWNER/MANAGER/OPERATIONS/ADMIN; AGENT can view but not import |
-| Audit logging | Upload, parse-success, parse-fail, customer-link, view-financial-product, delete-import |
+| Role gating | See role matrix below |
+| Audit logging | See audit-event matrix below |
 | PII masking in UI | National IDs displayed with last-3-digit reveal toggle for OWNER only |
 | AI sanitization | The existing `sanitize.ts` extends to strip names, IDs, account numbers, balances before any LLM call |
 | Encryption at rest | Supabase already encrypts at rest; we don't store raw XML files |
-| File hash for traceability | SHA-256 stored on `ImportJob.fileHash` |
+| File hash for traceability | SHA-256 stored per file in `ImportJob.metadataJson.files[].fileHash` |
 | Consent fields | `Customer.externalDataConsent*` populated at import time |
 | Right to erasure | Per-import rollback + per-customer financial-data wipe (see §9) |
 
@@ -649,16 +758,36 @@ Threats we design against:
 
 Error logs include: `ImportJob.id`, file hash, file index, line number (for XML errors), error code class (e.g. "PARSE_ERROR", "MATCH_AMBIGUOUS"). No values.
 
-### 8.4 Existing observability hook
+### 8.4 Role matrix
 
-The codebase already has audit logging (`src/lib/audit.ts`). All Misleka pipeline steps call it. Action strings:
-- `misleka_import_started`
-- `misleka_import_completed`
-- `misleka_import_failed`
-- `misleka_customer_matched` (with match confidence and customer ID)
-- `customer_360_view` (logged when 360 page loads, for sensitive-data-access trail)
-- `misleka_import_deleted`
-- `customer_financial_data_deleted`
+| Role | View 360 | View financial data (pension/banking) | Import Misleka | Delete imports | Bypass consent (demo) |
+|------|----------|---------------------------------------|----------------|----------------|-----------------------|
+| AGENT | Assigned customers only | Assigned customers only | No | No | No |
+| OPERATIONS | All customers | All customers | Yes | No | No |
+| MANAGER | All customers | All customers | Yes | Yes | No |
+| ADMIN | All customers | All customers | Yes | Yes | No |
+| OWNER | All customers | All customers | Yes | Yes | Yes (DEMO_INTERNAL only) |
+
+"Assigned customers" for AGENT means customers in their queue + customers explicitly assigned via `Customer.assignedManagerId`. The 360 API already supports this scoping for other endpoints; we extend it to financial data.
+
+### 8.5 Audit event matrix
+
+Goal: every meaningful action on sensitive data is logged, but page-render trails don't flood the audit table.
+
+| Event | When fired | Rate limit |
+|-------|-----------|-----------|
+| `misleka_import_started` | Upload accepted, ImportJob created | Per upload |
+| `misleka_import_completed` | Pipeline finished successfully | Per upload |
+| `misleka_import_failed` | Pipeline aborted | Per upload |
+| `misleka_import_partial` | Pipeline finished with errors | Per upload |
+| `misleka_import_bypassed_consent` | OWNER used `bypassConsent` | Per upload |
+| `misleka_customer_matched` | Customer linked to import | Per match (with confidence + customerId) |
+| `misleka_import_deleted` | Per-import rollback | Per delete |
+| `customer_financial_data_deleted` | Per-customer right-to-erasure | Per delete |
+| `customer_financial_section_expanded` | Operator expanded a sensitive section (pension card, balance history, beneficiaries) | Once per (operator, customer, section, calendar day) |
+| `customer_360_session` | Daily aggregate of which operator viewed which customer's 360 | Once per (operator, customer, calendar day) |
+
+The previous draft logged a `customer_360_view` event on every page render. Dropped — that's noise. The two replacement events capture the same intent (who looked at what) without volume issues.
 
 ---
 
@@ -670,12 +799,16 @@ Every `CustomerFinancialProduct` and `CustomerBalanceSnapshot` carries `importJo
 
 ```sql
 BEGIN;
-  DELETE FROM customer_balance_snapshots WHERE importJobId = $1;
-  DELETE FROM customer_financial_products WHERE importJobId = $1;
-  UPDATE import_jobs SET status = 'DELETED', completedAt = NOW() WHERE id = $1;
+  DELETE FROM customer_balance_snapshots WHERE "importJobId" = $1;
+  DELETE FROM customer_financial_products WHERE "importJobId" = $1;
+  UPDATE import_jobs
+    SET "deletedAt" = NOW(), "deletedBy" = $2
+    WHERE id = $1;
   -- Audit log: misleka_import_deleted with operatorEmail, importJobId, counts
 COMMIT;
 ```
+
+The `ImportStatus` enum is **not** extended with a `DELETED` value — that would conflate "the import job ran successfully" with "we later deleted its data". Instead, deletion is a soft marker (`deletedAt` + `deletedBy`) on top of the existing terminal status. Listing endpoints filter `WHERE "deletedAt" IS NULL` by default; a "deleted imports" view shows them when an operator audits past activity.
 
 Customers created exclusively from a deleted import (no other linkage) are *not* auto-deleted — deletion of customers is a separate, more deliberate flow (see §9.2). The orphan flag is exposed in the UI so an operator can review.
 
