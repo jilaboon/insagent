@@ -68,6 +68,14 @@ model Customer {
   source           String?  @default("OFFICE")
   firstSeenInHarHabituachAt DateTime?
   lastHarHabituachImportAt  DateTime?
+  // Consent for storing third-party financial data (Misleka XML, future banking).
+  // Recorded at import time; a customer with no consent record yet has nulls.
+  externalDataConsentAt    DateTime?
+  externalDataConsentScope String?      // "MISLEKA_PRODUCTS" | "FULL_360" | "DEMO_INTERNAL"
+  externalDataConsentRef   String?      // optional reference to a signed consent doc
+  // Snapshot metadata for the CustomerContext propensity model.
+  contextComputedAt        DateTime?
+  contextCompletenessScore Int?         // 0=BAFI only, 1=+HaR, 2=+Misleka, 3=+banking
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -81,6 +89,7 @@ model Customer {
   messageDrafts    MessageDraft[]
   queueEntries     QueueEntry[]
   notes            CustomerNote[]
+  financialProducts CustomerFinancialProduct[]
 
   @@index([israeliId])
   @@index([assignedManagerId])
@@ -445,10 +454,23 @@ enum ImportStatus {
   PARTIAL
 }
 
+// Typed kind so we don't keep growing string conventions on `fileType`.
+// Existing pipelines (BAFI, Har HaBituach) will be backfilled to the
+// matching enum values once on migration; new code reads `kind`.
+enum ImportKind {
+  BAFI_LIFE
+  BAFI_ELEMENTARY
+  HAR_HABITUACH
+  MISLEKA_XML
+  BANKING_STATEMENT     // placeholder for Phase 4
+  BANKING_OPEN_API      // placeholder for Phase 4
+}
+
 model ImportJob {
   id              String       @id @default(uuid())
   fileName        String
-  fileType        String       // bafi_html / csv / excel / pdf
+  fileType        String       // bafi_html / csv / excel / pdf — legacy free string
+  kind            ImportKind?  // typed identity for new imports; null for legacy rows
   filePath        String?      // Supabase storage path
   fileSize        Int?
   status          ImportStatus @default(PENDING)
@@ -462,14 +484,37 @@ model ImportJob {
   ambiguousMatches Int?
   errorLog        Json?
   mappingConfig   Json?
+  // Per-file metadata for batch imports — Misleka uploads carry multiple
+  // files from different providers under one job. Shape:
+  //   { files: [{ fileName, fileHash, providerCode, providerName,
+  //                xmlVersion, interfaceType, productTypes, executionDate,
+  //                encoding, warnings }] }
+  metadataJson    Json?
+  // Batch-level warnings rolled up across files.
+  warnings        Json?
+  // Consent recorded at import time. For DEMO_INTERNAL scope, OWNER role
+  // can bypass real consent — that path is logged separately.
+  consentSource     String?    // "CUSTOMER_VERBAL" | "CUSTOMER_SIGNED" | "AGENT_REPRESENTED" | "DEMO_INTERNAL"
+  consentScope      String?    // "MISLEKA_PRODUCTS" | "FULL_360" | "DEMO_INTERNAL"
+  consentDate       DateTime?
+  consentRecordedBy String?    // operator email
+  consentDocRef     String?    // optional reference to signed consent doc
+  // Soft-delete marker for per-import rollback. Listing endpoints filter
+  // deletedAt IS NULL by default; deleted imports stay queryable for audit.
+  deletedAt         DateTime?
+  deletedBy         String?    // operator email who initiated rollback
   createdAt       DateTime     @default(now())
   completedAt     DateTime?
 
-  policies        Policy[]
-  customerLinks   ImportJobCustomer[]
+  policies              Policy[]
+  customerLinks         ImportJobCustomer[]
+  financialProducts     CustomerFinancialProduct[]
+  balanceSnapshots      CustomerBalanceSnapshot[]
 
   @@index([status])
   @@index([operatorId])
+  @@index([kind])
+  @@index([deletedAt])
   @@map("import_jobs")
 }
 
@@ -484,6 +529,140 @@ model ImportJobCustomer {
 
   @@unique([importJobId, customerId])
   @@map("import_job_customers")
+}
+
+// ============================================================
+// InstitutionalProvider — canonical metadata for the financial
+// institutions seen in Misleka XML (and later: banks, agencies).
+// Replaces the loose `insurer` string field over time.
+// ============================================================
+
+model InstitutionalProvider {
+  id            String   @id @default(uuid())
+  providerCode  String   @unique     // 9-digit Israeli company tax ID
+  providerName  String                // canonical Hebrew name
+  shortName     String?               // short-form display name
+  category      String                // "INSURANCE" | "PENSION" | "BANK" | "AGENCY"
+  contactPerson String?
+  phone         String?
+  email         String?
+  address       String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  financialProducts CustomerFinancialProduct[]
+
+  @@index([category])
+  @@map("institutional_providers")
+}
+
+// ============================================================
+// CustomerFinancialProduct — institutional pension/provident/
+// savings/insurance products discovered through Misleka XML.
+// Distinct from `Policy` (which models agency-managed insurance).
+// Future bank accounts, loans, credit cards follow the same
+// per-source pattern (separate tables, unified through
+// CustomerContext).
+// ============================================================
+
+model CustomerFinancialProduct {
+  id                  String   @id @default(uuid())
+  customerId          String
+  customer            Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  providerId          String?
+  provider            InstitutionalProvider? @relation(fields: [providerId], references: [id])
+  importJobId         String?
+  importJob           ImportJob? @relation(fields: [importJobId], references: [id])
+
+  source              String   // "MISLEKA_XML" | "MANUAL" | "BANKING_*" (future)
+  sourceFileName      String?
+  sourceRecordPath    String?  // XPath where this product lives in the source XML
+
+  productTypeCode     String   // SUG-MUTZAR raw code (e.g. "1" / "4" / "6")
+  productTypeLabel    String?  // resolved Hebrew label
+  interfaceType       String?  // KGM / INP / ING
+  planName            String?  // SHEM-TOCHNIT
+  policyOrAccountNumber String?  // MISPAR-POLISA-O-HESHBON
+  unifiedProductCode  String?  // KIDOD-ACHID (30-digit consolidated code)
+
+  statusCode          String?
+  statusLabel         String?
+  isActive            Boolean  @default(false)
+
+  joinDate            DateTime?  // TAARICH-HITZTARFUT-MUTZAR
+  firstJoinDate       DateTime?  // TAARICH-HITZTARFUT-RISHON
+  lastUpdatedDate     DateTime?  // TAARICH-IDKUN-STATUS
+  valuationDate       DateTime?  // TAARICH-NECHONUT
+
+  hasLoan             Boolean  @default(false)
+  hasArrears          Boolean  @default(false)
+  hasExternalCoverage Boolean  @default(false)
+  hasBeneficiaries    Boolean  @default(false)
+  hasAttorney         Boolean  @default(false)
+
+  employerName        String?  // SHEM-MAASIK
+  employerCode        String?  // MPR-MAASIK-BE-YATZRAN
+
+  rawImportantFieldsJson Json?
+
+  // Deterministic identity for idempotent upsert. Computed as SHA-256 of:
+  //   customerId | providerCode | policyOrAccountNumber | productTypeCode |
+  //   unifiedProductCode | sourceRecordPath
+  // Never null. Avoids PostgreSQL's "multiple-nulls-allowed" loophole on
+  // composite unique keys.
+  sourceStableKey     String   @unique
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  balances            CustomerBalanceSnapshot[]
+
+  @@index([customerId])
+  @@index([providerId])
+  @@index([source])
+  @@index([productTypeCode])
+  @@index([importJobId])
+  @@map("customer_financial_products")
+}
+
+// ============================================================
+// CustomerBalanceSnapshot — time-series of balances/contributions
+// for a financial product. A product can have multiple snapshots
+// per date (one per investment track from PerutMasluleiHashkaa,
+// plus product-total roll-ups, plus redemption-value entries).
+// ============================================================
+
+model CustomerBalanceSnapshot {
+  id                       String   @id @default(uuid())
+  productId                String
+  product                  CustomerFinancialProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  importJobId              String?
+  importJob                ImportJob? @relation(fields: [importJobId], references: [id])
+  snapshotDate             DateTime    // TAARICH-NECHONUT or TAARICH-ERECH-TZVIROT
+
+  // Discriminators — together with productId+date these make the row unique.
+  snapshotKind             String      // "TRACK_BALANCE" | "PRODUCT_TOTAL" | "REDEMPTION" | "BLOCK"
+  trackCode                String?     // KOD-MASLUL when applicable; null for product-wide rows
+  trackName                String?     // SHEM-MASLUL
+
+  balanceAmount            Decimal?    @db.Decimal(18, 2)  // SCHUM-TZVIRA-BAMASLUL
+  redemptionAmount         Decimal?    @db.Decimal(18, 2)  // BlockItrot / Yitrot
+  monthlyContribution      Decimal?    @db.Decimal(14, 2)  // SCHUM-HAFRASHA when monthly
+  employeeContribution     Decimal?    @db.Decimal(14, 2)  // SUG-HAFRASHA = 8
+  employerContribution     Decimal?    @db.Decimal(14, 2)  // SUG-HAFRASHA = 9
+  compensationComponent    Decimal?    @db.Decimal(14, 2)  // pizoy
+  ytdReturn                Decimal?    @db.Decimal(8, 4)   // TSUA-NETO-METZUVERET-MITCHILAT-SHANA
+
+  rawJson                  Json?
+
+  createdAt                DateTime @default(now())
+
+  // Per-track + per-kind uniqueness preserves Misleka's per-track detail
+  // (a product can have several balances on the same date).
+  @@unique([productId, snapshotDate, snapshotKind, trackCode])
+  @@index([productId, snapshotDate(sort: Desc)])
+  @@map("customer_balance_snapshots")
 }
 
 // ============================================================
